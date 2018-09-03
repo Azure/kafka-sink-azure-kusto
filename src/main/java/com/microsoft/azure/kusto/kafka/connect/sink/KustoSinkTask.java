@@ -19,6 +19,11 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 
+/**
+ * Kusto sink uses file system to buffer records.
+ * Every time a file is rolled, we used the kusto client to ingest it.
+ * Currently only ingested files are "commited" in the sense that we can advance the offset according to it.
+ */
 public class KustoSinkTask extends SinkTask {
     static final String TOPICS_WILDCARD = "*";
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);

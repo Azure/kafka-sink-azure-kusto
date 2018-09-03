@@ -7,8 +7,13 @@ import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
 
+/**
+ * This class is used to write gzipped rolling files.
+ * Currently supports size based rolling, where size is for *uncompressed* size,
+ * so final size can vary.
+ */
 public class GZIPFileWriter implements Closeable {
-    // callbacks
+
     private Consumer<GZIPFileDescriptor> onRollCallback;
     private Supplier<String> getFilePath;
 
@@ -18,8 +23,16 @@ public class GZIPFileWriter implements Closeable {
     private CountingOutputStream fileStream;
     private long fileThreshold;
 
+
+    /**
+     * @param basePath - This is path to which to write the files to.
+     * @param fileThreshold - Max size, uncompressed bytes.
+     * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
+     * @param getFilePath - Allow external resolving of file name.
+     */
     public GZIPFileWriter(String basePath, long fileThreshold,
-                          Consumer<GZIPFileDescriptor> onRollCallback, Supplier<String> getFilePath) {
+                          Consumer<GZIPFileDescriptor> onRollCallback,
+                          Supplier<String> getFilePath) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
