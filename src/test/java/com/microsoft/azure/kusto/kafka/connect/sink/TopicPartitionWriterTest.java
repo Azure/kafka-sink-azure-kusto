@@ -1,7 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.client.KustoIngestClient;
-import com.microsoft.azure.kusto.kafka.connect.sink.client.KustoIngestionProperties;
+import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -46,7 +47,7 @@ public class TopicPartitionWriterTest {
     @Test
     public void testHandleRollfile() {
         TopicPartition tp = new TopicPartition("testPartition", 11);
-        KustoIngestClient mockedClient = mock(KustoIngestClient.class);
+        IngestClient mockedClient = mock(IngestClient.class);
         String db = "testdb1";
         String table = "testtable1";
         String basePath = "somepath";
@@ -60,26 +61,26 @@ public class TopicPartitionWriterTest {
 
         writer.handleRollFile(descriptor);
 
-
-        KustoIngestionProperties kustoIngestionProperties = new KustoIngestionProperties(db, table, descriptor.rawBytes);
-        ArgumentCaptor<String> pathArgument = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<KustoIngestionProperties> ingestionPropertiesArgumentCaptor = ArgumentCaptor.forClass(KustoIngestionProperties.class);
+        FileSourceInfo fileSourceInfo = new FileSourceInfo(descriptor.path, descriptor.rawBytes);
+        IngestionProperties kustoIngestionProperties = new IngestionProperties(db, table);
+        ArgumentCaptor<FileSourceInfo> fileSourceInfoArgument = ArgumentCaptor.forClass(FileSourceInfo.class);
+        ArgumentCaptor<IngestionProperties> ingestionPropertiesArgumentCaptor = ArgumentCaptor.forClass(IngestionProperties.class);
         try {
-            verify(mockedClient, only()).ingestFromSingleFile(pathArgument.capture(), ingestionPropertiesArgumentCaptor.capture());
+            verify(mockedClient, only()).ingestFromFile(fileSourceInfoArgument.capture(), ingestionPropertiesArgumentCaptor.capture());
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        Assert.assertEquals(pathArgument.getValue(), descriptor.path);
+        Assert.assertEquals(fileSourceInfoArgument.getValue().getFilePath(), descriptor.path);
         Assert.assertEquals(table, ingestionPropertiesArgumentCaptor.getValue().getTableName());
         Assert.assertEquals(db, ingestionPropertiesArgumentCaptor.getValue().getDatabaseName());
-        Assert.assertTrue(ingestionPropertiesArgumentCaptor.getValue().getFileSize().equals((long) 1024));
+        Assert.assertEquals(fileSourceInfoArgument.getValue().getRawSizeInBytes(), 1024);
     }
 
     @Test
     public void testGetFilename() {
         TopicPartition tp = new TopicPartition("testTopic", 11);
-        KustoIngestClient mockClient = mock(KustoIngestClient.class);
+        IngestClient mockClient = mock(IngestClient.class);
         String db = "testdb1";
         String table = "testtable1";
         String basePath = "somepath";
@@ -93,7 +94,7 @@ public class TopicPartitionWriterTest {
     @Test
     public void testGetFilenameAfterOffsetChanges() {
         TopicPartition tp = new TopicPartition("testTopic", 11);
-        KustoIngestClient mockClient = mock(KustoIngestClient.class);
+        IngestClient mockClient = mock(IngestClient.class);
         String db = "testdb1";
         String table = "testtable1";
         String basePath = "somepath";
@@ -101,7 +102,7 @@ public class TopicPartitionWriterTest {
 
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, db, table, basePath, fileThreshold);
         writer.open();
-        List<SinkRecord> records = new ArrayList<SinkRecord>();
+        List<SinkRecord> records = new ArrayList<>();
 
         records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, "another,stringy,message", 3));
         records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, "{'also':'stringy','sortof':'message'}", 4));
@@ -116,7 +117,7 @@ public class TopicPartitionWriterTest {
     @Test
     public void testOpenClose() {
         TopicPartition tp = new TopicPartition("testPartition", 1);
-        KustoIngestClient mockClient = mock(KustoIngestClient.class);
+        IngestClient mockClient = mock(IngestClient.class);
         String db = "testdb1";
         String table = "testtable1";
         String basePath = "somepath";
@@ -156,7 +157,7 @@ public class TopicPartitionWriterTest {
     @Test
     public void testWriteStringyValuesAndOffset() throws Exception {
         TopicPartition tp = new TopicPartition("testTopic", 2);
-        KustoIngestClient mockClient = mock(KustoIngestClient.class);
+        IngestClient mockClient = mock(IngestClient.class);
         String db = "testdb1";
         String table = "testtable1";
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
@@ -175,13 +176,13 @@ public class TopicPartitionWriterTest {
             writer.writeRecord(record);
         }
 
-        Assert.assertEquals(writer.gzipFileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 3)).toString());
+        Assert.assertEquals(writer.gzipFileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 0)).toString());
     }
 
     @Test
     public void testWriteBytesValuesAndOffset() throws Exception {
         TopicPartition tp = new TopicPartition("testPartition", 11);
-        KustoIngestClient mockClient = mock(KustoIngestClient.class);
+        IngestClient mockClient = mock(IngestClient.class);
         String db = "testdb1";
         String table = "testtable1";
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
@@ -204,7 +205,8 @@ public class TopicPartitionWriterTest {
         }
 
         //TODO : file threshold ignored?
-        Assert.assertTrue(writer.lastCommitedOffset.equals((long) 16));
-        Assert.assertEquals(writer.gzipFileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 17)).toString());
+        Assert.assertTrue(writer.lastCommittedOffset.equals((long) 15));
+        Assert.assertEquals(writer.currentOffset, 17);
+        Assert.assertEquals(writer.gzipFileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 16)).toString());
     }
 }

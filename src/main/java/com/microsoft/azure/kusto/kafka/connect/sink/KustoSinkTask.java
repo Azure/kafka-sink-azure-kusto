@@ -4,8 +4,9 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 // FIXME: need to consume this package via maven once setup properly
 //import com.microsoft.azure.sdk.kusto.ingest.KustoIngestClient;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.client.KustoConnectionStringBuilder;
-import com.microsoft.azure.kusto.kafka.connect.sink.client.KustoIngestClient;
+import com.microsoft.azure.kusto.data.KustoConnectionStringBuilder;
+import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
@@ -29,7 +30,7 @@ public class KustoSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     private final Set<TopicPartition> assignment;
     Map<String, String> topicsToTables;
-    KustoIngestClient kustoIngestClient;
+    IngestClient kustoIngestClient;
     String databaseName;
     Map<TopicPartition, TopicPartitionWriter> writers;
     private Long maxFileSize;
@@ -41,18 +42,20 @@ public class KustoSinkTask extends SinkTask {
         writers = new HashMap<>();
     }
 
-    public static KustoIngestClient createKustoIngestClient(KustoSinkConfig config) throws Exception {
+    public static IngestClient createKustoIngestClient(KustoSinkConfig config) throws Exception {
         if (config.getKustoAuthAppid() != null) {
             if (config.getKustoAuthAppkey() == null) {
                 throw new ConfigException("Kusto authentication missing App Key.");
             }
-            return new KustoIngestClient(KustoConnectionStringBuilder.createWithAadApplicationCredentials(
+
+            KustoConnectionStringBuilder kcsb = KustoConnectionStringBuilder.createWithAadApplicationCredentials(
                     config.getKustoUrl(),
-                    //todo: should replace with proper initialization
                     config.getKustoAuthAppid(),
                     config.getKustoAuthAppkey(),
                     config.getKustoAuthAuthority()
-            ));
+            );
+
+            return IngestClientFactory.createClient(kcsb);
         }
 
         if (config.getKustoAuthUsername() != null) {
@@ -60,9 +63,8 @@ public class KustoSinkTask extends SinkTask {
                 throw new ConfigException("Kusto authentication missing Password.");
             }
 
-            return new KustoIngestClient(KustoConnectionStringBuilder.createWithAadUserCredentials(
+            return IngestClientFactory.createClient(KustoConnectionStringBuilder.createWithAadUserCredentials(
                     config.getKustoUrl(),
-                    //todo: should replace with proper initialization
                     config.getKustoAuthUsername(),
                     config.getKustoAuthPassword()
             ));
@@ -147,7 +149,7 @@ public class KustoSinkTask extends SinkTask {
     public void start(Map<String, String> props) throws ConnectException {
         try {
             KustoSinkConfig config = new KustoSinkConfig(props);
-
+            String url = config.getKustoUrl();
             databaseName = config.getKustoDb();
 
             topicsToTables = getTopicsToTables(config);
@@ -156,6 +158,8 @@ public class KustoSinkTask extends SinkTask {
             tempDir = config.getKustoSinkTempDir();
             maxFileSize = config.getKustoFlushSize();
 
+
+            log.info(String.format("Kafka Kusto Sink started with cluster: %s, db: %s, table mapping: %s", url, databaseName, topicsToTables.toString()));
             open(context.assignment());
 
         } catch (ConfigException ex) {
@@ -187,7 +191,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     // this is a neat trick, since our rolling files commit whenever they like, offsets may drift
-    // from what kafka expects. so basically this is to re-sync topic-partition offests with our sink.
+    // from what kafka expects. so basically this is to re-sync topic-partition offsets with our sink.
     @Override
     public Map<TopicPartition, OffsetAndMetadata> preCommit(
             Map<TopicPartition, OffsetAndMetadata> offsets
@@ -195,13 +199,14 @@ public class KustoSinkTask extends SinkTask {
         Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>();
         for (TopicPartition tp : assignment) {
 
-            Long offset = writers.get(tp).lastCommitedOffset;
+            Long offset = writers.get(tp).lastCommittedOffset;
 
             if (offset != null) {
                 log.trace("Forwarding to framework request to commit offset: {} for {}", offset, tp);
                 offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
             }
         }
+
         return offsetsToCommit;
     }
 

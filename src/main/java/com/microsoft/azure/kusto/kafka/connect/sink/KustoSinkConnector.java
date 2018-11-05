@@ -13,12 +13,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class KustoSinkConnector extends SinkConnector {
+public class KustoSinkConnector extends SinkConnector {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConnector.class);
     private Map<String, String> configProps;
 
+    public KustoSinkConnector() {
+        // No-arg constructor. It is instantiated by Connect framework.
+        log.info("KustoSinkConnector initialized");
+    }
+
     KustoSinkConnector(KustoSinkConfig config) {
+        // No-arg constructor. It is instantiated by Connect framework.
+        log.info("KustoSinkConnector initialized with config");
     }
 
     @Override

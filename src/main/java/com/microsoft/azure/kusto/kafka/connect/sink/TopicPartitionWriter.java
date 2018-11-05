@@ -1,20 +1,23 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.client.KustoIngestClient;
-import com.microsoft.azure.kusto.kafka.connect.sink.client.KustoIngestionProperties;
+import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 
 public class TopicPartitionWriter {
+    private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     GZIPFileWriter gzipFileWriter;
-
     TopicPartition tp;
-    KustoIngestClient client;
+    IngestClient client;
 
     String databse;
     String table;
@@ -23,10 +26,10 @@ public class TopicPartitionWriter {
     long fileThreshold;
 
     long currentOffset;
-    Long lastCommitedOffset;
+    Long lastCommittedOffset;
 
     TopicPartitionWriter(
-            TopicPartition tp, KustoIngestClient client,
+            TopicPartition tp, IngestClient client,
             String database, String table,
             String basePath, long fileThreshold
     ) {
@@ -40,43 +43,43 @@ public class TopicPartitionWriter {
     }
 
     public void handleRollFile(GZIPFileDescriptor fileDescriptor) {
-        KustoIngestionProperties properties = new KustoIngestionProperties(databse, table, fileDescriptor.rawBytes);
+        IngestionProperties properties = new IngestionProperties(databse, table);
+        FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
         try {
-            client.ingestFromSingleFile(fileDescriptor.path, properties);
-            lastCommitedOffset = currentOffset;
+            client.ingestFromFile(fileSourceInfo, properties);
+            this.lastCommittedOffset = currentOffset;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Ingestion Failed", e);
         }
     }
 
     public String getFilePath() {
-        long nextOffset = gzipFileWriter != null &&  gzipFileWriter.isDirty() ? currentOffset + 1 : currentOffset;
+        long nextOffset = gzipFileWriter != null && gzipFileWriter.isDirty() ? currentOffset + 1 : currentOffset;
         return Paths.get(basePath, String.format("kafka_%s_%s_%d", tp.topic(), tp.partition(), nextOffset)).toString();
     }
 
     public void writeRecord(SinkRecord record) {
-        byte[] value = new byte[0];
-        // todo: should probably handle more schemas
-        if (record.valueSchema() == null || record.valueSchema() == Schema.STRING_SCHEMA) {
+        byte[] value = null;
+
+        if (record.valueSchema() == null || record.valueSchema().type() == Schema.Type.STRING) {
             value = record.value().toString().getBytes(StandardCharsets.UTF_8);
-        } else if (record.valueSchema() == Schema.BYTES_SCHEMA) {
+        } else if (record.valueSchema().type() == Schema.Type.BYTES) {
             value = (byte[]) record.value();
         } else {
-            try {
-                throw new Exception("Unexpected value type, can only handle strings");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            log.error(String.format("Unexpected value type, skipping record %s", value));
         }
 
-        try {
-            currentOffset = record.kafkaOffset();
+        if (value == null) {
+            this.currentOffset = record.kafkaOffset();
+        } else {
+            try {
+                gzipFileWriter.write(value);
 
-            gzipFileWriter.write(value);
-
-        } catch (IOException e) {
-            e.printStackTrace();
+                this.currentOffset = record.kafkaOffset();
+            } catch (IOException e) {
+                log.error("File write failed", e);
+            }
         }
     }
 

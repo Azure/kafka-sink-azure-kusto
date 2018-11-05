@@ -1,6 +1,9 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -14,10 +17,10 @@ import java.util.zip.GZIPOutputStream;
  */
 public class GZIPFileWriter implements Closeable {
 
+    private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
+    public GZIPFileDescriptor currentFile;
     private Consumer<GZIPFileDescriptor> onRollCallback;
     private Supplier<String> getFilePath;
-
-    public GZIPFileDescriptor currentFile;
     private GZIPOutputStream gzipStream;
     private String basePath;
     private CountingOutputStream fileStream;
@@ -25,10 +28,10 @@ public class GZIPFileWriter implements Closeable {
 
 
     /**
-     * @param basePath - This is path to which to write the files to.
-     * @param fileThreshold - Max size, uncompressed bytes.
+     * @param basePath       - This is path to which to write the files to.
+     * @param fileThreshold  - Max size, uncompressed bytes.
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
-     * @param getFilePath - Allow external resolving of file name.
+     * @param getFilePath    - Allow external resolving of file name.
      */
     public GZIPFileWriter(String basePath, long fileThreshold,
                           Consumer<GZIPFileDescriptor> onRollCallback,

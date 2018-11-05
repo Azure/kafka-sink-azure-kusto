@@ -272,6 +272,24 @@ public class KustoSinkTaskTest {
     }
 
     @Test
+    public void sinkStartValid() {
+        HashMap<String, String> props = new HashMap<>();
+        props.put(KustoSinkConfig.KUSTO_URL, "https://{cluster_name}.kusto.windows.net");
+        props.put(KustoSinkConfig.KUSTO_DB, "db1");
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "topic1:table1;topic2:table2;");
+
+
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPID, "appid");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY, "appkey");
+        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY, "authority");
+
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        // should not throw any errors
+        kustoSinkTask.start(props);
+        assertNotNull(kustoSinkTask.kustoIngestClient);
+    }
+
+    @Test
     public void getTable() {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL, "https://{cluster_name}.kusto.windows.net");
