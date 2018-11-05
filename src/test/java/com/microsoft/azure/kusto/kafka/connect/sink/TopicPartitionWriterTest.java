@@ -45,15 +45,15 @@ public class TopicPartitionWriterTest {
     }
 
     @Test
-    public void testHandleRollfile() {
+    public void testHandleRollFile() {
         TopicPartition tp = new TopicPartition("testPartition", 11);
         IngestClient mockedClient = mock(IngestClient.class);
         String db = "testdb1";
         String table = "testtable1";
         String basePath = "somepath";
         long fileThreshold = 100;
-
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, db, table, basePath, fileThreshold);
+        IngestionProperties ingestionProperties = new IngestionProperties(db, table);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, ingestionProperties, basePath, fileThreshold);
 
         GZIPFileDescriptor descriptor = new GZIPFileDescriptor();
         descriptor.rawBytes = 1024;
@@ -62,7 +62,6 @@ public class TopicPartitionWriterTest {
         writer.handleRollFile(descriptor);
 
         FileSourceInfo fileSourceInfo = new FileSourceInfo(descriptor.path, descriptor.rawBytes);
-        IngestionProperties kustoIngestionProperties = new IngestionProperties(db, table);
         ArgumentCaptor<FileSourceInfo> fileSourceInfoArgument = ArgumentCaptor.forClass(FileSourceInfo.class);
         ArgumentCaptor<IngestionProperties> ingestionPropertiesArgumentCaptor = ArgumentCaptor.forClass(IngestionProperties.class);
         try {
@@ -86,7 +85,7 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
 
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, db, table, basePath, fileThreshold);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, new IngestionProperties(db, table), basePath, fileThreshold);
 
         Assert.assertEquals(writer.getFilePath(), Paths.get(basePath, "kafka_testTopic_11_0").toString());
     }
@@ -100,7 +99,7 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
 
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, db, table, basePath, fileThreshold);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, new IngestionProperties(db, table), basePath, fileThreshold);
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
 
@@ -123,7 +122,7 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
 
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, db, table, basePath, fileThreshold);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient,new IngestionProperties(db,table), basePath, fileThreshold);
         writer.open();
         writer.close();
     }
@@ -163,7 +162,7 @@ public class TopicPartitionWriterTest {
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         long fileThreshold = 100;
 
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, db, table, basePath, fileThreshold);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, new IngestionProperties(db,table), basePath, fileThreshold);
 
 
         writer.open();
@@ -188,7 +187,7 @@ public class TopicPartitionWriterTest {
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         long fileThreshold = 50;
 
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, db, table, basePath, fileThreshold);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, new IngestionProperties(db,table), basePath, fileThreshold);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<SinkRecord>();

@@ -18,10 +18,7 @@ public class TopicPartitionWriter {
     GZIPFileWriter gzipFileWriter;
     TopicPartition tp;
     IngestClient client;
-
-    String databse;
-    String table;
-
+    IngestionProperties ingestionProps;
     String basePath;
     long fileThreshold;
 
@@ -29,25 +26,21 @@ public class TopicPartitionWriter {
     Long lastCommittedOffset;
 
     TopicPartitionWriter(
-            TopicPartition tp, IngestClient client,
-            String database, String table,
-            String basePath, long fileThreshold
+            TopicPartition tp, IngestClient client, IngestionProperties ingestionProps, String basePath, long fileThreshold
     ) {
         this.tp = tp;
         this.client = client;
-        this.table = table;
+        this.ingestionProps = ingestionProps;
         this.fileThreshold = fileThreshold;
-        this.databse = database;
         this.basePath = basePath;
         this.currentOffset = 0;
     }
 
     public void handleRollFile(GZIPFileDescriptor fileDescriptor) {
-        IngestionProperties properties = new IngestionProperties(databse, table);
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
         try {
-            client.ingestFromFile(fileSourceInfo, properties);
+            client.ingestFromFile(fileSourceInfo, ingestionProps);
             this.lastCommittedOffset = currentOffset;
         } catch (Exception e) {
             log.error("Ingestion Failed", e);
@@ -62,10 +55,18 @@ public class TopicPartitionWriter {
     public void writeRecord(SinkRecord record) {
         byte[] value = null;
 
+        // TODO: should probably refactor this code out into a value transformer
         if (record.valueSchema() == null || record.valueSchema().type() == Schema.Type.STRING) {
-            value = record.value().toString().getBytes(StandardCharsets.UTF_8);
+            value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
         } else if (record.valueSchema().type() == Schema.Type.BYTES) {
-            value = (byte[]) record.value();
+            byte[] valueBytes = (byte[]) record.value();
+            byte[] separator = "\n".getBytes(StandardCharsets.UTF_8);
+            byte[] valueWithSeparator = new byte[valueBytes.length + separator.length];
+
+            System.arraycopy(valueBytes, 0, valueWithSeparator, 0, valueBytes.length);
+            System.arraycopy(separator, 0, valueWithSeparator, valueBytes.length, separator.length);
+
+            value = valueWithSeparator;
         } else {
             log.error(String.format("Unexpected value type, skipping record %s", value));
         }

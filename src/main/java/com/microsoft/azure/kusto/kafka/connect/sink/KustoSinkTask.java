@@ -1,11 +1,10 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-//import com.microsoft.azure.kusto.kafka.connect.source.JsonSerialization
-// FIXME: need to consume this package via maven once setup properly
-//import com.microsoft.azure.sdk.kusto.ingest.KustoIngestClient;
-
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.microsoft.azure.kusto.data.KustoConnectionStringBuilder;
 import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -14,6 +13,8 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.NotFoundException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,9 +30,8 @@ public class KustoSinkTask extends SinkTask {
     static final String TOPICS_WILDCARD = "*";
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     private final Set<TopicPartition> assignment;
-    Map<String, String> topicsToTables;
+    Map<String, IngestionProperties> topicsToIngestionProps;
     IngestClient kustoIngestClient;
-    String databaseName;
     Map<TopicPartition, TopicPartitionWriter> writers;
     private Long maxFileSize;
     private String tempDir;
@@ -73,38 +73,60 @@ public class KustoSinkTask extends SinkTask {
         throw new ConfigException("Kusto authentication method must be provided.");
     }
 
-    public static Map<String, String> getTopicsToTables(KustoSinkConfig config) {
-        Map<String, String> result = new HashMap<>();
+    public static Map<String, IngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
+        Map<String, IngestionProperties> result = new HashMap<>();
 
-        if (config.getKustoTable() != null) {
-            result.put(TOPICS_WILDCARD, config.getKustoTable());
-            return result;
-        }
+        try {
+            if (config.getKustoTopicToTableMapping() != null) {
+                JSONArray mappings = new JSONArray(config.getKustoTopicToTableMapping());
 
-        if (config.getKustoTopicToTableMapping() != null) {
-            String[] mappings = config.getKustoTopicToTableMapping().split(";");
+                for (int i =0;i< mappings.length();i++) {
 
-            for (String mapping : mappings) {
-                String[] kvp = mapping.split(":");
-                if (kvp.length != 2) {
-                    throw new ConfigException("Provided table mapping is malformed. please make sure table mapping is of 'topicName:tableName;' format.");
+                    JSONObject mapping = mappings.getJSONObject(i);
+
+                    try {
+                        String db = mapping.getString("db");
+                        String table = mapping.getString("table");
+
+                        String format = mapping.optString("format");
+                        IngestionProperties props = new IngestionProperties(db, table);
+
+                        if (format != null && !format.isEmpty()) {
+                            props.setDataFormat(format);
+                        }
+
+                        String mappingRef = mapping.optString("mapping");
+
+                        if (mappingRef != null && !mappingRef.isEmpty()) {
+                            if (format != null && format.equals("json")) {
+                                props.setJsonMappingName(mappingRef);
+                            } else {
+                                props.setCsvMappingName(mappingRef);
+                            }
+                        }
+
+                        result.put(mapping.getString("topic"), props);
+                    } catch (Exception ex) {
+                        throw new ConfigException("Malformed topics to kusto ingestion props mappings");
+                    }
                 }
 
-                result.put(kvp[0], kvp[1]);
+                return result;
             }
-
-            return result;
+        }
+        catch (Exception ex) {
+            throw new ConfigException(String.format("Error trying to parse kusto ingestion props %s",ex.getMessage()));
         }
 
-        throw new ConfigException("Kusto table mapping must be provided.");
+        throw new ConfigException("Malformed topics to kusto ingestion props mappings");
     }
 
-    public String getTable(String topic) {
-        if (topicsToTables.containsKey(TOPICS_WILDCARD)) {
-            return topicsToTables.get(TOPICS_WILDCARD);
+    public IngestionProperties getIngestionProps(String topic) {
+        if (topicsToIngestionProps.containsKey(TOPICS_WILDCARD)) {
+            return topicsToIngestionProps.get(TOPICS_WILDCARD);
         }
 
-        return topicsToTables.get(topic);
+        return topicsToIngestionProps.get(topic);
     }
 
     @Override
@@ -117,12 +139,12 @@ public class KustoSinkTask extends SinkTask {
         assignment.addAll(partitions);
 
         for (TopicPartition tp : assignment) {
-            String table = getTable(tp.topic());
+            IngestionProperties ingestionProps = getIngestionProps(tp.topic());
 
-            if (table == null) {
-                throw new ConnectException(String.format("Kusto Sink has no table mapped for the topic: %s. please check your configuration.", tp.topic()));
+            if (ingestionProps == null) {
+                throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, databaseName, table, tempDir, maxFileSize);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize);
 
                 writer.open();
                 writers.put(tp, writer);
@@ -150,20 +172,19 @@ public class KustoSinkTask extends SinkTask {
         try {
             KustoSinkConfig config = new KustoSinkConfig(props);
             String url = config.getKustoUrl();
-            databaseName = config.getKustoDb();
 
-            topicsToTables = getTopicsToTables(config);
+            topicsToIngestionProps = getTopicsToIngestionProps(config);
             // this should be read properly from settings
             kustoIngestClient = createKustoIngestClient(config);
             tempDir = config.getKustoSinkTempDir();
             maxFileSize = config.getKustoFlushSize();
 
 
-            log.info(String.format("Kafka Kusto Sink started with cluster: %s, db: %s, table mapping: %s", url, databaseName, topicsToTables.toString()));
+            log.info(String.format("Kafka Kusto Sink started with cluster: %s, db: %s, table mapping: %s", url, topicsToIngestionProps.toString()));
             open(context.assignment());
 
         } catch (ConfigException ex) {
-            throw new ConnectException(String.format("Kusto Connector failed to start due to configuration error. %s", ex.getMessage()), ex);
+            throw new ConnectException(String.format("Kusto Connector failed to start due to configuration error. %s", ex.getMessage()));
         } catch (Exception e) {
             e.printStackTrace();
         }

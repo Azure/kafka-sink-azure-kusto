@@ -40,7 +40,7 @@ public class KustoSinkConfig extends AbstractConfig {
     public static ConfigDef getConfig() {
         return new ConfigDef()
                 .define(KUSTO_URL, Type.STRING, Importance.HIGH, "Kusto cluster url")
-                .define(KUSTO_DB, Type.STRING, Importance.HIGH, "Kusto target database name")
+                .define(KUSTO_DB, Type.STRING, null, Importance.HIGH, "Kusto target database name")
 
                 .define(KUSTO_TABLE, Type.STRING, null, Importance.HIGH, "Kusto target table (if a per topic mapping is required, use `kusto.tables.topic_mapping` instead)")
                 .define(KUSTO_TABLES_MAPPING, Type.STRING, null, Importance.HIGH, "Kusto target tables mapping (per topic mapping, 'topic1:table1;topic2:table2;')")
