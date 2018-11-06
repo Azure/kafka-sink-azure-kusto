@@ -1,7 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.microsoft.azure.kusto.data.KustoConnectionStringBuilder;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -27,10 +25,9 @@ import java.util.*;
  * Currently only ingested files are "commited" in the sense that we can advance the offset according to it.
  */
 public class KustoSinkTask extends SinkTask {
-    static final String TOPICS_WILDCARD = "*";
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     private final Set<TopicPartition> assignment;
-    Map<String, IngestionProperties> topicsToIngestionProps;
+    private Map<String, IngestionProperties> topicsToIngestionProps;
     IngestClient kustoIngestClient;
     Map<TopicPartition, TopicPartitionWriter> writers;
     private Long maxFileSize;
@@ -122,10 +119,6 @@ public class KustoSinkTask extends SinkTask {
     }
 
     public IngestionProperties getIngestionProps(String topic) {
-        if (topicsToIngestionProps.containsKey(TOPICS_WILDCARD)) {
-            return topicsToIngestionProps.get(TOPICS_WILDCARD);
-        }
-
         return topicsToIngestionProps.get(topic);
     }
 
@@ -180,7 +173,7 @@ public class KustoSinkTask extends SinkTask {
             maxFileSize = config.getKustoFlushSize();
 
 
-            log.info(String.format("Kafka Kusto Sink started with cluster: %s, db: %s, table mapping: %s", url, topicsToIngestionProps.toString()));
+            log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
             open(context.assignment());
 
         } catch (ConfigException ex) {
@@ -223,7 +216,7 @@ public class KustoSinkTask extends SinkTask {
             Long offset = writers.get(tp).lastCommittedOffset;
 
             if (offset != null) {
-                log.trace("Forwarding to framework request to commit offset: {} for {}", offset, tp);
+                log.debug("Forwarding to framework request to commit offset: {} for {}", offset, tp);
                 offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
             }
         }
