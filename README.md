@@ -4,18 +4,226 @@ This repository contains the source code of the Kafka To ADX Sink.
 
 ## Setup
 
-### Clone
+### AKS
+
+Deploying Kafka -> ADX connector on AKS
+
+Setting up ADX connector on AKS is a useful setup for a scalable solution of connecting Kafka and ADX.
+The setup is rather easy:
+
+Pre-requirements:
+* Running Kafka ([confluent](https://docs.confluent.io/current/installation/operator/co-deployment.html))
+* Running Kusto ([docs](https://docs.microsoft.com/en-us/azure/data-explorer/create-cluster-database-portal))
+* Kubectl installed ([docs](https://kubernetes.io/docs/tasks/tools/install-kubectl/))
+
+Setup is comprised of the following steps:
+
+1. Setup an AKS cluster
+2. Deploy Kafka with ADX connector
+3. Post configuration for ADX connector
+4. Test
+5. Check for errors
+6. Monitor Performance
+
+
+#### Setup AKS cluster
+Straightforward. Go to Azure Portal, add a Kubernetes Service, and go through the wizard.
+
+In order to be able to work with the cluster using `kubectl`, you can sync it with azure cli credentials.
+
+Make sure you are logged in properly:
+```
+az account show
+```
+
+If it is the wrong subscription, switch to the correct one:
+```
+az account set --subscription <subscription_id>
+```
+
+Then, to get the credentials for aks, run:
+
+```
+az aks get-credentials -g <group_name> -n <kafka_name>
+```
+
+Now, let see that kubectl can properly access the cluster:
+```
+kubectl get nodes
+```
+
+*UI*:  If you are familiar with Kubernetes Dashboard, you can use it as well - [docs](https://docs.microsoft.com/en-us/azure/aks/kubernetes-dashboard)
+
+#### Deploy Kafka-ADX Connector
+
+##### Docker Image
+
+Since we need the Kusto Connector to be bundled with confluent's kafka cluster, we need an image.
+
+```docker
+FROM confluentinc/cp-kafka-connect:5.2.1 
+COPY ./binary/kafka-sink-azure-kusto-0.1.0-jar-with-dependencies.jar /usr/share/java
+```
+
+This image already [exists](https://hub.docker.com/r/jojokoshy/kafka-connect-kusto), and so we will use it.
+
+##### Using Confluent helm chart
+
+
+
+##### Deploy & Manage (REST API)
+
+Following commands are used to control the connector:
+
+DEPLOY connector
+```json
+{
+    "url":  "http://localhost:803/connectors/",
+    "method": "POST",
+    "header": [
+        {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+        },
+        {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+        }
+    ],
+    "body": {        
+        "name": "KustoSinkConnector",
+        "config": {
+            "connector.class": "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector",
+            "kusto.sink.flush_interval_ms": "10000",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "tasks.max": "20",
+            "topics": "test",
+            "kusto.tables.topics_mapping": "[{
+                'topic': 'test',
+                'db': 'testdb', 
+                'table': 'testtable',
+                'format': 'json', 
+                'mapping':'mapping'
+            }]",            
+            "kusto.url":"https://ingest-cluster.region.kusto.windows.net",
+            "kusto.auth.authority": "<tenant_id>",
+            "kusto.auth.appid":"<app_id>",
+            "kusto.auth.appkey":"<app_key>",
+            "kusto.sink.tempdir":"/var/tmp/",
+            "kusto.sink.flush_size":"100000"
+        }        
+    },
+    
+}
+```
+
+GET connector
+```json
+{
+    "url": "http://localhost:803/connectors/",
+    "method": "GET", 
+}
+```
+
+UPDATE config
+```json
+{
+    "url":  "http://localhost:803/connectors/KustoSinkConnector/config"
+    "method": "PUT",       
+    "header": [
+        {
+            "key": "Accept",
+            "type": "text",
+            "value": "application/json"
+        },
+        {
+            "key": "Content-Type",
+            "type": "text",
+            "value": "application/json"
+        }
+    ],
+    "body": {
+        "name": "KustoSinkConnector",
+        "config": {
+            "connector.class": "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector",
+            "kusto.sink.flush_interval_ms": "10000",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "tasks.max": "20",
+            "topics": "test",
+            "kusto.tables.topics_mapping": "[{
+                'topic': 'test',
+                'db': 'testdb', 
+                'table': 'testtable',
+                'format': 'json', 
+                'mapping':'mapping'
+            }]",                
+            "kusto.url":"https://ingest-cluster.region.kusto.windows.net",
+            "kusto.auth.authority": "<tenant_id>",
+            "kusto.auth.appid":"<app_id>",
+            "kusto.auth.appkey":"<app_key>",
+            "kusto.sink.tempdir":"/var/tmp/",
+            "kusto.sink.flush_size":"100000"
+        }
+    }
+}
+```
+
+GET Connector status
+```json
+{
+    "url":  "http://localhost:803/connectors/KustoSinkConnector/status",
+    "method": "GET",			
+}
+```
+
+RESTART Connector
+```json
+{
+    "url":  "http://localhost:803/connectors/KustoSinkConnector/restart",
+    "method": "POST"
+}
+```
+
+GET Connector config
+```json
+{   
+    "url":  "http://localhost:803/connectors/KustoSinkConnector/config",     
+    "method": "GET"    
+}
+```
+
+DELETE Connector
+```json
+{
+    "url":  "http://localhost:803/connectors/KustoSinkConnector/",
+    "method": "DELETE"
+}
+```
+
+#### Test
+
+#### Check for errors
+
+#### Monitor traffic
+
+### Standalone
+
+#### Clone
 
 ```bash
 git clone git://github.com/Azure/kafka-sink-azure-kusto.git
 cd ./kafka-sink-azure-kusto
 ```
 
-### Build
+#### Build
 
 Need to build locally with Maven 
 
-#### Requirements
+##### Requirements
 
 * JDK >= 1.8 [download](https://www.oracle.com/technetwork/java/javase/downloads/index.html)
 * Maven [download](https://maven.apache.org/install.html)
@@ -28,7 +236,7 @@ mvn clean compile assembly:single
 
 Which should produce a Jar complete with dependencies.
 
-### Deploy 
+#### Deploy 
 
 Deployment as a Kafka plugin will be demonstrated using a docker image for convenience,
 but production deployment should be very similar (detailed docs can be found [here](https://docs.confluent.io/current/connect/userguide.html#installing-plugins))
