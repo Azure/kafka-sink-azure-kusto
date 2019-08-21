@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
@@ -18,8 +20,10 @@ import java.util.zip.GZIPOutputStream;
 public class GZIPFileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
+    private Timer timer;
     public GZIPFileDescriptor currentFile;
     private Consumer<GZIPFileDescriptor> onRollCallback;
+    private long flushInterval;
     private Supplier<String> getFilePath;
     private GZIPOutputStream gzipStream;
     private String basePath;
@@ -33,13 +37,35 @@ public class GZIPFileWriter implements Closeable {
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
      * @param getFilePath    - Allow external resolving of file name.
      */
-    public GZIPFileWriter(String basePath, long fileThreshold,
+    public GZIPFileWriter(String basePath,
+                          long fileThreshold,
                           Consumer<GZIPFileDescriptor> onRollCallback,
-                          Supplier<String> getFilePath) {
+                          Supplier<String> getFilePath,
+                          long flushInterval) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
+        this.flushInterval = flushInterval;
+        this.timer = new Timer(true);
+
+        resetFlushByTime();
+    }
+
+    private void resetFlushByTime() {
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    if(currentFile != null && currentFile.rawBytes > 0){
+                        rotate();
+                    }
+                    resetFlushByTime();
+                } catch (Exception e) {
+                    log.error("Error in flushByTime.", e);
+                }
+            }
+        }, flushInterval);
     }
 
     public boolean isDirty() {
@@ -55,6 +81,10 @@ public class GZIPFileWriter implements Closeable {
 
         if ((currentFile.rawBytes + data.length) > fileThreshold) {
             rotate();
+            timer.cancel();
+            timer.purge();
+            timer = new Timer(true);
+            resetFlushByTime();
         }
 
         gzipStream.write(data);
@@ -89,7 +119,7 @@ public class GZIPFileWriter implements Closeable {
         currentFile = fileDescriptor;
     }
 
-    private void rotate() throws IOException {
+    void rotate() throws IOException {
         finishFile();
         openFile();
     }
@@ -114,6 +144,8 @@ public class GZIPFileWriter implements Closeable {
 
     public void close() throws IOException {
         // Flush last file, updating index
+        timer.cancel();
+        timer.purge();
         finishFile();
         gzipStream.close();
     }

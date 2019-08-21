@@ -59,7 +59,7 @@ public class GZIPFileWriterTest {
 
         Supplier<String> generateFileName = () -> FILE_PATH;
 
-        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName);
+        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000);
 
         gzipFileWriter.openFile();
 
@@ -91,7 +91,7 @@ public class GZIPFileWriterTest {
 
         Supplier<String> generateFileName = () -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString();
 
-        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName);
+        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000);
 
         for (int i = 0; i < 9; i++) {
             String msg = String.format("Line number %d : This is a message from the other size", i);

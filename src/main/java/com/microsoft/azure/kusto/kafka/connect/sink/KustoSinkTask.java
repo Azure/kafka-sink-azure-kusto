@@ -30,7 +30,8 @@ public class KustoSinkTask extends SinkTask {
     private Map<String, IngestionProperties> topicsToIngestionProps;
     IngestClient kustoIngestClient;
     Map<TopicPartition, TopicPartitionWriter> writers;
-    private Long maxFileSize;
+    private long maxFileSize;
+    private long flushInterval;
     private String tempDir;
 
 
@@ -137,7 +138,7 @@ public class KustoSinkTask extends SinkTask {
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval);
 
                 writer.open();
                 writers.put(tp, writer);
@@ -171,7 +172,7 @@ public class KustoSinkTask extends SinkTask {
             kustoIngestClient = createKustoIngestClient(config);
             tempDir = config.getKustoSinkTempDir();
             maxFileSize = config.getKustoFlushSize();
-
+            flushInterval = config.getKustoFlushIntervalMS();
 
             log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
             open(context.assignment());
