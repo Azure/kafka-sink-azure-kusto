@@ -30,7 +30,6 @@ public class GZIPFileWriter implements Closeable {
     private CountingOutputStream fileStream;
     private long fileThreshold;
 
-
     /**
      * @param basePath       - This is path to which to write the files to.
      * @param fileThreshold  - Max size, uncompressed bytes.
@@ -59,22 +58,27 @@ public class GZIPFileWriter implements Closeable {
 
             timer = new Timer(true);
         }
-
-        timer.schedule(new TimerTask() {
+        
+        TimerTask t = new TimerTask() {
             @Override
             public void run() {
-                try {
-                    if(currentFile != null && currentFile.rawBytes > 0){
-                        rotate();
-                    }
-                    resetFlushTimer(false);
-                } catch (Exception e) {
-                    String fileName = currentFile == null ? "no file created yet" :   currentFile.file.getName();
-                    long currentSize = currentFile == null ? 0 :   currentFile.rawBytes;
-                    log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
-                }
+                flushByTimeImpl();
             }
-        }, flushInterval);
+        };
+        timer.schedule(t, flushInterval);
+    }
+
+    private void flushByTimeImpl() {
+        try {
+            if(currentFile != null && currentFile.rawBytes > 0){
+                rotate();
+            }
+            resetFlushTimer(false);
+        } catch (Exception e) {
+            String fileName = currentFile == null ? "no file created yet" :   currentFile.file.getName();
+            long currentSize = currentFile == null ? 0 :   currentFile.rawBytes;
+            log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
+        }
     }
 
     public boolean isDirty() {
