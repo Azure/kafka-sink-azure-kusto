@@ -59,7 +59,7 @@ public class TopicPartitionWriterTest {
         GZIPFileDescriptor descriptor = new GZIPFileDescriptor();
         descriptor.rawBytes = 1024;
         descriptor.path = "somepath/somefile";
-
+        descriptor.file = new File ("C://myfile.txt");
         writer.handleRollFile(descriptor);
 
         FileSourceInfo fileSourceInfo = new FileSourceInfo(descriptor.path, descriptor.rawBytes);

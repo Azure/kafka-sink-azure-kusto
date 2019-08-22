@@ -47,12 +47,19 @@ public class GZIPFileWriter implements Closeable {
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
-        this.timer = new Timer(true);
-
-        resetFlushByTime();
     }
 
-    private void resetFlushByTime() {
+    // Set shouldDestroyTimer to true if the current running task should be cancelled
+    private void resetFlushTimer(Boolean shouldDestroyTimer) {
+        if(shouldDestroyTimer) {
+            if(timer != null){
+                timer.purge();
+                timer.cancel();
+            }
+
+            timer = new Timer(true);
+        }
+
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -60,9 +67,11 @@ public class GZIPFileWriter implements Closeable {
                     if(currentFile != null && currentFile.rawBytes > 0){
                         rotate();
                     }
-                    resetFlushByTime();
+                    resetFlushTimer(false);
                 } catch (Exception e) {
-                    log.error("Error in flushByTime.", e);
+                    String fileName = currentFile == null ? "no file created yet" :   currentFile.file.getName();
+                    long currentSize = currentFile == null ? 0 :   currentFile.rawBytes;
+                    log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
                 }
             }
         }, flushInterval);
@@ -73,18 +82,17 @@ public class GZIPFileWriter implements Closeable {
     }
 
     public synchronized void write(byte[] data) throws IOException {
+
         if (data == null || data.length == 0) return;
 
         if (currentFile == null) {
             openFile();
+            resetFlushTimer(false);
         }
 
         if ((currentFile.rawBytes + data.length) > fileThreshold) {
             rotate();
-            timer.cancel();
-            timer.purge();
-            timer = new Timer(true);
-            resetFlushByTime();
+            resetFlushTimer(true);
         }
 
         gzipStream.write(data);

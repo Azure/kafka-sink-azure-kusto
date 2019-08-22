@@ -48,7 +48,7 @@ public class TopicPartitionWriter {
             log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
             this.lastCommittedOffset = currentOffset;
         } catch (Exception e) {
-            log.error("Ingestion Failed, message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e));
+            log.error("Ingestion Failed for file : "+ fileDescriptor.file.getName() + ", message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e));
         }
     }
 
