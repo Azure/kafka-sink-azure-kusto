@@ -20,8 +20,8 @@ import java.util.zip.GZIPOutputStream;
 public class GZIPFileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    private Timer timer;
     public GZIPFileDescriptor currentFile;
+    private Timer timer;
     private Consumer<GZIPFileDescriptor> onRollCallback;
     private long flushInterval;
     private Supplier<String> getFilePath;
@@ -46,39 +46,6 @@ public class GZIPFileWriter implements Closeable {
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
-    }
-
-    // Set shouldDestroyTimer to true if the current running task should be cancelled
-    private void resetFlushTimer(Boolean shouldDestroyTimer) {
-        if(shouldDestroyTimer) {
-            if(timer != null){
-                timer.purge();
-                timer.cancel();
-            }
-
-            timer = new Timer(true);
-        }
-        
-        TimerTask t = new TimerTask() {
-            @Override
-            public void run() {
-                flushByTimeImpl();
-            }
-        };
-        timer.schedule(t, flushInterval);
-    }
-
-    private void flushByTimeImpl() {
-        try {
-            if(currentFile != null && currentFile.rawBytes > 0){
-                rotate();
-            }
-            resetFlushTimer(false);
-        } catch (Exception e) {
-            String fileName = currentFile == null ? "no file created yet" :   currentFile.file.getName();
-            long currentSize = currentFile == null ? 0 :   currentFile.rawBytes;
-            log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
-        }
     }
 
     public boolean isDirty() {
@@ -162,6 +129,38 @@ public class GZIPFileWriter implements Closeable {
         gzipStream.close();
     }
 
+    // Set shouldDestroyTimer to true if the current running task should be cancelled
+    private void resetFlushTimer(Boolean shouldDestroyTimer) {
+        if (shouldDestroyTimer) {
+            if (timer != null) {
+                timer.purge();
+                timer.cancel();
+            }
+
+            timer = new Timer(true);
+        }
+
+        TimerTask t = new TimerTask() {
+            @Override
+            public void run() {
+                flushByTimeImpl();
+            }
+        };
+        timer.schedule(t, flushInterval);
+    }
+
+    private void flushByTimeImpl() {
+        try {
+            if (currentFile != null && currentFile.rawBytes > 0) {
+                rotate();
+            }
+            resetFlushTimer(false);
+        } catch (Exception e) {
+            String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
+            long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
+            log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
+        }
+    }
 
     private class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;
