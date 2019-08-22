@@ -47,8 +47,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 .define(KUSTO_AUTH_AUTHORITY, Type.STRING, null, Importance.HIGH, "Kusto auth using appid,appkey combo: authority")
                 .define(KUSTO_SINK_TEMPDIR, Type.STRING, System.getProperty("java.io.tempdir"), Importance.LOW, "Temp dir that will be used by kusto sink to buffer records. defaults to system temp dir")
                 .define(KUSTO_SINK_FLUSH_SIZE, Type.LONG, FileUtils.ONE_MB, Importance.HIGH, "Kusto sink max buffer size (per topic+partition combo)")
-                .define(KUSTO_SINK_FLUSH_INTERVAL_MS, Type.LONG, TimeUnit.MINUTES.toMillis(5), Importance.HIGH, "Kusto sink max staleness in milliseconds (per topic+partition combo)")
-                .define(KUSTO_SINK_WRITE_TO_FILES, Type.BOOLEAN, false, Importance.LOW, "Kusto sink should write to files or stream the data");
+                .define(KUSTO_SINK_FLUSH_INTERVAL_MS, Type.LONG, TimeUnit.MINUTES.toMillis(5), Importance.HIGH, "Kusto sink max staleness in milliseconds (per topic+partition combo)");
     }
 
     public String getKustoUrl() {
@@ -90,10 +89,5 @@ public class KustoSinkConfig extends AbstractConfig {
     public long getKustoFlushIntervalMS() {
         return this.getLong(KUSTO_SINK_FLUSH_INTERVAL_MS);
     }
-
-    public boolean getKustoWriteToFiles() {
-        return this.getBoolean (KUSTO_SINK_WRITE_TO_FILES);
-    }
-
 }
 
