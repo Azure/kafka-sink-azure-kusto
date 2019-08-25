@@ -58,7 +58,7 @@ public class GZIPFileWriter implements Closeable {
 
         if (currentFile == null) {
             openFile();
-            resetFlushTimer(false);
+            resetFlushTimer(true);
         }
 
         if ((currentFile.rawBytes + data.length) > fileThreshold) {
@@ -104,9 +104,11 @@ public class GZIPFileWriter implements Closeable {
     }
 
     private void finishFile() throws IOException {
-        gzipStream.finish();
+        if (isDirty()) {
+            gzipStream.finish();
+            onRollCallback.accept(currentFile);
+        }
 
-        onRollCallback.accept(currentFile);
         // closing late so that the success callback will have a chance to use the file.
         gzipStream.close();
         currentFile.file.delete();
@@ -126,7 +128,9 @@ public class GZIPFileWriter implements Closeable {
         timer.cancel();
         timer.purge();
         finishFile();
-        gzipStream.close();
+
+        // Setting to null so subsequent calls to close won't write it again
+        currentFile = null;
     }
 
     // Set shouldDestroyTimer to true if the current running task should be cancelled
