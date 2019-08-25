@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
@@ -19,13 +21,14 @@ public class GZIPFileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     public GZIPFileDescriptor currentFile;
+    private Timer timer;
     private Consumer<GZIPFileDescriptor> onRollCallback;
+    private long flushInterval;
     private Supplier<String> getFilePath;
     private GZIPOutputStream gzipStream;
     private String basePath;
     private CountingOutputStream fileStream;
     private long fileThreshold;
-
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -33,13 +36,16 @@ public class GZIPFileWriter implements Closeable {
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
      * @param getFilePath    - Allow external resolving of file name.
      */
-    public GZIPFileWriter(String basePath, long fileThreshold,
+    public GZIPFileWriter(String basePath,
+                          long fileThreshold,
                           Consumer<GZIPFileDescriptor> onRollCallback,
-                          Supplier<String> getFilePath) {
+                          Supplier<String> getFilePath,
+                          long flushInterval) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
+        this.flushInterval = flushInterval;
     }
 
     public boolean isDirty() {
@@ -47,14 +53,17 @@ public class GZIPFileWriter implements Closeable {
     }
 
     public synchronized void write(byte[] data) throws IOException {
+
         if (data == null || data.length == 0) return;
 
         if (currentFile == null) {
             openFile();
+            resetFlushTimer(true);
         }
 
         if ((currentFile.rawBytes + data.length) > fileThreshold) {
             rotate();
+            resetFlushTimer(true);
         }
 
         gzipStream.write(data);
@@ -89,15 +98,17 @@ public class GZIPFileWriter implements Closeable {
         currentFile = fileDescriptor;
     }
 
-    private void rotate() throws IOException {
+    void rotate() throws IOException {
         finishFile();
         openFile();
     }
 
     private void finishFile() throws IOException {
-        gzipStream.finish();
+        if (isDirty()) {
+            gzipStream.finish();
+            onRollCallback.accept(currentFile);
+        }
 
-        onRollCallback.accept(currentFile);
         // closing late so that the success callback will have a chance to use the file.
         gzipStream.close();
         currentFile.file.delete();
@@ -114,10 +125,46 @@ public class GZIPFileWriter implements Closeable {
 
     public void close() throws IOException {
         // Flush last file, updating index
+        timer.cancel();
+        timer.purge();
         finishFile();
-        gzipStream.close();
+
+        // Setting to null so subsequent calls to close won't write it again
+        currentFile = null;
     }
 
+    // Set shouldDestroyTimer to true if the current running task should be cancelled
+    private void resetFlushTimer(Boolean shouldDestroyTimer) {
+        if (shouldDestroyTimer) {
+            if (timer != null) {
+                timer.purge();
+                timer.cancel();
+            }
+
+            timer = new Timer(true);
+        }
+
+        TimerTask t = new TimerTask() {
+            @Override
+            public void run() {
+                flushByTimeImpl();
+            }
+        };
+        timer.schedule(t, flushInterval);
+    }
+
+    private void flushByTimeImpl() {
+        try {
+            if (currentFile != null && currentFile.rawBytes > 0) {
+                rotate();
+            }
+            resetFlushTimer(false);
+        } catch (Exception e) {
+            String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
+            long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
+            log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
+        }
+    }
 
     private class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;

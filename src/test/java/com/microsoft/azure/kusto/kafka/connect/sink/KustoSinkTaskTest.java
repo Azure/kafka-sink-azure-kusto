@@ -40,7 +40,6 @@ public class KustoSinkTaskTest {
     public void testSinkTaskOpen() throws Exception {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL, "https://{cluster_name}.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_DB, "db1");
 
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
         props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME, "test@test.com");
@@ -62,7 +61,6 @@ public class KustoSinkTaskTest {
     public void testSinkTaskPutRecord() throws Exception {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL, "https://{cluster_name}.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_DB, "db1");
         props.put(KustoSinkConfig.KUSTO_SINK_TEMPDIR, System.getProperty("java.io.tmpdir"));
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
         props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME, "test@test.com");
@@ -138,7 +136,6 @@ public class KustoSinkTaskTest {
         }
 
 
-        props.remove(KustoSinkConfig.KUSTO_TABLE);
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
@@ -164,8 +161,6 @@ public class KustoSinkTaskTest {
     public void sinkStartMissingAuth() {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL, "https://{cluster_name}.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_DB, "db1");
-        props.put(KustoSinkConfig.KUSTO_TABLE, "table3");
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'csv'}]");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();

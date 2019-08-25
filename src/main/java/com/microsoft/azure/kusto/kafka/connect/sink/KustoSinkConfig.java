@@ -14,8 +14,6 @@ import java.util.concurrent.TimeUnit;
 public class KustoSinkConfig extends AbstractConfig {
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL = "kusto.url";
-    static final String KUSTO_DB = "kusto.db";
-    static final String KUSTO_TABLE = "kusto.table";
     static final String KUSTO_TABLES_MAPPING = "kusto.tables.topics_mapping";
 
     static final String KUSTO_AUTH_USERNAME = "kusto.auth.username";
@@ -28,6 +26,7 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_TEMPDIR = "kusto.sink.tempdir";
     static final String KUSTO_SINK_FLUSH_SIZE = "kusto.sink.flush_size";
     static final String KUSTO_SINK_FLUSH_INTERVAL_MS = "kusto.sink.flush_interval_ms";
+    static final String KUSTO_SINK_WRITE_TO_FILES = "kusto.sink.write_to_files";
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -40,9 +39,6 @@ public class KustoSinkConfig extends AbstractConfig {
     public static ConfigDef getConfig() {
         return new ConfigDef()
                 .define(KUSTO_URL, Type.STRING, Importance.HIGH, "Kusto cluster url")
-                .define(KUSTO_DB, Type.STRING, null, Importance.HIGH, "Kusto target database name")
-
-                .define(KUSTO_TABLE, Type.STRING, null, Importance.HIGH, "Kusto target table (if a per topic mapping is required, use `kusto.tables.topic_mapping` instead)")
                 .define(KUSTO_TABLES_MAPPING, Type.STRING, null, Importance.HIGH, "Kusto target tables mapping (per topic mapping, 'topic1:table1;topic2:table2;')")
                 .define(KUSTO_AUTH_USERNAME, Type.STRING, null, Importance.HIGH, "Kusto auth using username,password combo: username")
                 .define(KUSTO_AUTH_PASSWORD, Type.STRING, null, Importance.HIGH, "Kusto auth using username,password combo: password")
@@ -56,14 +52,6 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public String getKustoUrl() {
         return this.getString(KUSTO_URL);
-    }
-
-    public String getKustoDb() {
-        return this.getString(KUSTO_DB);
-    }
-
-    public String getKustoTable() {
-        return this.getString(KUSTO_TABLE);
     }
 
     public String getKustoTopicToTableMapping() {
@@ -99,7 +87,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public long getKustoFlushIntervalMS() {
-        return this.getInt(KUSTO_SINK_FLUSH_INTERVAL_MS);
+        return this.getLong(KUSTO_SINK_FLUSH_INTERVAL_MS);
     }
 }
 

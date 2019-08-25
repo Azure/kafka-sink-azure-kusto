@@ -3,6 +3,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.Timer;
 
 public class TopicPartitionWriter {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
@@ -20,19 +22,21 @@ public class TopicPartitionWriter {
     IngestClient client;
     IngestionProperties ingestionProps;
     String basePath;
+    private long flushInterval;
     long fileThreshold;
 
     long currentOffset;
     Long lastCommittedOffset;
 
     TopicPartitionWriter(
-            TopicPartition tp, IngestClient client, IngestionProperties ingestionProps, String basePath, long fileThreshold
+            TopicPartition tp, IngestClient client, IngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval
     ) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
         this.fileThreshold = fileThreshold;
         this.basePath = basePath;
+        this.flushInterval = flushInterval;
         this.currentOffset = 0;
     }
 
@@ -44,7 +48,7 @@ public class TopicPartitionWriter {
             log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
             this.lastCommittedOffset = currentOffset;
         } catch (Exception e) {
-            log.error("Ingestion Failed", e);
+            log.error("Ingestion Failed for file : "+ fileDescriptor.file.getName() + ", message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e));
         }
     }
 
@@ -86,12 +90,13 @@ public class TopicPartitionWriter {
     }
 
     public void open() {
-        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath);
+        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath, flushInterval);
     }
 
     public void close() {
         try {
             gzipFileWriter.rollback();
+            // gzipFileWriter.close(); TODO ?
         } catch (IOException e) {
             e.printStackTrace();
         }
