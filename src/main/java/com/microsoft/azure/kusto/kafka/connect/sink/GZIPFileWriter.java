@@ -50,11 +50,7 @@ public class GZIPFileWriter implements Closeable {
     }
 
     public boolean isDirty() {
-        return isDirty(currentFile);
-    }
-
-    private boolean isDirty(GZIPFileDescriptor fileDescriptor) {
-        return fileDescriptor != null && fileDescriptor.rawBytes > 0;
+        return currentFile != null && currentFile.rawBytes > 0;
     }
 
     public synchronized void write(byte[] data) throws IOException {
@@ -157,8 +153,6 @@ public class GZIPFileWriter implements Closeable {
 
     private void flushByTimeImpl() {
         try {
-            System.out.println("flushByTimeImpl");
-
             if (currentFile != null && currentFile.rawBytes > 0) {
                 rotate();
             }
