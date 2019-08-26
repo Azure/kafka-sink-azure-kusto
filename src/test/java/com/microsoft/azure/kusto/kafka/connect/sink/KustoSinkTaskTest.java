@@ -3,11 +3,15 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
+
+import javax.naming.Context;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -46,6 +50,7 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
         kustoSinkTask.start(props);
         ArrayList<TopicPartition> tps = new ArrayList<>();
         tps.add(new TopicPartition("topic1", 1));
@@ -67,6 +72,7 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
         kustoSinkTask.start(props);
 
         ArrayList<TopicPartition> tps = new ArrayList<>();
@@ -94,6 +100,7 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
         kustoSinkTask.start(props);
 
         ArrayList<TopicPartition> tps = new ArrayList<>();
@@ -118,7 +125,8 @@ public class KustoSinkTaskTest {
 
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
-                kustoSinkTask.start(props);
+                kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             });
 
             assertEquals(exception.getMessage(), "Kusto Connector failed to start due to configuration error. Missing required configuration \"kusto.url\" which has no default value.");
@@ -129,7 +137,8 @@ public class KustoSinkTaskTest {
 
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
-                kustoSinkTask.start(props);
+                kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             });
 
             assertEquals(exception.getMessage(), "Kusto Connector failed to start due to configuration error. Malformed topics to kusto ingestion props mappings");
@@ -139,7 +148,8 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
-                kustoSinkTask.start(props);
+                kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             });
 
             assertEquals(exception.getMessage(), "Kusto Connector failed to start due to configuration error. Kusto authentication method must be provided.");
@@ -150,7 +160,8 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "topic1");
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
-                kustoSinkTask.start(props);
+                kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             });
 
             assertEquals(exception.getMessage(), "Kusto Connector failed to start due to configuration error. Error trying to parse kusto ingestion props A JSONArray text must start with '[' at character 1");
@@ -167,7 +178,8 @@ public class KustoSinkTaskTest {
 
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
-                kustoSinkTask.start(props);
+                kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             });
 
             assertEquals(exception.getMessage(), "Kusto Connector failed to start due to configuration error. Kusto authentication method must be provided.");
@@ -178,7 +190,8 @@ public class KustoSinkTaskTest {
 
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
-                kustoSinkTask.start(props);
+                kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             });
 
             assertEquals(exception.getMessage(), "Kusto Connector failed to start due to configuration error. Kusto authentication missing Password.");
@@ -189,7 +202,8 @@ public class KustoSinkTaskTest {
 
         {
             // should not throw any errors
-            kustoSinkTask.start(props);
+            kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             assertNotNull(kustoSinkTask.kustoIngestClient);
         }
 
@@ -200,7 +214,8 @@ public class KustoSinkTaskTest {
 
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
-                kustoSinkTask.start(props);
+                kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             });
 
             assertEquals(exception.getMessage(), "Kusto Connector failed to start due to configuration error. Kusto authentication missing App Key.");
@@ -211,7 +226,8 @@ public class KustoSinkTaskTest {
 
         {
             // should not throw any errors
-            kustoSinkTask.start(props);
+            kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
+        kustoSinkTask.start(props);
             assertNotNull(kustoSinkTask.kustoIngestClient);
         }
     }
@@ -226,6 +242,8 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
+
+        kustoSinkTask.initialize(Mockito.mock(SinkTaskContext.class));
         kustoSinkTask.start(props);
         {
             // single table mapping should cause all topics to be mapped to a single table

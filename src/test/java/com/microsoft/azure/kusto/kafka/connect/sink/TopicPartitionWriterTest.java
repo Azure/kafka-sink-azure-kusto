@@ -117,7 +117,7 @@ public class TopicPartitionWriterTest {
     }
 
     @Test
-    public void testOpenClose() {
+    public void testOpenClose() throws IOException {
         TopicPartition tp = new TopicPartition("testPartition", 1);
         IngestClient mockClient = mock(IngestClient.class);
         String db = "testdb1";
@@ -209,9 +209,13 @@ public class TopicPartitionWriterTest {
             writer.writeRecord(record);
         }
 
-        //TODO : file threshold ignored?
-        Assert.assertTrue(writer.lastCommittedOffset.equals((long) 15));
+        // Let executor service enough time to invoke
+        Thread.sleep(100);
+
+        //TODO : file threshold ignored? - why do you think ?
+        Assert.assertEquals((long) writer.lastCommittedOffset, 15L);
         Assert.assertEquals(writer.currentOffset, 17);
         Assert.assertEquals(writer.gzipFileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 16)).toString());
+        writer.close();
     }
 }

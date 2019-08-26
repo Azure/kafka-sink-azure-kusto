@@ -32,11 +32,12 @@ public class GZIPFileWriterTest {
     }
 
     @After
-    public final void after() {
+    public final void after() throws IOException {
         try {
             FileUtils.deleteDirectory(currentDirectory);
         } catch (IOException e) {
             e.printStackTrace();
+            throw e;
         }
     }
 
@@ -68,8 +69,7 @@ public class GZIPFileWriterTest {
         Assert.assertEquals(gzipFileWriter.currentFile.rawBytes, 0);
         Assert.assertEquals(gzipFileWriter.currentFile.path, FILE_PATH + ".gz");
         Assert.assertTrue(gzipFileWriter.currentFile.file.canWrite());
-
-        gzipFileWriter.rollback();
+        gzipFileWriter.close();
     }
 
     @Test
@@ -157,7 +157,6 @@ public class GZIPFileWriterTest {
         Thread.sleep(1010);
 
         Assert.assertEquals(files.size(), 2);
-
 
         List<Long> sortedFiles = new ArrayList<Long>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));

@@ -2,8 +2,8 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.microsoft.azure.kusto.data.KustoConnectionStringBuilder;
 import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
@@ -16,6 +16,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 
 
@@ -27,9 +28,9 @@ import java.util.*;
 public class KustoSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     private final Set<TopicPartition> assignment;
-    private Map<String, IngestionProperties> topicsToIngestionProps;
     IngestClient kustoIngestClient;
     Map<TopicPartition, TopicPartitionWriter> writers;
+    private Map<String, IngestionProperties> topicsToIngestionProps;
     private long maxFileSize;
     private long flushInterval;
     private String tempDir;
@@ -78,7 +79,7 @@ public class KustoSinkTask extends SinkTask {
             if (config.getKustoTopicToTableMapping() != null) {
                 JSONArray mappings = new JSONArray(config.getKustoTopicToTableMapping());
 
-                for (int i =0;i< mappings.length();i++) {
+                for (int i = 0; i < mappings.length(); i++) {
 
                     JSONObject mapping = mappings.getJSONObject(i);
 
@@ -111,9 +112,8 @@ public class KustoSinkTask extends SinkTask {
 
                 return result;
             }
-        }
-        catch (Exception ex) {
-            throw new ConfigException(String.format("Error trying to parse kusto ingestion props %s",ex.getMessage()));
+        } catch (Exception ex) {
+            throw new ConfigException(String.format("Error trying to parse kusto ingestion props %s", ex.getMessage()));
         }
 
         throw new ConfigException("Malformed topics to kusto ingestion props mappings");
@@ -151,7 +151,7 @@ public class KustoSinkTask extends SinkTask {
         for (TopicPartition tp : assignment) {
             try {
                 writers.get(tp).close();
-            } catch (ConnectException e) {
+            } catch (ConnectException | IOException e) {
                 log.error("Error closing writer for {}. Error: {}", tp, e.getMessage());
             }
         }
@@ -187,7 +187,11 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void stop() throws ConnectException {
         for (TopicPartitionWriter writer : writers.values()) {
-            writer.close();
+            try {
+                writer.close();
+            } catch (IOException e) {
+                log.error("Error closing writer for {}. Error: {}", writer, e.getMessage());
+            }
         }
     }
 

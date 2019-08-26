@@ -46,10 +46,15 @@ public class GZIPFileWriter implements Closeable {
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
+
     }
 
     public boolean isDirty() {
-        return this.currentFile != null && this.currentFile.rawBytes > 0;
+        return isDirty(currentFile);
+    }
+
+    private boolean isDirty(GZIPFileDescriptor fileDescriptor) {
+        return fileDescriptor != null && fileDescriptor.rawBytes > 0;
     }
 
     public synchronized void write(byte[] data) throws IOException {
@@ -111,23 +116,20 @@ public class GZIPFileWriter implements Closeable {
 
         // closing late so that the success callback will have a chance to use the file.
         gzipStream.close();
+
         currentFile.file.delete();
     }
 
-    public void rollback() throws IOException {
-        if (gzipStream != null) {
-            gzipStream.close();
-            if (currentFile != null && currentFile.file != null) {
-                currentFile.file.delete();
-            }
-        }
-    }
-
     public void close() throws IOException {
+        if (timer != null) {
+            timer.cancel();
+            timer.purge();
+        }
+
         // Flush last file, updating index
-        timer.cancel();
-        timer.purge();
-        finishFile();
+        if (gzipStream != null && currentFile != null) {
+            finishFile();
+        }
 
         // Setting to null so subsequent calls to close won't write it again
         currentFile = null;
@@ -155,6 +157,8 @@ public class GZIPFileWriter implements Closeable {
 
     private void flushByTimeImpl() {
         try {
+            System.out.println("flushByTimeImpl");
+
             if (currentFile != null && currentFile.rawBytes > 0) {
                 rotate();
             }

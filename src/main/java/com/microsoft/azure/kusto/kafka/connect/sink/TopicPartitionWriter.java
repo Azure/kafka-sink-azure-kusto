@@ -13,7 +13,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.Timer;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class TopicPartitionWriter {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
@@ -22,11 +24,12 @@ public class TopicPartitionWriter {
     IngestClient client;
     IngestionProperties ingestionProps;
     String basePath;
-    private long flushInterval;
     long fileThreshold;
-
     long currentOffset;
     Long lastCommittedOffset;
+    private long flushInterval;
+    private ThreadPoolExecutor threadPoolExecutor;
+
 
     TopicPartitionWriter(
             TopicPartition tp, IngestClient client, IngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval
@@ -38,18 +41,25 @@ public class TopicPartitionWriter {
         this.basePath = basePath;
         this.flushInterval = flushInterval;
         this.currentOffset = 0;
+        this.lastCommittedOffset = 0L;
+        int cores = Runtime.getRuntime().availableProcessors();
+        threadPoolExecutor = new ThreadPoolExecutor(1, cores, 10L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>());
+        threadPoolExecutor.allowCoreThreadTimeOut(true);
     }
 
     public void handleRollFile(GZIPFileDescriptor fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
-
-        try {
-            client.ingestFromFile(fileSourceInfo, ingestionProps);
-            log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
-            this.lastCommittedOffset = currentOffset;
-        } catch (Exception e) {
-            log.error("Ingestion Failed for file : "+ fileDescriptor.file.getName() + ", message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e));
-        }
+        long offsetIfSuccess = currentOffset;
+        threadPoolExecutor.execute(() -> {
+            try {
+                client.ingestFromFile(fileSourceInfo, ingestionProps);
+                log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
+                this.lastCommittedOffset = offsetIfSuccess;
+            } catch (Exception e) {
+                log.error("Ingestion Failed for file : " + fileDescriptor.file.getName() + ", message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e));
+            }
+        });
     }
 
     public String getFilePath() {
@@ -93,12 +103,18 @@ public class TopicPartitionWriter {
         gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath, flushInterval);
     }
 
-    public void close() {
+    public void close() throws IOException {
         try {
-            gzipFileWriter.rollback();
-            // gzipFileWriter.close(); TODO ?
-        } catch (IOException e) {
-            e.printStackTrace();
+            gzipFileWriter.close();
+        } finally {
+            threadPoolExecutor.shutdown();
+            try {
+                if (!threadPoolExecutor.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+                    threadPoolExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                threadPoolExecutor.shutdownNow();
+            }
         }
     }
 }
