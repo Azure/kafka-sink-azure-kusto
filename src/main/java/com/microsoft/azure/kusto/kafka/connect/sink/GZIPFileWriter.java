@@ -158,12 +158,13 @@ public class GZIPFileWriter implements Closeable {
             if (currentFile != null && currentFile.rawBytes > 0) {
                 rotate();
             }
-            resetFlushTimer(false);
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
             log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
         }
+        
+        resetFlushTimer(false);
     }
 
     private class CountingOutputStream extends FilterOutputStream {
