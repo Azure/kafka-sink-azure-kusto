@@ -231,11 +231,11 @@ public class KustoSinkTaskTest {
             // single table mapping should cause all topics to be mapped to a single table
             Assert.assertEquals(kustoSinkTask.getIngestionProps("topic1").getDatabaseName(), "db1");
             Assert.assertEquals(kustoSinkTask.getIngestionProps("topic1").getTableName(), "table1");
-            Assert.assertEquals(kustoSinkTask.getIngestionProps("topic1").getAdditionalProperties().get("format"), "csv");
+            Assert.assertEquals(kustoSinkTask.getIngestionProps("topic1").getDataFormat(), "csv");
             Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").getDatabaseName(), "db2");
             Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").getTableName(), "table2");
-            Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").getAdditionalProperties().get("format"), "json");
-            Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").getAdditionalProperties().get("jsonMappingReference"), "Mapping");
+            Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").getDataFormat(), "json");
+            Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").getIngestionMapping().getIngestionMappingReference(), "Mapping");
             Assert.assertEquals(kustoSinkTask.getIngestionProps("topic3"), null);
         }
     }

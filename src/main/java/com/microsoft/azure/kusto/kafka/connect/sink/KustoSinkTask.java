@@ -1,7 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.data.KustoConnectionStringBuilder;
+import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -18,7 +19,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-
 /**
  * Kusto sink uses file system to buffer records.
  * Every time a file is rolled, we used the kusto client to ingest it.
@@ -34,7 +34,6 @@ public class KustoSinkTask extends SinkTask {
     private long flushInterval;
     private String tempDir;
 
-
     public KustoSinkTask() {
         assignment = new HashSet<>();
         writers = new HashMap<>();
@@ -46,7 +45,7 @@ public class KustoSinkTask extends SinkTask {
                 throw new ConfigException("Kusto authentication missing App Key.");
             }
 
-            KustoConnectionStringBuilder kcsb = KustoConnectionStringBuilder.createWithAadApplicationCredentials(
+            ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                     config.getKustoUrl(),
                     config.getKustoAuthAppid(),
                     config.getKustoAuthAppkey(),
@@ -61,7 +60,7 @@ public class KustoSinkTask extends SinkTask {
                 throw new ConfigException("Kusto authentication missing Password.");
             }
 
-            return IngestClientFactory.createClient(KustoConnectionStringBuilder.createWithAadUserCredentials(
+            return IngestClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
                     config.getKustoUrl(),
                     config.getKustoAuthUsername(),
                     config.getKustoAuthPassword()
@@ -97,9 +96,9 @@ public class KustoSinkTask extends SinkTask {
 
                         if (mappingRef != null && !mappingRef.isEmpty()) {
                             if (format != null && format.equals("json")) {
-                                props.setJsonMappingName(mappingRef);
+                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
                             } else {
-                                props.setCsvMappingName(mappingRef);
+                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
                             }
                         }
 
