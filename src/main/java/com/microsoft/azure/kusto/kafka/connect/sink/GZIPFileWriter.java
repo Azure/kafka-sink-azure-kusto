@@ -29,6 +29,7 @@ public class GZIPFileWriter implements Closeable {
     private String basePath;
     private CountingOutputStream fileStream;
     private long fileThreshold;
+    private final boolean flushImmediately;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -40,12 +41,14 @@ public class GZIPFileWriter implements Closeable {
                           long fileThreshold,
                           Consumer<GZIPFileDescriptor> onRollCallback,
                           Supplier<String> getFilePath,
-                          long flushInterval) {
+                          long flushInterval,
+                          boolean flushImmediately) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
+        this.flushImmediately = flushImmediately;
     }
 
     public boolean isDirty() {
@@ -53,16 +56,10 @@ public class GZIPFileWriter implements Closeable {
     }
 
     public synchronized void write(byte[] data) throws IOException {
-
         if (data == null || data.length == 0) return;
 
         if (currentFile == null) {
             openFile();
-            resetFlushTimer(true);
-        }
-
-        if ((currentFile.rawBytes + data.length) > fileThreshold) {
-            rotate();
             resetFlushTimer(true);
         }
 
@@ -71,6 +68,11 @@ public class GZIPFileWriter implements Closeable {
         currentFile.rawBytes += data.length;
         currentFile.zippedBytes += fileStream.numBytes;
         currentFile.numRecords++;
+
+        if (this.flushImmediately || (currentFile.rawBytes + data.length) > fileThreshold) {
+            rotate();
+            resetFlushTimer(true);
+        }
     }
 
     public void openFile() throws IOException {
@@ -163,7 +165,7 @@ public class GZIPFileWriter implements Closeable {
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
             log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
         }
-        
+
         resetFlushTimer(false);
     }
 

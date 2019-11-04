@@ -60,7 +60,7 @@ public class GZIPFileWriterTest {
 
         Supplier<String> generateFileName = () -> FILE_PATH;
 
-        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000);
+        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false);
 
         gzipFileWriter.openFile();
 
@@ -92,7 +92,7 @@ public class GZIPFileWriterTest {
 
         Supplier<String> generateFileName = () -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString();
 
-        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000);
+        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false);
 
         for (int i = 0; i < 9; i++) {
             String msg = String.format("Line number %d : This is a message from the other size", i);
@@ -134,7 +134,7 @@ public class GZIPFileWriterTest {
         Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString();
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000);
+        GZIPFileWriter gzipFileWriter = new GZIPFileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false);
 
         String msg = "Message";
         gzipFileWriter.write(msg.getBytes(StandardCharsets.UTF_8));
@@ -149,7 +149,7 @@ public class GZIPFileWriterTest {
         folder2.mkdirs();
         Supplier<String> generateFileName2 = () -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed
-        GZIPFileWriter gzipFileWriter2 = new GZIPFileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000);
+        GZIPFileWriter gzipFileWriter2 = new GZIPFileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, false);
 
         String msg2 = "Second Message";
 
