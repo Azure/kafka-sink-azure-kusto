@@ -51,6 +51,7 @@ public class KustoSinkTask extends SinkTask {
                     config.getKustoAuthAppkey(),
                     config.getKustoAuthAuthority()
             );
+            kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
 
             return IngestClientFactory.createClient(kcsb);
         }

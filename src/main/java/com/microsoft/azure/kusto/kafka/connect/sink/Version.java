@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class Version {
+    public static final String CLIENT_NAME = "Kusto.Kafka.Sink";
+
     private static final Logger log = LoggerFactory.getLogger(Version.class);
     private static final String VERSION_FILE = "/azure-kusto-kafka-sink-version.properties";
     private static String version = "unknown";
