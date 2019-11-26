@@ -89,9 +89,10 @@ public class TopicPartitionWriter {
     }
 
     public void open() {
-        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath, flushInterval,
-                ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString()) ||
-                        ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString()));
+        boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString()) ||
+                ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString());
+
+        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath, flushImmediately ? 0: flushInterval);
     }
 
     public void close() {

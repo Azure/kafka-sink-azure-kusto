@@ -142,7 +142,7 @@ public class KustoSinkTask extends SinkTask {
         assignment.addAll(partitions);
         for (TopicPartition tp : assignment) {
             IngestionProperties ingestionProps = getIngestionProps(tp.topic());
-            log.warn("Open Kusto topic: " + tp.toString());
+            log.debug(String.format("Open Kusto topic: '%s' with partition: '%s'", tp.topic(), tp.partition()));
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
@@ -202,7 +202,7 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void put(Collection<SinkRecord> records) throws ConnectException {
         for (SinkRecord record : records) {
-            log.warn("record to topic:" + record.topic());
+            log.debug("record to topic:" + record.topic());
 
             TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
             TopicPartitionWriter writer = writers.get(tp);
