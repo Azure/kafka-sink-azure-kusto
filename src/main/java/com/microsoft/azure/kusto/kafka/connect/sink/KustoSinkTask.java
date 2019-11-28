@@ -90,16 +90,26 @@ public class KustoSinkTask extends SinkTask {
                         IngestionProperties props = new IngestionProperties(db, table);
 
                         if (format != null && !format.isEmpty()) {
+                            // TODO:after java client reveals multijson - use only this for simplicity
+//                            if (format.equals("json") || format.equals("singlejson")){
+//                                props.setDataFormat("multijson");
+//                            }
                             props.setDataFormat(format);
                         }
 
                         String mappingRef = mapping.optString("mapping");
 
                         if (mappingRef != null && !mappingRef.isEmpty()) {
-                            if (format != null && format.equals("json")) {
-                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
-                            } else {
-                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
+                            if (format != null) {
+                                if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
+                                } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
+                                } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())){
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
+                                } else {
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
+                                }
                             }
                         }
 
@@ -131,10 +141,9 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void open(Collection<TopicPartition> partitions) throws ConnectException {
         assignment.addAll(partitions);
-
         for (TopicPartition tp : assignment) {
             IngestionProperties ingestionProps = getIngestionProps(tp.topic());
-
+            log.debug(String.format("Open Kusto topic: '%s' with partition: '%s'", tp.topic(), tp.partition()));
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
@@ -194,11 +203,15 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void put(Collection<SinkRecord> records) throws ConnectException {
         for (SinkRecord record : records) {
+            log.debug("record to topic:" + record.topic());
+
             TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
             TopicPartitionWriter writer = writers.get(tp);
 
             if (writer == null) {
-                throw new NotFoundException(String.format("Received a record without a mapped writer for topic:partition(%s:%d), dropping record.", tp.topic(), tp.partition()));
+                NotFoundException e = new NotFoundException(String.format("Received a record without a mapped writer for topic:partition(%s:%d), dropping record.", tp.topic(), tp.partition()));
+                log.error("Error putting records: ", e);
+                throw e;
             }
 
             writer.writeRecord(record);

@@ -23,7 +23,7 @@ public class GZIPFileWriter implements Closeable {
     public GZIPFileDescriptor currentFile;
     private Timer timer;
     private Consumer<GZIPFileDescriptor> onRollCallback;
-    private long flushInterval;
+    private final long flushInterval;
     private Supplier<String> getFilePath;
     private GZIPOutputStream gzipStream;
     private String basePath;
@@ -53,16 +53,10 @@ public class GZIPFileWriter implements Closeable {
     }
 
     public synchronized void write(byte[] data) throws IOException {
-
         if (data == null || data.length == 0) return;
 
         if (currentFile == null) {
             openFile();
-            resetFlushTimer(true);
-        }
-
-        if ((currentFile.rawBytes + data.length) > fileThreshold) {
-            rotate();
             resetFlushTimer(true);
         }
 
@@ -71,6 +65,11 @@ public class GZIPFileWriter implements Closeable {
         currentFile.rawBytes += data.length;
         currentFile.zippedBytes += fileStream.numBytes;
         currentFile.numRecords++;
+
+        if (this.flushInterval == 0 || (currentFile.rawBytes + data.length) > fileThreshold) {
+            rotate();
+            resetFlushTimer(true);
+        }
     }
 
     public void openFile() throws IOException {
@@ -135,22 +134,24 @@ public class GZIPFileWriter implements Closeable {
 
     // Set shouldDestroyTimer to true if the current running task should be cancelled
     private void resetFlushTimer(Boolean shouldDestroyTimer) {
-        if (shouldDestroyTimer) {
-            if (timer != null) {
-                timer.purge();
-                timer.cancel();
+        if (flushInterval > 0) {
+            if (shouldDestroyTimer) {
+                if (timer != null) {
+                    timer.purge();
+                    timer.cancel();
+                }
+
+                timer = new Timer(true);
             }
 
-            timer = new Timer(true);
+            TimerTask t = new TimerTask() {
+                @Override
+                public void run() {
+                    flushByTimeImpl();
+                }
+            };
+            timer.schedule(t, flushInterval);
         }
-
-        TimerTask t = new TimerTask() {
-            @Override
-            public void run() {
-                flushByTimeImpl();
-            }
-        };
-        timer.schedule(t, flushInterval);
     }
 
     private void flushByTimeImpl() {
@@ -163,7 +164,7 @@ public class GZIPFileWriter implements Closeable {
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
             log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
         }
-        
+
         resetFlushTimer(false);
     }
 

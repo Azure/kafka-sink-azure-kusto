@@ -78,7 +78,7 @@ or just pipe file (which contains example data)
 ```
 
 #### Query Data
-Make sure no errors happend duting ingestion
+Make sure no errors happened during ingestion
 ```
 .show ingestion failures
 ```
@@ -86,6 +86,11 @@ See that newly ingested data becomes available for querying
 ```
 KafkaTest | count
 ```
+
+#Supported formats
+csv, json, avro, parquet, tsv, scsv, sohsv, psv, txt.
+> Note - avro and parquet files are sent each record separately without aggregation, and are expected to be sent as a byte array containing the full file.
+Use value.converter=org.apache.kafka.connect.converters.ByteArrayConverter.
 
 ## Need Support?
 - **Have a feature request for SDKs?** Please post it on [User Voice](https://feedback.azure.com/forums/915733-azure-data-explorer) to help us prioritize

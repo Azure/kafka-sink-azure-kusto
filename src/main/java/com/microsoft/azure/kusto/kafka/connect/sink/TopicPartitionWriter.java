@@ -13,18 +13,17 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.Timer;
 
 public class TopicPartitionWriter {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    GZIPFileWriter gzipFileWriter;
-    TopicPartition tp;
-    IngestClient client;
-    IngestionProperties ingestionProps;
-    String basePath;
+    private TopicPartition tp;
+    private IngestClient client;
+    private final IngestionProperties ingestionProps;
+    private String basePath;
     private long flushInterval;
-    long fileThreshold;
+    private long fileThreshold;
 
+    GZIPFileWriter gzipFileWriter;
     long currentOffset;
     Long lastCommittedOffset;
 
@@ -54,7 +53,7 @@ public class TopicPartitionWriter {
 
     public String getFilePath() {
         long nextOffset = gzipFileWriter != null && gzipFileWriter.isDirty() ? currentOffset + 1 : currentOffset;
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d", tp.topic(), tp.partition(), nextOffset)).toString();
+        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat())).toString();
     }
 
     public void writeRecord(SinkRecord record) {
@@ -73,7 +72,7 @@ public class TopicPartitionWriter {
 
             value = valueWithSeparator;
         } else {
-            log.error(String.format("Unexpected value type, skipping record %s", value));
+            log.error(String.format("Unexpected value type, skipping record %s", record));
         }
 
         if (value == null) {
@@ -90,7 +89,10 @@ public class TopicPartitionWriter {
     }
 
     public void open() {
-        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath, flushInterval);
+        boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString()) ||
+                ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString());
+
+        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath, flushImmediately ? 0: flushInterval);
     }
 
     public void close() {
