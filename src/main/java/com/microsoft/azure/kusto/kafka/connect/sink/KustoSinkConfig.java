@@ -1,6 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 
+import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
@@ -27,6 +28,7 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_FLUSH_SIZE = "kusto.sink.flush_size";
     static final String KUSTO_SINK_FLUSH_INTERVAL_MS = "kusto.sink.flush_interval_ms";
     static final String KUSTO_SINK_WRITE_TO_FILES = "kusto.sink.write_to_files";
+    static final String KUSTO_SINK_COMPRESSION = "kusto.sink.compression";
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -47,7 +49,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 .define(KUSTO_AUTH_AUTHORITY, Type.STRING, null, Importance.HIGH, "Kusto auth using appid,appkey combo: authority")
                 .define(KUSTO_SINK_TEMPDIR, Type.STRING, System.getProperty("java.io.tempdir"), Importance.LOW, "Temp dir that will be used by kusto sink to buffer records. defaults to system temp dir")
                 .define(KUSTO_SINK_FLUSH_SIZE, Type.LONG, FileUtils.ONE_MB, Importance.HIGH, "Kusto sink max buffer size (per topic+partition combo)")
-                .define(KUSTO_SINK_FLUSH_INTERVAL_MS, Type.LONG, TimeUnit.MINUTES.toMillis(5), Importance.HIGH, "Kusto sink max staleness in milliseconds (per topic+partition combo)");
+                .define(KUSTO_SINK_FLUSH_INTERVAL_MS, Type.LONG, TimeUnit.MINUTES.toMillis(5), Importance.HIGH, "Kusto sink max staleness in milliseconds (per topic+partition combo)")
+                .define(KUSTO_SINK_COMPRESSION, Type.STRING, null, Importance.LOW, "Kusto sink max staleness in milliseconds (per topic+partition combo)");
     }
 
     public String getKustoUrl() {
@@ -88,6 +91,10 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public long getKustoFlushIntervalMS() {
         return this.getLong(KUSTO_SINK_FLUSH_INTERVAL_MS);
+    }
+
+    public CompressionType getKustoCompression() {
+        return this.getString(KUSTO_SINK_COMPRESSION) == null ? null : CompressionType.valueOf(this.getString(KUSTO_SINK_COMPRESSION));
     }
 }
 

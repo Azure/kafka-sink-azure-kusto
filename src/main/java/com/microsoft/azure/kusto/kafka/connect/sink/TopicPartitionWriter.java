@@ -2,6 +2,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.common.TopicPartition;
@@ -16,20 +17,23 @@ import java.nio.file.Paths;
 
 public class TopicPartitionWriter {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    private TopicPartition tp;
-    private IngestClient client;
+    private final CompressionType compressionType;
+    private final TopicPartition tp;
+    private final IngestClient client;
     private final IngestionProperties ingestionProps;
-    private String basePath;
-    private long flushInterval;
-    private long fileThreshold;
+    private final String basePath;
+    private final long flushInterval;
+    private final long fileThreshold;
 
     GZIPFileWriter gzipFileWriter;
     long currentOffset;
     Long lastCommittedOffset;
 
     TopicPartitionWriter(
-            TopicPartition tp, IngestClient client, IngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval
+            TopicPartition tp, IngestClient client, IngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval, CompressionType compressionType
     ) {
+        // TODO - should i use compressionType from kafka library ?
+
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -37,6 +41,7 @@ public class TopicPartitionWriter {
         this.basePath = basePath;
         this.flushInterval = flushInterval;
         this.currentOffset = 0;
+        this.compressionType = compressionType;
     }
 
     public void handleRollFile(GZIPFileDescriptor fileDescriptor) {
@@ -89,10 +94,12 @@ public class TopicPartitionWriter {
     }
 
     public void open() {
-        boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString()) ||
-                ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString());
+        boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
+                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
+                || this.compressionType != null;
 
-        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath, flushImmediately ? 0: flushInterval);
+        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath,
+                flushImmediately ? 0 : flushInterval);
     }
 
     public void close() {

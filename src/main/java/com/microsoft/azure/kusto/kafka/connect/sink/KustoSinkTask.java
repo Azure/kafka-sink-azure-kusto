@@ -5,6 +5,7 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
+import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
@@ -33,6 +34,7 @@ public class KustoSinkTask extends SinkTask {
     private long maxFileSize;
     private long flushInterval;
     private String tempDir;
+    private CompressionType compressionType;
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
@@ -89,10 +91,9 @@ public class KustoSinkTask extends SinkTask {
                         IngestionProperties props = new IngestionProperties(db, table);
 
                         if (format != null && !format.isEmpty()) {
-                            // TODO:after java client reveals multijson - use only this for simplicity
-//                            if (format.equals("json") || format.equals("singlejson")){
-//                                props.setDataFormat("multijson");
-//                            }
+                            if (format.equals("json") || format.equals("singlejson")){
+                                props.setDataFormat("multijson");
+                            }
                             props.setDataFormat(format);
                         }
 
@@ -146,7 +147,7 @@ public class KustoSinkTask extends SinkTask {
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval, compressionType);
 
                 writer.open();
                 writers.put(tp, writer);
@@ -181,7 +182,7 @@ public class KustoSinkTask extends SinkTask {
             tempDir = config.getKustoSinkTempDir();
             maxFileSize = config.getKustoFlushSize();
             flushInterval = config.getKustoFlushIntervalMS();
-
+            compressionType = config.getKustoCompression();
             log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
             open(context.assignment());
 
