@@ -1,7 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
@@ -28,7 +26,6 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_FLUSH_SIZE = "kusto.sink.flush_size";
     static final String KUSTO_SINK_FLUSH_INTERVAL_MS = "kusto.sink.flush_interval_ms";
     static final String KUSTO_SINK_WRITE_TO_FILES = "kusto.sink.write_to_files";
-    static final String KUSTO_SINK_COMPRESSION = "kusto.sink.compression";
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
