@@ -2,7 +2,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import java.io.File;
 
-public class GZIPFileDescriptor {
+public class FileDescriptor {
     long rawBytes = 0;
     long zippedBytes = 0;
     long numRecords = 0;

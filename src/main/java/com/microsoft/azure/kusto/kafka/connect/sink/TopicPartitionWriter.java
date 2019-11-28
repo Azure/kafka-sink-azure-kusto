@@ -25,26 +25,27 @@ public class TopicPartitionWriter {
     private final long flushInterval;
     private final long fileThreshold;
 
-    GZIPFileWriter gzipFileWriter;
+    FileWriter fileWriter;
     long currentOffset;
     Long lastCommittedOffset;
 
-    TopicPartitionWriter(
-            TopicPartition tp, IngestClient client, IngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval, CompressionType compressionType
-    ) {
-        // TODO - should i use compressionType from kafka library ?
-
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TableIngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval, CompressionType compressionType) {
         this.tp = tp;
         this.client = client;
-        this.ingestionProps = ingestionProps;
+        this.ingestionProps = ingestionProps.ingestionProperties;
         this.fileThreshold = fileThreshold;
         this.basePath = basePath;
         this.flushInterval = flushInterval;
         this.currentOffset = 0;
-        this.compressionType = compressionType;
+        this.compressionType = ingestionProps.compressionType;
     }
 
-    public void handleRollFile(GZIPFileDescriptor fileDescriptor) {
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TableIngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval
+    ) {
+        this(tp, client, ingestionProps, basePath, fileThreshold, flushInterval, null);
+    }
+
+    public void handleRollFile(FileDescriptor fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
         try {
@@ -57,7 +58,7 @@ public class TopicPartitionWriter {
     }
 
     public String getFilePath() {
-        long nextOffset = gzipFileWriter != null && gzipFileWriter.isDirty() ? currentOffset + 1 : currentOffset;
+        long nextOffset = fileWriter != null && fileWriter.isDirty() ? currentOffset + 1 : currentOffset;
         return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat())).toString();
     }
 
@@ -84,7 +85,7 @@ public class TopicPartitionWriter {
             this.currentOffset = record.kafkaOffset();
         } else {
             try {
-                gzipFileWriter.write(value);
+                fileWriter.write(value);
 
                 this.currentOffset = record.kafkaOffset();
             } catch (IOException e) {
@@ -98,14 +99,14 @@ public class TopicPartitionWriter {
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
                 || this.compressionType != null;
 
-        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath,
-                flushImmediately ? 0 : flushInterval);
+        fileWriter = new FileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath,
+                flushImmediately ? 0 : flushInterval, this.compressionType);
     }
 
     public void close() {
         try {
-            gzipFileWriter.rollback();
-            // gzipFileWriter.close(); TODO ?
+            fileWriter.rollback();
+            // fileWriter.close(); TODO ?
         } catch (IOException e) {
             e.printStackTrace();
         }

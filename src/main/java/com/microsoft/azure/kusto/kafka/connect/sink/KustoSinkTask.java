@@ -6,6 +6,7 @@ import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.source.CompressionType;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
@@ -28,13 +29,12 @@ import java.util.*;
 public class KustoSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     private final Set<TopicPartition> assignment;
-    private Map<String, IngestionProperties> topicsToIngestionProps;
+    private Map<String, TableIngestionProperties> topicsToIngestionProps;
     IngestClient kustoIngestClient;
     Map<TopicPartition, TopicPartitionWriter> writers;
     private long maxFileSize;
     private long flushInterval;
     private String tempDir;
-    private CompressionType compressionType;
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
@@ -72,8 +72,8 @@ public class KustoSinkTask extends SinkTask {
         throw new ConfigException("Kusto authentication method must be provided.");
     }
 
-    public static Map<String, IngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
-        Map<String, IngestionProperties> result = new HashMap<>();
+    public static Map<String, TableIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
+        Map<String, TableIngestionProperties> result = new HashMap<>();
 
         try {
             if (config.getKustoTopicToTableMapping() != null) {
@@ -88,6 +88,8 @@ public class KustoSinkTask extends SinkTask {
                         String table = mapping.getString("table");
 
                         String format = mapping.optString("format");
+                        CompressionType compressionType = StringUtils.isBlank(mapping.optString("compression")) ? null : CompressionType.valueOf(mapping.optString("compression"));
+
                         IngestionProperties props = new IngestionProperties(db, table);
 
                         if (format != null && !format.isEmpty()) {
@@ -112,8 +114,10 @@ public class KustoSinkTask extends SinkTask {
                                 }
                             }
                         }
-
-                        result.put(mapping.getString("topic"), props);
+                        TableIngestionProperties tableIngestionProperties = new TableIngestionProperties();
+                        tableIngestionProperties.compressionType = compressionType;
+                        tableIngestionProperties.ingestionProperties = props;
+                        result.put(mapping.getString("topic"), tableIngestionProperties);
                     } catch (Exception ex) {
                         throw new ConfigException("Malformed topics to kusto ingestion props mappings");
                     }
@@ -129,7 +133,7 @@ public class KustoSinkTask extends SinkTask {
         throw new ConfigException("Malformed topics to kusto ingestion props mappings");
     }
 
-    public IngestionProperties getIngestionProps(String topic) {
+    public TableIngestionProperties getIngestionProps(String topic) {
         return topicsToIngestionProps.get(topic);
     }
 
@@ -142,12 +146,12 @@ public class KustoSinkTask extends SinkTask {
     public void open(Collection<TopicPartition> partitions) throws ConnectException {
         assignment.addAll(partitions);
         for (TopicPartition tp : assignment) {
-            IngestionProperties ingestionProps = getIngestionProps(tp.topic());
+            TableIngestionProperties ingestionProps = getIngestionProps(tp.topic());
             log.debug(String.format("Open Kusto topic: '%s' with partition: '%s'", tp.topic(), tp.partition()));
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval, compressionType);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval);
 
                 writer.open();
                 writers.put(tp, writer);
@@ -182,7 +186,6 @@ public class KustoSinkTask extends SinkTask {
             tempDir = config.getKustoSinkTempDir();
             maxFileSize = config.getKustoFlushSize();
             flushInterval = config.getKustoFlushIntervalMS();
-            compressionType = config.getKustoCompression();
             log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
             open(context.assignment());
 

@@ -1,5 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,18 +17,19 @@ import java.util.zip.GZIPOutputStream;
  * Currently supports size based rolling, where size is for *uncompressed* size,
  * so final size can vary.
  */
-public class GZIPFileWriter implements Closeable {
+public class FileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    public GZIPFileDescriptor currentFile;
+    public FileDescriptor currentFile;
     private Timer timer;
-    private Consumer<GZIPFileDescriptor> onRollCallback;
+    private Consumer<FileDescriptor> onRollCallback;
     private final long flushInterval;
     private Supplier<String> getFilePath;
-    private GZIPOutputStream gzipStream;
+    private OutputStream outputStream;
     private String basePath;
     private CountingOutputStream fileStream;
     private long fileThreshold;
+    private final CompressionType compressionType;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -35,16 +37,18 @@ public class GZIPFileWriter implements Closeable {
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
      * @param getFilePath    - Allow external resolving of file name.
      */
-    public GZIPFileWriter(String basePath,
-                          long fileThreshold,
-                          Consumer<GZIPFileDescriptor> onRollCallback,
-                          Supplier<String> getFilePath,
-                          long flushInterval) {
+    public FileWriter(String basePath,
+                      long fileThreshold,
+                      Consumer<FileDescriptor> onRollCallback,
+                      Supplier<String> getFilePath,
+                      long flushInterval,
+                      CompressionType compressionType) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
+        this.compressionType = compressionType;
     }
 
     public boolean isDirty() {
@@ -59,7 +63,7 @@ public class GZIPFileWriter implements Closeable {
             resetFlushTimer(true);
         }
 
-        gzipStream.write(data);
+        outputStream.write(data);
 
         currentFile.rawBytes += data.length;
         currentFile.zippedBytes += fileStream.numBytes;
@@ -72,27 +76,27 @@ public class GZIPFileWriter implements Closeable {
     }
 
     public void openFile() throws IOException {
-        GZIPFileDescriptor fileDescriptor = new GZIPFileDescriptor();
+        FileDescriptor fileDescriptor = new FileDescriptor();
 
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
             throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
         }
 
-        String filePath = getFilePath.get() + ".gz";
+        String filePath = getFilePath.get() + (compressionType == CompressionType.zip ? ".zip" : ".gz");
         fileDescriptor.path = filePath;
 
         File file = new File(filePath);
 
         file.createNewFile();
+
         FileOutputStream fos = new FileOutputStream(file);
         fos.getChannel().truncate(0);
 
         fileStream = new CountingOutputStream(fos);
-        gzipStream = new GZIPOutputStream(fileStream);
+        outputStream = compressionType == null ? new GZIPOutputStream(fileStream) : fileStream;
 
         fileDescriptor.file = file;
-
         currentFile = fileDescriptor;
     }
 
@@ -103,18 +107,22 @@ public class GZIPFileWriter implements Closeable {
 
     private void finishFile() throws IOException {
         if (isDirty()) {
-            gzipStream.finish();
+            if(compressionType == null){
+                ((GZIPOutputStream) outputStream).finish();
+            } else {
+                outputStream.flush();
+            }
             onRollCallback.accept(currentFile);
         }
 
         // closing late so that the success callback will have a chance to use the file.
-        gzipStream.close();
+        outputStream.close();
         currentFile.file.delete();
     }
 
     public void rollback() throws IOException {
-        if (gzipStream != null) {
-            gzipStream.close();
+        if (outputStream != null) {
+            outputStream.close();
             if (currentFile != null && currentFile.file != null) {
                 currentFile.file.delete();
             }
@@ -122,9 +130,12 @@ public class GZIPFileWriter implements Closeable {
     }
 
     public void close() throws IOException {
+        if (timer!= null) {
+            timer.cancel();
+            timer.purge();
+        }
+
         // Flush last file, updating index
-        timer.cancel();
-        timer.purge();
         finishFile();
 
         // Setting to null so subsequent calls to close won't write it again
