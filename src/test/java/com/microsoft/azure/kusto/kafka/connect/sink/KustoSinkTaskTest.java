@@ -222,7 +222,7 @@ public class KustoSinkTaskTest {
     public void getTable() {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL, "https://cluster_name.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv', 'compression':'gz'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv', 'eventDataCompression':'gz'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
         props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME, "test@test.com");
         props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
 
@@ -237,7 +237,7 @@ public class KustoSinkTaskTest {
             Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").ingestionProperties.getTableName(), "table2");
             Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").ingestionProperties.getDataFormat(), "json");
             Assert.assertEquals(kustoSinkTask.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference(), "Mapping");
-            Assert.assertEquals(kustoSinkTask.getIngestionProps("topic1").compressionType, CompressionType.gz);
+            Assert.assertEquals(kustoSinkTask.getIngestionProps("topic1").eventDataCompression, CompressionType.gz);
             Assert.assertNull(kustoSinkTask.getIngestionProps("topic3"));
         }
     }

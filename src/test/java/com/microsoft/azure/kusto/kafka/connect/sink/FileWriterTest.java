@@ -1,7 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
-import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
@@ -58,7 +56,7 @@ public class FileWriterTest {
 
         Supplier<String> generateFileName = () -> FILE_PATH;
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, null);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false);
 
         fileWriter.openFile();
 
@@ -88,7 +86,7 @@ public class FileWriterTest {
 
         Supplier<String> generateFileName = () -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString();
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, null);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false);
 
         for (int i = 0; i < 9; i++) {
             String msg = String.format("Line number %d : This is a message from the other size", i);
@@ -128,7 +126,7 @@ public class FileWriterTest {
         Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString();
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, null);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false);
 
         String msg = "Message";
         fileWriter.write(msg.getBytes(StandardCharsets.UTF_8));
@@ -145,7 +143,7 @@ public class FileWriterTest {
 
         Supplier<String> generateFileName2 = () -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed
-        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, null);
+        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, false);
 
         String msg2 = "Second Message";
 
@@ -205,10 +203,10 @@ public class FileWriterTest {
             }
         };
 
-        Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv";
+        Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, CompressionType.gz);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, true);
 
         gzipOutputStream.write(msg.getBytes());
         gzipOutputStream.finish();

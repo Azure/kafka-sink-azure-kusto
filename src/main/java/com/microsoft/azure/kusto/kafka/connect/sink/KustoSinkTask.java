@@ -88,7 +88,7 @@ public class KustoSinkTask extends SinkTask {
                         String table = mapping.getString("table");
 
                         String format = mapping.optString("format");
-                        CompressionType compressionType = StringUtils.isBlank(mapping.optString("compression")) ? null : CompressionType.valueOf(mapping.optString("compression"));
+                        CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
 
                         IngestionProperties props = new IngestionProperties(db, table);
 
@@ -115,11 +115,11 @@ public class KustoSinkTask extends SinkTask {
                             }
                         }
                         TableIngestionProperties tableIngestionProperties = new TableIngestionProperties();
-                        tableIngestionProperties.compressionType = compressionType;
+                        tableIngestionProperties.eventDataCompression = compressionType;
                         tableIngestionProperties.ingestionProperties = props;
                         result.put(mapping.getString("topic"), tableIngestionProperties);
                     } catch (Exception ex) {
-                        throw new ConfigException("Malformed topics to kusto ingestion props mappings");
+                        throw new ConfigException("Malformed topics to kusto ingestion props mappings", ex);
                     }
                 }
 

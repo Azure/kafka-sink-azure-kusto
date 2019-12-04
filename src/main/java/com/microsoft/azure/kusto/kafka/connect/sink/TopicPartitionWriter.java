@@ -29,7 +29,7 @@ public class TopicPartitionWriter {
     long currentOffset;
     Long lastCommittedOffset;
 
-    TopicPartitionWriter(TopicPartition tp, IngestClient client, TableIngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval, CompressionType compressionType) {
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TableIngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps.ingestionProperties;
@@ -37,12 +37,7 @@ public class TopicPartitionWriter {
         this.basePath = basePath;
         this.flushInterval = flushInterval;
         this.currentOffset = 0;
-        this.compressionType = ingestionProps.compressionType;
-    }
-
-    TopicPartitionWriter(TopicPartition tp, IngestClient client, TableIngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval
-    ) {
-        this(tp, client, ingestionProps, basePath, fileThreshold, flushInterval, null);
+        this.compressionType = ingestionProps.eventDataCompression;
     }
 
     public void handleRollFile(FileDescriptor fileDescriptor) {
@@ -59,7 +54,10 @@ public class TopicPartitionWriter {
 
     public String getFilePath() {
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? currentOffset + 1 : currentOffset;
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat())).toString();
+
+        // Output files are always compressed
+        String compressionExtension = this.compressionType == null ? "gz" : this.compressionType.toString();
+        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s.%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
     }
 
     public void writeRecord(SinkRecord record) {
@@ -99,8 +97,13 @@ public class TopicPartitionWriter {
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
                 || this.compressionType != null;
 
-        fileWriter = new FileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath,
-                flushImmediately ? 0 : flushInterval, this.compressionType);
+        fileWriter = new FileWriter(
+                basePath,
+                fileThreshold,
+                this::handleRollFile,
+                this::getFilePath,
+                flushImmediately ? 0 : flushInterval,
+                this.compressionType == null);
     }
 
     public void close() {

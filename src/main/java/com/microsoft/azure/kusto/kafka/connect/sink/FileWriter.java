@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,31 +23,32 @@ public class FileWriter implements Closeable {
     private Timer timer;
     private Consumer<FileDescriptor> onRollCallback;
     private final long flushInterval;
+    private final boolean shouldCompressData;
     private Supplier<String> getFilePath;
     private OutputStream outputStream;
     private String basePath;
     private CountingOutputStream fileStream;
     private long fileThreshold;
-    private final CompressionType compressionType;
 
     /**
      * @param basePath       - This is path to which to write the files to.
      * @param fileThreshold  - Max size, uncompressed bytes.
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
      * @param getFilePath    - Allow external resolving of file name.
+     * @param shouldCompressData - Should the FileWriter compress the incoming data
      */
     public FileWriter(String basePath,
                       long fileThreshold,
                       Consumer<FileDescriptor> onRollCallback,
                       Supplier<String> getFilePath,
                       long flushInterval,
-                      CompressionType compressionType) {
+                      boolean shouldCompressData) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
-        this.compressionType = compressionType;
+        this.shouldCompressData = shouldCompressData;
     }
 
     public boolean isDirty() {
@@ -83,7 +83,7 @@ public class FileWriter implements Closeable {
             throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
         }
 
-        String filePath = getFilePath.get() + (compressionType == CompressionType.zip ? ".zip" : ".gz");
+        String filePath = getFilePath.get();
         fileDescriptor.path = filePath;
 
         File file = new File(filePath);
@@ -94,7 +94,7 @@ public class FileWriter implements Closeable {
         fos.getChannel().truncate(0);
 
         fileStream = new CountingOutputStream(fos);
-        outputStream = compressionType == null ? new GZIPOutputStream(fileStream) : fileStream;
+        outputStream = shouldCompressData ? new GZIPOutputStream(fileStream) : fileStream;
 
         fileDescriptor.file = file;
         currentFile = fileDescriptor;
@@ -107,16 +107,10 @@ public class FileWriter implements Closeable {
 
     private void finishFile() throws IOException {
         if (isDirty()) {
-            if(compressionType == null){
-                ((GZIPOutputStream) outputStream).finish();
-            } else {
-                outputStream.flush();
-            }
+            outputStream.close();
             onRollCallback.accept(currentFile);
         }
 
-        // closing late so that the success callback will have a chance to use the file.
-        outputStream.close();
         currentFile.file.delete();
     }
 
@@ -181,7 +175,7 @@ public class FileWriter implements Closeable {
     private class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;
 
-        CountingOutputStream(OutputStream out) throws IOException {
+        CountingOutputStream(OutputStream out) {
             super(out);
         }
 

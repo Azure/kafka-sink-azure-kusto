@@ -5,5 +5,5 @@ import com.microsoft.azure.kusto.ingest.source.CompressionType;
 
 class TableIngestionProperties {
     IngestionProperties ingestionProperties = null;
-    CompressionType compressionType = null;
+    CompressionType eventDataCompression = null;
 }
