@@ -54,7 +54,7 @@ public class TopicPartitionWriterTest {
         long fileThreshold = 100;
         long flushInterval = 300000;
         IngestionProperties ingestionProperties = new IngestionProperties(db, table);
-        TableIngestionProperties props = new TableIngestionProperties();
+        TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = ingestionProperties;
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, basePath, fileThreshold, flushInterval);
 
@@ -88,7 +88,7 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
         long flushInterval = 300000;
-        TableIngestionProperties props = new TableIngestionProperties();
+        TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
@@ -104,7 +104,7 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
         long flushInterval = 300000;
-        TableIngestionProperties props = new TableIngestionProperties();
+        TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
         writer.open();
@@ -129,7 +129,7 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
         long flushInterval = 300000;
-        TableIngestionProperties props = new TableIngestionProperties();
+        TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
         writer.open();
@@ -171,7 +171,7 @@ public class TopicPartitionWriterTest {
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         long fileThreshold = 100;
         long flushInterval = 300000;
-        TableIngestionProperties props = new TableIngestionProperties();
+        TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
@@ -198,7 +198,7 @@ public class TopicPartitionWriterTest {
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         long fileThreshold = 50;
         long flushInterval = 300000;
-        TableIngestionProperties props = new TableIngestionProperties();
+        TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 

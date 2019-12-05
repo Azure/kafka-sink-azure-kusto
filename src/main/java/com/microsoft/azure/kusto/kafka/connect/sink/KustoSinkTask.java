@@ -29,7 +29,7 @@ import java.util.*;
 public class KustoSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     private final Set<TopicPartition> assignment;
-    private Map<String, TableIngestionProperties> topicsToIngestionProps;
+    private Map<String, TopicIngestionProperties> topicsToIngestionProps;
     IngestClient kustoIngestClient;
     Map<TopicPartition, TopicPartitionWriter> writers;
     private long maxFileSize;
@@ -72,8 +72,8 @@ public class KustoSinkTask extends SinkTask {
         throw new ConfigException("Kusto authentication method must be provided.");
     }
 
-    public static Map<String, TableIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
-        Map<String, TableIngestionProperties> result = new HashMap<>();
+    public static Map<String, TopicIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
+        Map<String, TopicIngestionProperties> result = new HashMap<>();
 
         try {
             if (config.getKustoTopicToTableMapping() != null) {
@@ -114,10 +114,10 @@ public class KustoSinkTask extends SinkTask {
                                 }
                             }
                         }
-                        TableIngestionProperties tableIngestionProperties = new TableIngestionProperties();
-                        tableIngestionProperties.eventDataCompression = compressionType;
-                        tableIngestionProperties.ingestionProperties = props;
-                        result.put(mapping.getString("topic"), tableIngestionProperties);
+                        TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
+                        topicIngestionProperties.eventDataCompression = compressionType;
+                        topicIngestionProperties.ingestionProperties = props;
+                        result.put(mapping.getString("topic"), topicIngestionProperties);
                     } catch (Exception ex) {
                         throw new ConfigException("Malformed topics to kusto ingestion props mappings", ex);
                     }
@@ -133,7 +133,7 @@ public class KustoSinkTask extends SinkTask {
         throw new ConfigException("Malformed topics to kusto ingestion props mappings");
     }
 
-    public TableIngestionProperties getIngestionProps(String topic) {
+    public TopicIngestionProperties getIngestionProps(String topic) {
         return topicsToIngestionProps.get(topic);
     }
 
@@ -146,7 +146,7 @@ public class KustoSinkTask extends SinkTask {
     public void open(Collection<TopicPartition> partitions) throws ConnectException {
         assignment.addAll(partitions);
         for (TopicPartition tp : assignment) {
-            TableIngestionProperties ingestionProps = getIngestionProps(tp.topic());
+            TopicIngestionProperties ingestionProps = getIngestionProps(tp.topic());
             log.debug(String.format("Open Kusto topic: '%s' with partition: '%s'", tp.topic(), tp.partition()));
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));

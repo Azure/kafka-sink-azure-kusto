@@ -29,7 +29,7 @@ public class TopicPartitionWriter {
     long currentOffset;
     Long lastCommittedOffset;
 
-    TopicPartitionWriter(TopicPartition tp, IngestClient client, TableIngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval) {
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps.ingestionProperties;
