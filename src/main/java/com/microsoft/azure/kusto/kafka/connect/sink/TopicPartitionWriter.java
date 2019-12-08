@@ -17,7 +17,7 @@ import java.nio.file.Paths;
 
 public class TopicPartitionWriter {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    private final CompressionType compressionType;
+    private final CompressionType eventDataCompression;
     private final TopicPartition tp;
     private final IngestClient client;
     private final IngestionProperties ingestionProps;
@@ -37,7 +37,7 @@ public class TopicPartitionWriter {
         this.basePath = basePath;
         this.flushInterval = flushInterval;
         this.currentOffset = 0;
-        this.compressionType = ingestionProps.eventDataCompression;
+        this.eventDataCompression = ingestionProps.eventDataCompression;
     }
 
     public void handleRollFile(FileDescriptor fileDescriptor) {
@@ -56,7 +56,7 @@ public class TopicPartitionWriter {
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? currentOffset + 1 : currentOffset;
 
         // Output files are always compressed
-        String compressionExtension = this.compressionType == null ? "gz" : this.compressionType.toString();
+        String compressionExtension = this.eventDataCompression == null ? "gz" : this.eventDataCompression.toString();
         return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s.%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
     }
 
@@ -95,7 +95,7 @@ public class TopicPartitionWriter {
     public void open() {
         boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
-                || this.compressionType != null;
+                || this.eventDataCompression != null;
 
         fileWriter = new FileWriter(
                 basePath,
@@ -103,7 +103,7 @@ public class TopicPartitionWriter {
                 this::handleRollFile,
                 this::getFilePath,
                 flushImmediately ? 0 : flushInterval,
-                this.compressionType == null);
+                this.eventDataCompression == null);
     }
 
     public void close() {
