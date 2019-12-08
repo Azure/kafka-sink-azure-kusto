@@ -2,6 +2,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.common.TopicPartition;
@@ -16,30 +17,30 @@ import java.nio.file.Paths;
 
 public class TopicPartitionWriter {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    private TopicPartition tp;
-    private IngestClient client;
+    private final CompressionType eventDataCompression;
+    private final TopicPartition tp;
+    private final IngestClient client;
     private final IngestionProperties ingestionProps;
-    private String basePath;
-    private long flushInterval;
-    private long fileThreshold;
+    private final String basePath;
+    private final long flushInterval;
+    private final long fileThreshold;
 
-    GZIPFileWriter gzipFileWriter;
+    FileWriter fileWriter;
     long currentOffset;
     Long lastCommittedOffset;
 
-    TopicPartitionWriter(
-            TopicPartition tp, IngestClient client, IngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval
-    ) {
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, String basePath, long fileThreshold, long flushInterval) {
         this.tp = tp;
         this.client = client;
-        this.ingestionProps = ingestionProps;
+        this.ingestionProps = ingestionProps.ingestionProperties;
         this.fileThreshold = fileThreshold;
         this.basePath = basePath;
         this.flushInterval = flushInterval;
         this.currentOffset = 0;
+        this.eventDataCompression = ingestionProps.eventDataCompression;
     }
 
-    public void handleRollFile(GZIPFileDescriptor fileDescriptor) {
+    public void handleRollFile(FileDescriptor fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
         try {
@@ -52,8 +53,11 @@ public class TopicPartitionWriter {
     }
 
     public String getFilePath() {
-        long nextOffset = gzipFileWriter != null && gzipFileWriter.isDirty() ? currentOffset + 1 : currentOffset;
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat())).toString();
+        long nextOffset = fileWriter != null && fileWriter.isDirty() ? currentOffset + 1 : currentOffset;
+
+        // Output files are always compressed
+        String compressionExtension = this.eventDataCompression == null ? "gz" : this.eventDataCompression.toString();
+        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s.%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
     }
 
     public void writeRecord(SinkRecord record) {
@@ -79,7 +83,7 @@ public class TopicPartitionWriter {
             this.currentOffset = record.kafkaOffset();
         } else {
             try {
-                gzipFileWriter.write(value);
+                fileWriter.write(value);
 
                 this.currentOffset = record.kafkaOffset();
             } catch (IOException e) {
@@ -89,16 +93,23 @@ public class TopicPartitionWriter {
     }
 
     public void open() {
-        boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString()) ||
-                ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString());
+        boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
+                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
+                || this.eventDataCompression != null;
 
-        gzipFileWriter = new GZIPFileWriter(basePath, fileThreshold, this::handleRollFile, this::getFilePath, flushImmediately ? 0: flushInterval);
+        fileWriter = new FileWriter(
+                basePath,
+                fileThreshold,
+                this::handleRollFile,
+                this::getFilePath,
+                flushImmediately ? 0 : flushInterval,
+                this.eventDataCompression == null);
     }
 
     public void close() {
         try {
-            gzipFileWriter.rollback();
-            // gzipFileWriter.close(); TODO ?
+            fileWriter.rollback();
+            // fileWriter.close(); TODO ?
         } catch (IOException e) {
             e.printStackTrace();
         }

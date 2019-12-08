@@ -23,14 +23,14 @@ import java.util.List;
 import static org.mockito.Mockito.*;
 
 public class TopicPartitionWriterTest {
-    // TODO: should probably find a better way to mock internal class (GZIPFileWriter)...
+    // TODO: should probably find a better way to mock internal class (FileWriter)...
     File currentDirectory;
 
     @Before
     public final void before() {
         currentDirectory = new File(Paths.get(
                 System.getProperty("java.io.tmpdir"),
-                GZIPFileWriter.class.getSimpleName(),
+                FileWriter.class.getSimpleName(),
                 String.valueOf(Instant.now().toEpochMilli())
         ).toString());
     }
@@ -54,9 +54,11 @@ public class TopicPartitionWriterTest {
         long fileThreshold = 100;
         long flushInterval = 300000;
         IngestionProperties ingestionProperties = new IngestionProperties(db, table);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, ingestionProperties, basePath, fileThreshold, flushInterval);
+        TopicIngestionProperties props = new TopicIngestionProperties();
+        props.ingestionProperties = ingestionProperties;
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, basePath, fileThreshold, flushInterval);
 
-        GZIPFileDescriptor descriptor = new GZIPFileDescriptor();
+        FileDescriptor descriptor = new FileDescriptor();
         descriptor.rawBytes = 1024;
         descriptor.path = "somepath/somefile";
         descriptor.file = new File ("C://myfile.txt");
@@ -86,8 +88,9 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
         long flushInterval = 300000;
-
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, new IngestionProperties(db, table), basePath, fileThreshold, flushInterval);
+        TopicIngestionProperties props = new TopicIngestionProperties();
+        props.ingestionProperties = new IngestionProperties(db, table);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
         Assert.assertEquals(writer.getFilePath(), Paths.get(basePath, "kafka_testTopic_11_0").toString());
     }
@@ -101,8 +104,9 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
         long flushInterval = 300000;
-
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, new IngestionProperties(db, table), basePath, fileThreshold, flushInterval);
+        TopicIngestionProperties props = new TopicIngestionProperties();
+        props.ingestionProperties = new IngestionProperties(db, table);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
 
@@ -125,8 +129,9 @@ public class TopicPartitionWriterTest {
         String basePath = "somepath";
         long fileThreshold = 100;
         long flushInterval = 300000;
-
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient,new IngestionProperties(db,table), basePath, fileThreshold, flushInterval);
+        TopicIngestionProperties props = new TopicIngestionProperties();
+        props.ingestionProperties = new IngestionProperties(db, table);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
         writer.open();
         writer.close();
     }
@@ -166,8 +171,9 @@ public class TopicPartitionWriterTest {
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         long fileThreshold = 100;
         long flushInterval = 300000;
-
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, new IngestionProperties(db,table), basePath, fileThreshold, flushInterval);
+        TopicIngestionProperties props = new TopicIngestionProperties();
+        props.ingestionProperties = new IngestionProperties(db, table);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
 
         writer.open();
@@ -180,7 +186,7 @@ public class TopicPartitionWriterTest {
             writer.writeRecord(record);
         }
 
-        Assert.assertEquals(writer.gzipFileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 0)).toString());
+        Assert.assertEquals(writer.fileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 0)).toString());
     }
 
     @Test
@@ -192,8 +198,9 @@ public class TopicPartitionWriterTest {
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         long fileThreshold = 50;
         long flushInterval = 300000;
-
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, new IngestionProperties(db,table), basePath, fileThreshold, flushInterval);
+        TopicIngestionProperties props = new TopicIngestionProperties();
+        props.ingestionProperties = new IngestionProperties(db, table);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<SinkRecord>();
@@ -212,6 +219,6 @@ public class TopicPartitionWriterTest {
         //TODO : file threshold ignored?
         Assert.assertTrue(writer.lastCommittedOffset.equals((long) 15));
         Assert.assertEquals(writer.currentOffset, 17);
-        Assert.assertEquals(writer.gzipFileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 16)).toString());
+        Assert.assertEquals(writer.fileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.gz", tp.topic(), tp.partition(), 16)).toString());
     }
 }

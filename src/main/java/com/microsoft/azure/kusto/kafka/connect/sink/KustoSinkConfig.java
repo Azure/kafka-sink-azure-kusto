@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
