@@ -54,7 +54,7 @@ key.converter=org.apache.kafka.connect.storage.StringConverter
 value.converter=org.apache.kafka.connect.storage.StringConverter 
 tasks.max=1 
 topics=testing1 
-kusto.tables.topics_mapping=[{'topic': 'testing1','db': 'daniel', 'table': 'KafkaTest','format': 'json', 'mapping':'Mapping'}] 
+kusto.tables.topics_mapping=[{'topic': 'testing1','db': 'daniel', 'table': 'KafkaTest','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'daniel', 'table': 'KafkaTest','format': 'csv', 'mapping':'CsvMapping', 'eventDataCompression':'gz'},] 
 kusto.auth.authority=XXX 
 kusto.url=https://ingest-mycluster.kusto.windows.net/ 
 kusto.auth.appid=XXX 
@@ -89,8 +89,22 @@ KafkaTest | count
 
 #Supported formats
 csv, json, avro, parquet, tsv, scsv, sohsv, psv, txt.
-> Note - avro and parquet files are sent each record separately without aggregation, and are expected to be sent as a byte array containing the full file.
+> Note - avro and parquet files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
 Use value.converter=org.apache.kafka.connect.converters.ByteArrayConverter.
+
+#Supported compressions
+Kusto Kafka connector can get compressed data, this can be specified in the topics_mapping in the configuration under 
+'eventDataCompression', this can get all the compression types kusto accepts. Using this configuration files does'nt get 
+aggregated in the connector and are sent straight for ingestion.
+
+#Avro example
+Props 
+One can use this gist [FilesKafkaProducer]("https://gist.github.com/ohadbitt/8475dc9f63df1c0d0bc322e9b00fdd00") to create
+a JAR file that can be used as a file producer which sends files as bytes to kafka. 
+Create an avro file as in `src\test\resources\data.avro`
+copy the jar `docker cp C:\Users\ohbitton\IdeaProjects\kafka-producer-test\target\kafka-producer-all.jar <container id>:/FilesKafkaProducer.jar`
+Connect to the container `docker exec -it <id> bash`.
+Run from the container `java -jar FilesKafkaProducer.jar fileName [topic] [times]`
 
 ## Need Support?
 - **Have a feature request for SDKs?** Please post it on [User Voice](https://feedback.azure.com/forums/915733-azure-data-explorer) to help us prioritize
