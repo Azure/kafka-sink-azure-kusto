@@ -19,6 +19,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -169,7 +170,11 @@ public class KustoSinkTask extends SinkTask {
                 log.error("Error closing writer for {}. Error: {}", tp, e.getMessage());
             }
         }
-
+        try {
+            kustoIngestClient.close();
+        } catch (IOException e) {
+            log.error("Error closing kusto client", e);
+        }
         writers.clear();
         assignment.clear();
     }
@@ -201,6 +206,11 @@ public class KustoSinkTask extends SinkTask {
     public void stop() throws ConnectException {
         for (TopicPartitionWriter writer : writers.values()) {
             writer.close();
+        }
+        try {
+            kustoIngestClient.close();
+        } catch (IOException e) {
+            log.error("Error closing kusto client", e);
         }
     }
 
