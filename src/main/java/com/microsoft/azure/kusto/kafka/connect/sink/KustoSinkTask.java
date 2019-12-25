@@ -109,8 +109,10 @@ public class KustoSinkTask extends SinkTask {
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
                                 } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
-                                } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())){
+                                } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
+                                } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
                                 } else {
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
                                 }
@@ -255,5 +257,6 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void flush(Map<TopicPartition, OffsetAndMetadata> offsets) throws ConnectException {
         // do nothing , rolling files can handle writing
+
     }
 }

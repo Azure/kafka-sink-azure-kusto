@@ -95,6 +95,7 @@ public class TopicPartitionWriter {
     public void open() {
         boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
+                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
                 || this.eventDataCompression != null;
 
         fileWriter = new FileWriter(

@@ -88,8 +88,8 @@ KafkaTest | count
 ```
 
 #Supported formats
-csv, json, avro, parquet, tsv, scsv, sohsv, psv, txt.
-> Note - avro and parquet files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
+csv, json, avro, parquet, orc, tsv, scsv, sohsv, psv, txt.
+> Note - avro, parquet and orc files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
 Use value.converter=org.apache.kafka.connect.converters.ByteArrayConverter.
 
 #Supported compressions
