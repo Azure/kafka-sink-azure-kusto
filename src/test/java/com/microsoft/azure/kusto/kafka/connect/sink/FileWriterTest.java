@@ -62,7 +62,7 @@ public class FileWriterTest {
 
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
         Assert.assertEquals(fileWriter.currentFile.rawBytes, 0);
-        Assert.assertEquals(fileWriter.currentFile.path, FILE_PATH + ".gz");
+        Assert.assertEquals(fileWriter.currentFile.path, FILE_PATH);
         Assert.assertTrue(fileWriter.currentFile.file.canWrite());
 
         fileWriter.rollback();
@@ -80,7 +80,7 @@ public class FileWriterTest {
 
         HashMap<String, Long> files = new HashMap<>();
 
-        final int MAX_FILE_SIZE = 128;
+        final int MAX_FILE_SIZE = 100;
 
         Consumer<FileDescriptor> trackFiles = (FileDescriptor f) -> files.put(f.path, f.rawBytes);
 
@@ -206,7 +206,7 @@ public class FileWriterTest {
         Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, true);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, false);
 
         gzipOutputStream.write(msg.getBytes());
         gzipOutputStream.finish();

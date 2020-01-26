@@ -37,7 +37,7 @@ public class FileWriter implements Closeable {
      * @param getFilePath    - Allow external resolving of file name.
      * @param shouldCompressData - Should the FileWriter compress the incoming data
      */
-    public FileWriter(String basePath,
+    public  FileWriter(String basePath,
                       long fileThreshold,
                       Consumer<FileDescriptor> onRollCallback,
                       Supplier<String> getFilePath,
@@ -69,7 +69,7 @@ public class FileWriter implements Closeable {
         currentFile.zippedBytes += fileStream.numBytes;
         currentFile.numRecords++;
 
-        if (this.flushInterval == 0 || (currentFile.rawBytes + data.length) > fileThreshold) {
+        if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold) {
             rotate();
             resetFlushTimer(true);
         }
@@ -106,8 +106,8 @@ public class FileWriter implements Closeable {
     }
 
     private void finishFile() throws IOException {
+        outputStream.close();
         if (isDirty()) {
-            outputStream.close();
             onRollCallback.accept(currentFile);
         }
 

@@ -83,9 +83,8 @@ public class TopicPartitionWriter {
             this.currentOffset = record.kafkaOffset();
         } else {
             try {
-                fileWriter.write(value);
-
                 this.currentOffset = record.kafkaOffset();
+                fileWriter.write(value);
             } catch (IOException e) {
                 log.error("File write failed", e);
             }
@@ -93,7 +92,7 @@ public class TopicPartitionWriter {
     }
 
     public void open() {
-        boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
+        boolean shouldCompressData = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
                 || this.eventDataCompression != null;
@@ -103,8 +102,8 @@ public class TopicPartitionWriter {
                 fileThreshold,
                 this::handleRollFile,
                 this::getFilePath,
-                flushImmediately ? 0 : flushInterval,
-                this.eventDataCompression == null);
+                shouldCompressData ? 0 : flushInterval,
+                !shouldCompressData);
     }
 
     public void close() {
