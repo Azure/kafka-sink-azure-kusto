@@ -92,18 +92,18 @@ public class TopicPartitionWriter {
     }
 
     public void open() {
-        boolean shouldCompressData = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
+        boolean shouldCompressData = !(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
-                || this.eventDataCompression != null;
+                || this.eventDataCompression != null);
 
         fileWriter = new FileWriter(
                 basePath,
                 fileThreshold,
                 this::handleRollFile,
                 this::getFilePath,
-                shouldCompressData ? 0 : flushInterval,
-                !shouldCompressData);
+                !shouldCompressData ? 0 : flushInterval,
+                shouldCompressData);
     }
 
     public void close() {
