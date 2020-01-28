@@ -37,7 +37,7 @@ public class FileWriter implements Closeable {
      * @param getFilePath    - Allow external resolving of file name.
      * @param shouldCompressData - Should the FileWriter compress the incoming data
      */
-    public  FileWriter(String basePath,
+    public FileWriter(String basePath,
                       long fileThreshold,
                       Consumer<FileDescriptor> onRollCallback,
                       Supplier<String> getFilePath,
@@ -101,17 +101,18 @@ public class FileWriter implements Closeable {
     }
 
     void rotate() throws IOException {
-        finishFile();
+        finishFile(true);
         openFile();
     }
 
-    private void finishFile() throws IOException {
+    void finishFile(boolean delete) throws IOException {
         outputStream.close();
         if (isDirty()) {
             onRollCallback.accept(currentFile);
         }
-
-        currentFile.file.delete();
+        if(delete){
+            currentFile.file.delete();
+        }
     }
 
     public void rollback() throws IOException {
@@ -130,7 +131,7 @@ public class FileWriter implements Closeable {
         }
 
         // Flush last file, updating index
-        finishFile();
+        finishFile(true);
 
         // Setting to null so subsequent calls to close won't write it again
         currentFile = null;

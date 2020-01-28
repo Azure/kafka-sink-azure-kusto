@@ -177,11 +177,27 @@ public class FileWriterTest {
         GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
         String msg = "Message";
 
-        Consumer<FileDescriptor> trackFiles = (FileDescriptor f) -> {
-            try (FileInputStream fileInputStream = new FileInputStream(f.file)){
+        Consumer<FileDescriptor> trackFiles = getAssertFileConsomer(msg);
+
+        Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
+
+        // Expect no files to be ingested as size is small and flushInterval is big
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, false);
+
+        gzipOutputStream.write(msg.getBytes());
+        gzipOutputStream.finish();
+        fileWriter.write(byteArrayOutputStream.toByteArray());
+
+        fileWriter.close();
+        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
+    }
+
+    static Consumer<FileDescriptor> getAssertFileConsomer(String msg) {
+        return (FileDescriptor f) -> {
+            try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
                 byte[] bytes = IOUtils.toByteArray(fileInputStream);
                 try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
-                     GZIPInputStream gzipper = new GZIPInputStream(bin)){
+                     GZIPInputStream gzipper = new GZIPInputStream(bin)) {
 
                     byte[] buffer = new byte[1024];
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -202,19 +218,5 @@ public class FileWriterTest {
                 Assert.fail(e.getMessage());
             }
         };
-
-        Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
-
-        // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, false);
-
-        gzipOutputStream.write(msg.getBytes());
-        gzipOutputStream.finish();
-        fileWriter.write(byteArrayOutputStream.toByteArray());
-
-        fileWriter.close();
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
-
-
     }
 }
