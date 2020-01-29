@@ -177,7 +177,7 @@ public class FileWriterTest {
         GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
         String msg = "Message";
 
-        Consumer<FileDescriptor> trackFiles = getAssertFileConsomer(msg);
+        Consumer<FileDescriptor> trackFiles = getAssertFileConsumer(msg);
 
         Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
 
@@ -192,7 +192,7 @@ public class FileWriterTest {
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
     }
 
-    static Consumer<FileDescriptor> getAssertFileConsomer(String msg) {
+    static Consumer<FileDescriptor> getAssertFileConsumer(String msg) {
         return (FileDescriptor f) -> {
             try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
                 byte[] bytes = IOUtils.toByteArray(fileInputStream);

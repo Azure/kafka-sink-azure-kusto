@@ -101,18 +101,24 @@ public class FileWriter implements Closeable {
     }
 
     void rotate() throws IOException {
-        finishFile(true);
+        finishFile();
         openFile();
     }
 
-    void finishFile(boolean delete) throws IOException {
-        outputStream.close();
+    void finishFile() throws IOException {
         if (isDirty()) {
+            if(shouldCompressData){
+                GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
+                gzip.finish();
+            } else {
+                outputStream.flush();
+            }
+            fileStream.close();
             onRollCallback.accept(currentFile);
         }
-        if(delete){
-            currentFile.file.delete();
-        }
+
+        // closing late so that the success callback will have a chance to use the file. This is a real thing on debug?!
+        outputStream.close();
     }
 
     public void rollback() throws IOException {
@@ -131,7 +137,7 @@ public class FileWriter implements Closeable {
         }
 
         // Flush last file, updating index
-        finishFile(true);
+        finishFile();
 
         // Setting to null so subsequent calls to close won't write it again
         currentFile = null;

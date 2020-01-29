@@ -45,6 +45,7 @@ public class TopicPartitionWriter {
 
         try {
             client.ingestFromFile(fileSourceInfo, ingestionProps);
+            fileDescriptor.file.delete();
             log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
             this.lastCommittedOffset = currentOffset;
         } catch (Exception e) {
