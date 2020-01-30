@@ -16,6 +16,7 @@ import org.testng.Assert;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -32,11 +33,12 @@ public class TopicPartitionWriterTest {
 
     @Before
     public final void before() {
-        currentDirectory = new File(Paths.get(
-                System.getProperty("java.io.tmpdir"),
-                FileWriter.class.getSimpleName(),
-                String.valueOf(Instant.now().toEpochMilli())
-        ).toString());
+//        currentDirectory = new File(Paths.get(
+//                System.getProperty("java.io.tmpdir"),
+//                FileWriter.class.getSimpleName(),
+//                String.valueOf(Instant.now().toEpochMilli())
+//        ).toString());
+        currentDirectory = new File("C:\\Users\\ohbitton\\Desktop");
     }
 
     @After
@@ -170,34 +172,34 @@ public class TopicPartitionWriterTest {
 //        Assert.assertEquals(writer.getFilePath(), "kafka_testPartition_11_0");
     }
 
-    @Test
-    public void testWriteStringyValuesAndOffset() throws Exception {
-        TopicPartition tp = new TopicPartition("testTopic", 2);
-        IngestClient mockClient = mock(IngestClient.class);
-        String db = "testdb1";
-        String table = "testtable1";
-        String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
-        long fileThreshold = 100;
-        long flushInterval = 300000;
-        TopicIngestionProperties props = new TopicIngestionProperties();
-
-        props.ingestionProperties = new IngestionProperties(db, table);
-        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
-
-
-        writer.open();
-        List<SinkRecord> records = new ArrayList<SinkRecord>();
-
-        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, "another,stringy,message", 3));
-        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, "{'also':'stringy','sortof':'message'}", 4));
-
-        for (SinkRecord record : records) {
-            writer.writeRecord(record);
-        }
-
-        Assert.assertEquals(writer.fileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DATA_FORMAT.csv.name())).toString());
-    }
+//    @Test
+//    public void testWriteStringyValuesAndOffset() throws Exception {
+//        TopicPartition tp = new TopicPartition("testTopic", 2);
+//        IngestClient mockClient = mock(IngestClient.class);
+//        String db = "testdb1";
+//        String table = "testtable1";
+//        String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
+//        long fileThreshold = 100;
+//        long flushInterval = 300000;
+//        TopicIngestionProperties props = new TopicIngestionProperties();
+//
+//        props.ingestionProperties = new IngestionProperties(db, table);
+//        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
+//        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
+//
+//
+//        writer.open();
+//        List<SinkRecord> records = new ArrayList<SinkRecord>();
+//
+//        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, "another,stringy,message", 3));
+//        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, "{'also':'stringy','sortof':'message'}", 4));
+//
+//        for (SinkRecord record : records) {
+//            writer.writeRecord(record);
+//        }
+//
+//        Assert.assertEquals(writer.fileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DATA_FORMAT.csv.name())).toString());
+//    }
 
     @Test
     public void testWriteStringValuesAndOffset() throws IOException {
@@ -248,27 +250,24 @@ public class TopicPartitionWriterTest {
         String db = "testdb1";
         String table = "testtable1";
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
-        String[] messages = new String[]{ "stringy message", "another,stringy,message", "{'also':'stringy','sortof':'message'}"};
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream);
-        for (String msg: messages){
-            byte[] data = msg.getBytes();
-            gzipOutputStream.write(data);
+        FileInputStream fis = new FileInputStream("C:\\Users\\ohbitton\\source\\Workspaces\\Kusto\\Main\\Test\\UT\\Kusto.Engine.UT\\Common\\Kusto.Common.Svc\\Stream\\dataset3.avro");
+        ByteArrayOutputStream o = new ByteArrayOutputStream();
+        int content;
+        while ((content = fis.read()) != -1) {
+            // convert to char and display it
+            o.write(content);
         }
-        gzipOutputStream.finish();
-
         // Expect to finish file with one record although fileThreshold is high
         long fileThreshold = 128;
         long flushInterval = 300000;
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
-        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        props.eventDataCompression = CompressionType.gz;
+        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<SinkRecord>();
-        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, outputStream.toByteArray(), 10));
+        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, o.toByteArray(), 10));
 
         for (SinkRecord record : records) {
             writer.writeRecord(record);
