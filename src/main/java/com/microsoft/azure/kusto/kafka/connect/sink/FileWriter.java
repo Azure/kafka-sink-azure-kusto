@@ -94,7 +94,7 @@ public class FileWriter implements Closeable {
         fos.getChannel().truncate(0);
 
         countingStream = new CountingOutputStream(fos);
-        outputStream = shouldCompressData ? new GZIPOutputStream(fos) : countingStream;
+        outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
         fileDescriptor.file = file;
         currentFile = fileDescriptor;
     }
@@ -107,7 +107,7 @@ public class FileWriter implements Closeable {
     void finishFile() throws IOException {
         if(isDirty()){
             if(shouldCompressData){
-                GZIPOutputStream gzip = (GZIPOutputStream )outputStream;
+                GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
                 gzip.finish();
             } else {
                 outputStream.flush();

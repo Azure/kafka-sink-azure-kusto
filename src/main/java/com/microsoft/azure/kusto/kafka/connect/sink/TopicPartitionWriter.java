@@ -58,18 +58,16 @@ public class TopicPartitionWriter {
     public String getFilePath() {
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? currentOffset + 1 : currentOffset;
 
-        // Output files are always compressed
-        String compressionExtension;
-        if (this.eventDataCompression == null) {
-            if(shouldCompressData(ingestionProps, null)){
-                compressionExtension = ".gz";
-            } else {
-                compressionExtension = "";
-            }
-        } else {
-            compressionExtension = "." + this.eventDataCompression.toString();
-        }
 
+        String compressionExtension = "";
+
+        if (shouldCompressData(ingestionProps, null) || eventDataCompression != null) {
+            if(eventDataCompression != null) {
+                compressionExtension = "." + eventDataCompression.toString();
+            } else {
+                compressionExtension = ".gz";
+            }
+        }
         return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
     }
 
