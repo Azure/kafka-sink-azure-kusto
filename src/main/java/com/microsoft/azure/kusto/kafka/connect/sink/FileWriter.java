@@ -51,7 +51,7 @@ public class FileWriter implements Closeable {
         this.shouldCompressData = shouldCompressData;
     }
 
-    public boolean isDirty() {
+    boolean isDirty() {
         return this.currentFile != null && this.currentFile.rawBytes > 0;
     }
 
@@ -178,12 +178,11 @@ public class FileWriter implements Closeable {
         resetFlushTimer(false);
     }
 
-    private class CountingOutputStream extends OutputStream {
-        private final OutputStream out;
+    private class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;
 
         CountingOutputStream(OutputStream out) {
-            this.out = out;
+            super(out);
         }
 
         @Override

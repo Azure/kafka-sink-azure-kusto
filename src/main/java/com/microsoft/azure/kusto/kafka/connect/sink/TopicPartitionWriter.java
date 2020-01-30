@@ -58,9 +58,7 @@ public class TopicPartitionWriter {
     public String getFilePath() {
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? currentOffset + 1 : currentOffset;
 
-
         String compressionExtension = "";
-
         if (shouldCompressData(ingestionProps, null) || eventDataCompression != null) {
             if(eventDataCompression != null) {
                 compressionExtension = "." + eventDataCompression.toString();
@@ -68,6 +66,7 @@ public class TopicPartitionWriter {
                 compressionExtension = ".gz";
             }
         }
+
         return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
     }
 
