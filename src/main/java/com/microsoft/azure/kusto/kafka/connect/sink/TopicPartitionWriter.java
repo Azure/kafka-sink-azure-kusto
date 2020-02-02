@@ -1,6 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
@@ -45,6 +47,7 @@ public class TopicPartitionWriter {
 
         try {
             client.ingestFromFile(fileSourceInfo, ingestionProps);
+
             log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
             this.lastCommittedOffset = currentOffset;
         } catch (Exception e) {
@@ -55,9 +58,16 @@ public class TopicPartitionWriter {
     public String getFilePath() {
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? currentOffset + 1 : currentOffset;
 
-        // Output files are always compressed
-        String compressionExtension = this.eventDataCompression == null ? "gz" : this.eventDataCompression.toString();
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s.%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
+        String compressionExtension = "";
+        if (shouldCompressData(ingestionProps, null) || eventDataCompression != null) {
+            if(eventDataCompression != null) {
+                compressionExtension = "." + eventDataCompression.toString();
+            } else {
+                compressionExtension = ".gz";
+            }
+        }
+
+        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
     }
 
     public void writeRecord(SinkRecord record) {
@@ -83,9 +93,8 @@ public class TopicPartitionWriter {
             this.currentOffset = record.kafkaOffset();
         } else {
             try {
-                fileWriter.write(value);
-
                 this.currentOffset = record.kafkaOffset();
+                fileWriter.write(value);
             } catch (IOException e) {
                 log.error("File write failed", e);
             }
@@ -93,18 +102,16 @@ public class TopicPartitionWriter {
     }
 
     public void open() {
-        boolean flushImmediately = ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
-                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
-                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
-                || this.eventDataCompression != null;
+        // Should compress binary files
+        boolean shouldCompressData = shouldCompressData(this.ingestionProps, this.eventDataCompression);
 
         fileWriter = new FileWriter(
                 basePath,
                 fileThreshold,
                 this::handleRollFile,
                 this::getFilePath,
-                flushImmediately ? 0 : flushInterval,
-                this.eventDataCompression == null);
+                !shouldCompressData ? 0 : flushInterval,
+                shouldCompressData);
     }
 
     public void close() {
@@ -114,5 +121,12 @@ public class TopicPartitionWriter {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
+        return !(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
+                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
+                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
+                || eventDataCompression != null);
     }
 }

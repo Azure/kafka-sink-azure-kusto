@@ -19,7 +19,7 @@ import java.util.zip.GZIPOutputStream;
 public class FileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    public FileDescriptor currentFile;
+    FileDescriptor currentFile;
     private Timer timer;
     private Consumer<FileDescriptor> onRollCallback;
     private final long flushInterval;
@@ -27,7 +27,7 @@ public class FileWriter implements Closeable {
     private Supplier<String> getFilePath;
     private OutputStream outputStream;
     private String basePath;
-    private CountingOutputStream fileStream;
+    private CountingOutputStream countingStream;
     private long fileThreshold;
 
     /**
@@ -51,7 +51,7 @@ public class FileWriter implements Closeable {
         this.shouldCompressData = shouldCompressData;
     }
 
-    public boolean isDirty() {
+    boolean isDirty() {
         return this.currentFile != null && this.currentFile.rawBytes > 0;
     }
 
@@ -66,10 +66,10 @@ public class FileWriter implements Closeable {
         outputStream.write(data);
 
         currentFile.rawBytes += data.length;
-        currentFile.zippedBytes += fileStream.numBytes;
+        currentFile.zippedBytes += countingStream.numBytes;
         currentFile.numRecords++;
 
-        if (this.flushInterval == 0 || (currentFile.rawBytes + data.length) > fileThreshold) {
+        if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold) {
             rotate();
             resetFlushTimer(true);
         }
@@ -93,9 +93,8 @@ public class FileWriter implements Closeable {
         FileOutputStream fos = new FileOutputStream(file);
         fos.getChannel().truncate(0);
 
-        fileStream = new CountingOutputStream(fos);
-        outputStream = shouldCompressData ? new GZIPOutputStream(fileStream) : fileStream;
-
+        countingStream = new CountingOutputStream(fos);
+        outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
         fileDescriptor.file = file;
         currentFile = fileDescriptor;
     }
@@ -105,13 +104,20 @@ public class FileWriter implements Closeable {
         openFile();
     }
 
-    private void finishFile() throws IOException {
-        if (isDirty()) {
-            outputStream.close();
+    void finishFile() throws IOException {
+        if(isDirty()){
+            if(shouldCompressData){
+                GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
+                gzip.finish();
+            } else {
+                outputStream.flush();
+            }
+
             onRollCallback.accept(currentFile);
         }
 
-        currentFile.file.delete();
+        // closing late so that the success callback will have a chance to use the file. This is a real thing on debug?!
+        outputStream.close();
     }
 
     public void rollback() throws IOException {
