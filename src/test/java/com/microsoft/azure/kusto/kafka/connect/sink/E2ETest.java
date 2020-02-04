@@ -19,14 +19,13 @@ import org.junit.jupiter.api.Assertions;
 import org.testng.Assert;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-//-ea -DappId=d5e0a24c-3a09-40ce-a1d6-dc5ab58dae66 -DappKey=L+0hoM34kqC22XRniWOgkETwVvawiir2odEjYqZeyXA= -Dcluster=ohbitton.dev -Ddatabase=ohtst -Dtable=TestTable2
+
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
     private String appId = System.getProperty("appId");
@@ -50,7 +49,7 @@ public class E2ETest {
         try {
             engineClient.execute(database, String.format(".create table ['%s'] ingestion csv mapping 'mappy' " +
                     "'[" +
-                    "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"Ordinal\":\"0\"}}," +
+                    "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"transform\":\"SourceLocation\"}}," +
                     "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Ordinal\":\"1\"}}," +
                     "]'", table));
 
@@ -62,16 +61,17 @@ public class E2ETest {
             String[] messages = new String[]{"stringy message,1", "another,2"};
 
             // Expect to finish file after writing forth message cause of fileThreshold
-            long fileThreshold = messages[0].length();
+            long fileThreshold = messages[0].length() + 1;
             long flushInterval = 0;
             TopicIngestionProperties props = new TopicIngestionProperties();
             props.ingestionProperties = ingestionProperties;
             props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
+            props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.csv);
 
             TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, Paths.get(basePath, "csv").toString(), fileThreshold, flushInterval);
             writer.open();
 
-            List<SinkRecord> records = new ArrayList<SinkRecord>();
+            List<SinkRecord> records = new ArrayList<>();
             records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, messages[0].getBytes(), 10));
             records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, messages[0], 10));
 
@@ -91,7 +91,7 @@ public class E2ETest {
     }
 
     @Test
-    //@Ignore
+    @Ignore
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "avro";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
@@ -118,7 +118,7 @@ public class E2ETest {
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
             TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, Paths.get(basePath, "avro").toString(), 10, 300000);
             writer2.open();
-            List<SinkRecord> records2 = new ArrayList<SinkRecord>();
+            List<SinkRecord> records2 = new ArrayList<>();
 
             FileInputStream fs = new FileInputStream("src/test/resources/data.avro");
             byte[] buffer = new byte[1184];
