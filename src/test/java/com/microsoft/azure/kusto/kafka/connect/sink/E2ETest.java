@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Assertions;
 import org.testng.Assert;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
@@ -37,7 +38,7 @@ public class E2ETest {
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
 
     @Test
-    //@Ignore
+    @Ignore
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "csv";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
@@ -71,7 +72,7 @@ public class E2ETest {
             TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, Paths.get(basePath, "csv").toString(), fileThreshold, flushInterval);
             writer.open();
 
-            List<SinkRecord> records = new ArrayList<>();
+            List<SinkRecord> records = new ArrayList<SinkRecord>();
             records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, messages[0].getBytes(), 10));
             records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, messages[0], 10));
 
@@ -118,7 +119,7 @@ public class E2ETest {
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
             TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, Paths.get(basePath, "avro").toString(), 10, 300000);
             writer2.open();
-            List<SinkRecord> records2 = new ArrayList<>();
+            List<SinkRecord> records2 = new ArrayList<SinkRecord>();
 
             FileInputStream fs = new FileInputStream("src/test/resources/data.avro");
             byte[] buffer = new byte[1184];
