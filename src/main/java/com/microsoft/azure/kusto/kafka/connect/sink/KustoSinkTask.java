@@ -165,20 +165,15 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void close(Collection<TopicPartition> partitions) {
-        for (TopicPartition tp : assignment) {
+        for (TopicPartition tp : partitions) {
             try {
                 writers.get(tp).close();
+                writers.remove(tp);
+                assignment.remove(tp);
             } catch (ConnectException e) {
                 log.error("Error closing writer for {}. Error: {}", tp, e.getMessage());
             }
         }
-        try {
-            kustoIngestClient.close();
-        } catch (IOException e) {
-            log.error("Error closing kusto client", e);
-        }
-        writers.clear();
-        assignment.clear();
     }
 
 
@@ -206,6 +201,7 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void stop() throws ConnectException {
+        log.warn("Stopping KustoSinkTask");
         for (TopicPartitionWriter writer : writers.values()) {
             writer.close();
         }
