@@ -62,6 +62,10 @@ kusto.auth.appkey=XXX
 kusto.sink.tempdir=/var/tmp/ 
 kusto.sink.flush_size=1000
 ```
+Aggregation in the sink is done using files, these are sent to kusto if the aggregated file has reached the flush_size 
+(size is in bytes) or if the flush_interval_ms interval has passed. 
+For the confluent parameters please refer here https://docs.confluent.io/2.0.0/connect/userguide.html#configuring-connectors
+For scaling you should consider making tasks.max equal to the number of pods and ports.
 
 #### Create Table and Mapping
 Very similar to (Event Hub)[https://docs.microsoft.com/en-us/azure/data-explorer/ingest-data-event-hub#create-a-target-table-in-azure-data-explorer]
