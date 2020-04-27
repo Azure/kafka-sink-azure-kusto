@@ -114,6 +114,7 @@ public class FileWriter implements Closeable {
             }
 
             onRollCallback.accept(currentFile);
+            currentFile.file.delete();
         }
 
         // closing late so that the success callback will have a chance to use the file. This is a real thing on debug?!
