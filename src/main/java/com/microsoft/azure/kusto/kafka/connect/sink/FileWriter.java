@@ -4,12 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
-
 
 /**
  * This class is used to write gzipped rolling files.
@@ -19,9 +19,9 @@ import java.util.zip.GZIPOutputStream;
 public class FileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    FileDescriptor currentFile;
+    FileProperties currentFile;
     private Timer timer;
-    private Consumer<FileDescriptor> onRollCallback;
+    private Consumer<FileProperties> onRollCallback;
     private final long flushInterval;
     private final boolean shouldCompressData;
     private Supplier<String> getFilePath;
@@ -29,6 +29,7 @@ public class FileWriter implements Closeable {
     private String basePath;
     private CountingOutputStream countingStream;
     private long fileThreshold;
+    private FileDescriptor currentFd;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -39,7 +40,7 @@ public class FileWriter implements Closeable {
      */
     public FileWriter(String basePath,
                       long fileThreshold,
-                      Consumer<FileDescriptor> onRollCallback,
+                      Consumer<FileProperties> onRollCallback,
                       Supplier<String> getFilePath,
                       long flushInterval,
                       boolean shouldCompressData) {
@@ -76,7 +77,7 @@ public class FileWriter implements Closeable {
     }
 
     public void openFile() throws IOException {
-        FileDescriptor fileDescriptor = new FileDescriptor();
+        FileProperties fileProps = new FileProperties();
 
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
@@ -84,19 +85,20 @@ public class FileWriter implements Closeable {
         }
 
         String filePath = getFilePath.get();
-        fileDescriptor.path = filePath;
+        fileProps.path = filePath;
 
         File file = new File(filePath);
 
         file.createNewFile();
 
         FileOutputStream fos = new FileOutputStream(file);
+        currentFd = fos.getFD();
         fos.getChannel().truncate(0);
 
         countingStream = new CountingOutputStream(fos);
         outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
-        fileDescriptor.file = file;
-        currentFile = fileDescriptor;
+        fileProps.file = file;
+        currentFile = fileProps;
     }
 
     void rotate() throws IOException {
@@ -105,6 +107,10 @@ public class FileWriter implements Closeable {
     }
 
     void finishFile() throws IOException {
+        finishFile(true);
+    }
+
+    void finishFile(Boolean delete) throws IOException {
         if(isDirty()){
             if(shouldCompressData){
                 GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
@@ -114,18 +120,29 @@ public class FileWriter implements Closeable {
             }
 
             onRollCallback.accept(currentFile);
-            currentFile.file.delete();
+            if (delete){
+                dumpFile();
+            }
+        } else {
+            outputStream.close();
         }
+    }
 
-        // closing late so that the success callback will have a chance to use the file. This is a real thing on debug?!
+    private void dumpFile() throws IOException {
         outputStream.close();
+        currentFd = null;
+        boolean deleted = currentFile.file.delete();
+        if (!deleted) {
+            log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());// +
+//                    ". If file does not exist please contact kusto team.");
+        }
     }
 
     public void rollback() throws IOException {
         if (outputStream != null) {
             outputStream.close();
             if (currentFile != null && currentFile.file != null) {
-                currentFile.file.delete();
+                dumpFile();
             }
         }
     }

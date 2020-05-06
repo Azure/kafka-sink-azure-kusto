@@ -52,7 +52,7 @@ public class FileWriterTest {
         final String FILE_PATH = Paths.get(path, "ABC").toString();
         final int MAX_FILE_SIZE = 128;
 
-        Consumer<FileDescriptor> trackFiles = (FileDescriptor f) -> {};
+        Consumer<FileProperties> trackFiles = (FileProperties f) -> {};
 
         Supplier<String> generateFileName = () -> FILE_PATH;
 
@@ -82,9 +82,9 @@ public class FileWriterTest {
 
         final int MAX_FILE_SIZE = 100;
 
-        Consumer<FileDescriptor> trackFiles = (FileDescriptor f) -> files.put(f.path, f.rawBytes);
+        Consumer<FileProperties> trackFiles = (FileProperties f) -> files.put(f.path, f.rawBytes);
 
-        Supplier<String> generateFileName = () -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString();
+        Supplier<String> generateFileName = () -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString() + "csv.gz";
 
         FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false);
 
@@ -121,9 +121,9 @@ public class FileWriterTest {
 
         final int MAX_FILE_SIZE = 128 * 2;
 
-        Consumer<FileDescriptor> trackFiles = (FileDescriptor f) -> files.put(f.path, f.rawBytes);
+        Consumer<FileProperties> trackFiles = (FileProperties f) -> files.put(f.path, f.rawBytes);
 
-        Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString();
+        Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + "csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
         FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false);
@@ -177,7 +177,7 @@ public class FileWriterTest {
         GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
         String msg = "Message";
 
-        Consumer<FileDescriptor> trackFiles = getAssertFileConsumer(msg);
+        Consumer<FileProperties> trackFiles = getAssertFileConsumer(msg);
 
         Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
 
@@ -189,11 +189,11 @@ public class FileWriterTest {
         fileWriter.write(byteArrayOutputStream.toByteArray());
 
         fileWriter.close();
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
+        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
     }
 
-    static Consumer<FileDescriptor> getAssertFileConsumer(String msg) {
-        return (FileDescriptor f) -> {
+    static Consumer<FileProperties> getAssertFileConsumer(String msg) {
+        return (FileProperties f) -> {
             try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
                 byte[] bytes = IOUtils.toByteArray(fileInputStream);
                 try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);

@@ -8,7 +8,7 @@
     <groupId>com.microsoft.azure</groupId>
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
-    <version>0.3.3</version>
+    <version>0.3.4</version>
     <build>
         <plugins>
             <plugin>
@@ -71,7 +71,7 @@
         <kafka.version>1.0.0</kafka.version>
         <json.version>20090211</json.version>
         <commonio.version>2.6</commonio.version>
-        <kusto-sdk.version>1.4.2</kusto-sdk.version>
+        <kusto-sdk.version>2.0.2</kusto-sdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>

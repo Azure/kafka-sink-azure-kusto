@@ -40,7 +40,7 @@ public class TopicPartitionWriter {
         this.eventDataCompression = ingestionProps.eventDataCompression;
     }
 
-    public void handleRollFile(FileDescriptor fileDescriptor) {
+    public void handleRollFile(FileProperties fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
         try {

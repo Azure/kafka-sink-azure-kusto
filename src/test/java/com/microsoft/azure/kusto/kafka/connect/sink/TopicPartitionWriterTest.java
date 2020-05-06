@@ -2,7 +2,6 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.common.TopicPartition;
@@ -19,11 +18,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.zip.GZIPOutputStream;
 
 import static org.mockito.Mockito.*;
 
@@ -64,7 +61,7 @@ public class TopicPartitionWriterTest {
         props.ingestionProperties = ingestionProperties;
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, basePath, fileThreshold, flushInterval);
 
-        FileDescriptor descriptor = new FileDescriptor();
+        FileProperties descriptor = new FileProperties();
         descriptor.rawBytes = 1024;
         descriptor.path = "somepath/somefile";
         descriptor.file = new File ("C://myfile.txt");
@@ -237,8 +234,8 @@ public class TopicPartitionWriterTest {
         Assert.assertEquals(currentFileName, Paths.get(basePath, String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 16, IngestionProperties.DATA_FORMAT.csv.name())).toString());
 
         // Read
-        writer.fileWriter.finishFile();
-        Consumer<FileDescriptor> assertFileConsumer = FileWriterTest.getAssertFileConsumer(messages[2] + "\n");
+        writer.fileWriter.finishFile(false);
+        Consumer<FileProperties> assertFileConsumer = FileWriterTest.getAssertFileConsumer(messages[2] + "\n");
         assertFileConsumer.accept(writer.fileWriter.currentFile);
     }
 
