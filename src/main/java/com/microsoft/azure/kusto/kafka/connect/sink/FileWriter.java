@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.function.Consumer;
@@ -133,8 +132,7 @@ public class FileWriter implements Closeable {
         currentFd = null;
         boolean deleted = currentFile.file.delete();
         if (!deleted) {
-            log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());// +
-//                    ". If file does not exist please contact kusto team.");
+            log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());
         }
     }
 
