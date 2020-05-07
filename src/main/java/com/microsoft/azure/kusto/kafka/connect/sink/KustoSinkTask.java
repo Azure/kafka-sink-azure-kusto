@@ -230,8 +230,8 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
-    // this is a neat trick, since our rolling files commit whenever they like, offsets may drift
-    // from what kafka expects. so basically this is to re-sync topic-partition offsets with our sink.
+    // This is a neat trick, since our rolling files commit whenever they like, offsets may drift
+    // from what kafka expects. So basically this is to re-sync topic-partition offsets with our sink.
     @Override
     public Map<TopicPartition, OffsetAndMetadata> preCommit(
             Map<TopicPartition, OffsetAndMetadata> offsets

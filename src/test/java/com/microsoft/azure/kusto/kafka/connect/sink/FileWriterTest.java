@@ -52,7 +52,7 @@ public class FileWriterTest {
         final String FILE_PATH = Paths.get(path, "ABC").toString();
         final int MAX_FILE_SIZE = 128;
 
-        Consumer<FileProperties> trackFiles = (FileProperties f) -> {};
+        Consumer<SourceFile> trackFiles = (SourceFile f) -> {};
 
         Supplier<String> generateFileName = () -> FILE_PATH;
 
@@ -82,7 +82,7 @@ public class FileWriterTest {
 
         final int MAX_FILE_SIZE = 100;
 
-        Consumer<FileProperties> trackFiles = (FileProperties f) -> files.put(f.path, f.rawBytes);
+        Consumer<SourceFile> trackFiles = (SourceFile f) -> files.put(f.path, f.rawBytes);
 
         Supplier<String> generateFileName = () -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString() + "csv.gz";
 
@@ -121,7 +121,7 @@ public class FileWriterTest {
 
         final int MAX_FILE_SIZE = 128 * 2;
 
-        Consumer<FileProperties> trackFiles = (FileProperties f) -> files.put(f.path, f.rawBytes);
+        Consumer<SourceFile> trackFiles = (SourceFile f) -> files.put(f.path, f.rawBytes);
 
         Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + "csv.gz";
 
@@ -177,7 +177,7 @@ public class FileWriterTest {
         GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
         String msg = "Message";
 
-        Consumer<FileProperties> trackFiles = getAssertFileConsumer(msg);
+        Consumer<SourceFile> trackFiles = getAssertFileConsumer(msg);
 
         Supplier<String> generateFileName = () -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
 
@@ -192,8 +192,8 @@ public class FileWriterTest {
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
     }
 
-    static Consumer<FileProperties> getAssertFileConsumer(String msg) {
-        return (FileProperties f) -> {
+    static Consumer<SourceFile> getAssertFileConsumer(String msg) {
+        return (SourceFile f) -> {
             try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
                 byte[] bytes = IOUtils.toByteArray(fileInputStream);
                 try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);

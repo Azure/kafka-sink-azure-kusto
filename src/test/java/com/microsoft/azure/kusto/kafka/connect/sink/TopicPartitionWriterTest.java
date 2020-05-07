@@ -61,7 +61,7 @@ public class TopicPartitionWriterTest {
         props.ingestionProperties = ingestionProperties;
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, basePath, fileThreshold, flushInterval);
 
-        FileProperties descriptor = new FileProperties();
+        SourceFile descriptor = new SourceFile();
         descriptor.rawBytes = 1024;
         descriptor.path = "somepath/somefile";
         descriptor.file = new File ("C://myfile.txt");
@@ -235,7 +235,7 @@ public class TopicPartitionWriterTest {
 
         // Read
         writer.fileWriter.finishFile(false);
-        Consumer<FileProperties> assertFileConsumer = FileWriterTest.getAssertFileConsumer(messages[2] + "\n");
+        Consumer<SourceFile> assertFileConsumer = FileWriterTest.getAssertFileConsumer(messages[2] + "\n");
         assertFileConsumer.accept(writer.fileWriter.currentFile);
         writer.close();
     }

@@ -18,9 +18,9 @@ import java.util.zip.GZIPOutputStream;
 public class FileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    FileProperties currentFile;
+    SourceFile currentFile;
     private Timer timer;
-    private Consumer<FileProperties> onRollCallback;
+    private Consumer<SourceFile> onRollCallback;
     private final long flushInterval;
     private final boolean shouldCompressData;
     private Supplier<String> getFilePath;
@@ -28,7 +28,9 @@ public class FileWriter implements Closeable {
     private String basePath;
     private CountingOutputStream countingStream;
     private long fileThreshold;
-    private FileDescriptor currentFd;
+
+    // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
+    private FileDescriptor currentFileDescriptor;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -39,7 +41,7 @@ public class FileWriter implements Closeable {
      */
     public FileWriter(String basePath,
                       long fileThreshold,
-                      Consumer<FileProperties> onRollCallback,
+                      Consumer<SourceFile> onRollCallback,
                       Supplier<String> getFilePath,
                       long flushInterval,
                       boolean shouldCompressData) {
@@ -76,7 +78,7 @@ public class FileWriter implements Closeable {
     }
 
     public void openFile() throws IOException {
-        FileProperties fileProps = new FileProperties();
+        SourceFile fileProps = new SourceFile();
 
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
@@ -91,7 +93,7 @@ public class FileWriter implements Closeable {
         file.createNewFile();
 
         FileOutputStream fos = new FileOutputStream(file);
-        currentFd = fos.getFD();
+        currentFileDescriptor = fos.getFD();
         fos.getChannel().truncate(0);
 
         countingStream = new CountingOutputStream(fos);
@@ -101,12 +103,8 @@ public class FileWriter implements Closeable {
     }
 
     void rotate() throws IOException {
-        finishFile();
-        openFile();
-    }
-
-    void finishFile() throws IOException {
         finishFile(true);
+        openFile();
     }
 
     void finishFile(Boolean delete) throws IOException {
@@ -129,7 +127,7 @@ public class FileWriter implements Closeable {
 
     private void dumpFile() throws IOException {
         outputStream.close();
-        currentFd = null;
+        currentFileDescriptor = null;
         boolean deleted = currentFile.file.delete();
         if (!deleted) {
             log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());
@@ -152,7 +150,7 @@ public class FileWriter implements Closeable {
         }
 
         // Flush last file, updating index
-        finishFile();
+        finishFile(true);
 
         // Setting to null so subsequent calls to close won't write it again
         currentFile = null;
