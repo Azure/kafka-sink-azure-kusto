@@ -10,7 +10,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
-
 /**
  * This class is used to write gzipped rolling files.
  * Currently supports size based rolling, where size is for *uncompressed* size,
@@ -19,9 +18,9 @@ import java.util.zip.GZIPOutputStream;
 public class FileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    FileDescriptor currentFile;
+    SourceFile currentFile;
     private Timer timer;
-    private Consumer<FileDescriptor> onRollCallback;
+    private Consumer<SourceFile> onRollCallback;
     private final long flushInterval;
     private final boolean shouldCompressData;
     private Supplier<String> getFilePath;
@@ -29,6 +28,9 @@ public class FileWriter implements Closeable {
     private String basePath;
     private CountingOutputStream countingStream;
     private long fileThreshold;
+
+    // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
+    private FileDescriptor currentFileDescriptor;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -39,7 +41,7 @@ public class FileWriter implements Closeable {
      */
     public FileWriter(String basePath,
                       long fileThreshold,
-                      Consumer<FileDescriptor> onRollCallback,
+                      Consumer<SourceFile> onRollCallback,
                       Supplier<String> getFilePath,
                       long flushInterval,
                       boolean shouldCompressData) {
@@ -76,7 +78,7 @@ public class FileWriter implements Closeable {
     }
 
     public void openFile() throws IOException {
-        FileDescriptor fileDescriptor = new FileDescriptor();
+        SourceFile fileProps = new SourceFile();
 
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
@@ -84,27 +86,28 @@ public class FileWriter implements Closeable {
         }
 
         String filePath = getFilePath.get();
-        fileDescriptor.path = filePath;
+        fileProps.path = filePath;
 
         File file = new File(filePath);
 
         file.createNewFile();
 
         FileOutputStream fos = new FileOutputStream(file);
+        currentFileDescriptor = fos.getFD();
         fos.getChannel().truncate(0);
 
         countingStream = new CountingOutputStream(fos);
         outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
-        fileDescriptor.file = file;
-        currentFile = fileDescriptor;
+        fileProps.file = file;
+        currentFile = fileProps;
     }
 
     void rotate() throws IOException {
-        finishFile();
+        finishFile(true);
         openFile();
     }
 
-    void finishFile() throws IOException {
+    void finishFile(Boolean delete) throws IOException {
         if(isDirty()){
             if(shouldCompressData){
                 GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
@@ -114,17 +117,28 @@ public class FileWriter implements Closeable {
             }
 
             onRollCallback.accept(currentFile);
+            if (delete){
+                dumpFile();
+            }
+        } else {
+            outputStream.close();
         }
+    }
 
-        // closing late so that the success callback will have a chance to use the file. This is a real thing on debug?!
+    private void dumpFile() throws IOException {
         outputStream.close();
+        currentFileDescriptor = null;
+        boolean deleted = currentFile.file.delete();
+        if (!deleted) {
+            log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());
+        }
     }
 
     public void rollback() throws IOException {
         if (outputStream != null) {
             outputStream.close();
             if (currentFile != null && currentFile.file != null) {
-                currentFile.file.delete();
+                dumpFile();
             }
         }
     }
@@ -136,7 +150,7 @@ public class FileWriter implements Closeable {
         }
 
         // Flush last file, updating index
-        finishFile();
+        finishFile(true);
 
         // Setting to null so subsequent calls to close won't write it again
         currentFile = null;
