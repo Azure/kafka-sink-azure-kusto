@@ -1,6 +1,11 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.microsoft.azure.kusto.data.Client;
+import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
+import com.microsoft.azure.kusto.data.Results;
+import com.microsoft.azure.kusto.data.exceptions.DataClientException;
+import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -20,7 +25,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * Kusto sink uses file system to buffer records.
@@ -89,6 +102,8 @@ public class KustoSinkTask extends SinkTask {
                         String db = mapping.getString("db");
                         String table = mapping.getString("table");
 
+                        validateTableAccess(config, db, table);
+
                         String format = mapping.optString("format");
                         CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
 
@@ -139,6 +154,67 @@ public class KustoSinkTask extends SinkTask {
 
     public TopicIngestionProperties getIngestionProps(String topic) {
         return topicsToIngestionProps.get(topic);
+    }
+
+    /**
+     *  This function validates whether the user has the read and write access to the intended table
+     *  before starting to sink records into ADX
+     * @param config config class as defined by the user.
+     * @param database Name of the database the user needs to write records in.
+     * @param table The table to sink records into.
+     */
+    public static void validateTableAccess(KustoSinkConfig config, String database, String table) {
+
+        ConnectionStringBuilder engineCsb =
+                ConnectionStringBuilder.createWithAadApplicationCredentials(
+                        config.getKustoUrl(),
+                        config.getKustoAuthAppid(),
+                        config.getKustoAuthAppkey(),
+                        config.getKustoAuthAuthority()
+                );
+        try {
+            Client engineClient = ClientFactory.createClient(engineCsb);
+            //To check whether the table and database exist
+            Results rs = engineClient.execute(database, table);
+            List<String> randomValueList = new ArrayList<>();
+            String ingestQuery = ".ingest inline into table %s <| %s";
+            //Creating random value liSt to be inserted into the test record
+            for (Entry entry : rs.getColumnNameToType().entrySet()) {
+                switch (entry.getKey().toString().toLowerCase()) {
+                    case "string":
+                        randomValueList.add("TestValue");
+                        break;
+
+                    case "int32":
+                        randomValueList.add("1");
+                        break;
+                    default:
+                        break;
+                }
+            }
+            String randomValues = String.join(",", randomValueList);
+            rs = engineClient.execute(database, String.format(ingestQuery, table, randomValues));
+            // Extracting ExtentId to delete the temporary record.
+            String extentId = rs.getValues().get(0).get(0);
+            //Deleting the temporary record.
+            engineClient.execute(database, String.format(".drop extent %s", extentId));
+        } catch (URISyntaxException e) {
+            throw new ConnectException("Unable to connect to Server", e);
+        } catch (DataClientException e) {
+            e.printStackTrace();
+        } catch (DataServiceException e) {
+            if (e.getCause().getMessage().contains("Database")) {
+                throw new ConfigException(
+                        String.format("Invalid or Denied Access to Database: %s", database), e);
+            } else if (e.getCause().getMessage().contains("Table")) {
+                if (config.getKustoAutoTableCreate()) {
+                    // TODO add implementation for AutoTableCreate
+                } else {
+                    throw new ConfigException(
+                            String.format("Invalid or Denied Access to Table: %s", table), e);
+                }
+            }
+        }
     }
 
     @Override
