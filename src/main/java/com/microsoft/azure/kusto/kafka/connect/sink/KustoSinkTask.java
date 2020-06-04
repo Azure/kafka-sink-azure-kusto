@@ -180,7 +180,7 @@ public class KustoSinkTask extends SinkTask {
             String ingestQuery = ".ingest inline into table %s <| %s";
             //Creating random value liSt to be inserted into the test record
             for (Entry entry : rs.getColumnNameToType().entrySet()) {
-                switch (entry.getKey().toString().toLowerCase()) {
+                switch (entry.getValue().toString().toLowerCase()) {
                     case "string":
                         randomValueList.add("TestValue");
                         break;
@@ -198,6 +198,7 @@ public class KustoSinkTask extends SinkTask {
             String extentId = rs.getValues().get(0).get(0);
             //Deleting the temporary record.
             engineClient.execute(database, String.format(".drop extent %s", extentId));
+            log.info("User has read and Write access to the table {}", table);
         } catch (URISyntaxException e) {
             throw new ConnectException("Unable to connect to Server", e);
         } catch (DataClientException e) {
