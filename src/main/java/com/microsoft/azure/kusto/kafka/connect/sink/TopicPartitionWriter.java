@@ -83,7 +83,12 @@ public class TopicPartitionWriter {
             System.arraycopy(separator, 0, valueWithSeparator, valueBytes.length, separator.length);
 
             value = valueWithSeparator;
-        } else {
+        } else if (record.valueSchema().type() == Schema.Type.STRUCT){
+
+        } else if (record.valueSchema().type() == Schema.Type.MAP){
+
+        }
+        else {
             log.error(String.format("Unexpected value type, skipping record %s", record));
         }
 

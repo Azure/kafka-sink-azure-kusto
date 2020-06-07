@@ -39,7 +39,7 @@ import java.util.Set;
 /**
  * Kusto sink uses file system to buffer records.
  * Every time a file is rolled, we used the kusto client to ingest it.
- * Currently only ingested files are "commited" in the sense that we can advance the offset according to it.
+ * Currently only ingested files are "committed" in the sense that we can advance the offset according to it.
  */
 public class KustoSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
@@ -156,30 +156,6 @@ public class KustoSinkTask extends SinkTask {
     }
 
     private void validateTableMappings(KustoSinkConfig config) {
-        try {
-            if (config.getKustoTopicToTableMapping() != null) {
-                JSONArray mappings = new JSONArray(config.getKustoTopicToTableMapping());
-                for (int i = 0; i < mappings.length(); i++) {
-                    JSONObject mapping = mappings.getJSONObject(i);
-                    String db = mapping.getString("db");
-                    String table = mapping.getString("table");
-                    validateTableAccess(config,db,table);
-                }
-            }
-        } catch (JSONException e) {
-            throw new ConfigException(String.format("Error trying to parse kusto ingestion props %s", e.getMessage()));
-        }
-    }
-
-    /**
-     *  This function validates whether the user has the read and write access to the intended table
-     *  before starting to sink records into ADX.
-     * @param config KustoSinkConfig class as defined by the user.
-     * @param database Name of the database the user needs to write records in.
-     * @param table The table to sink records into.
-     */
-    private static void validateTableAccess(KustoSinkConfig config, String database, String table) {
-
         ConnectionStringBuilder engineCsb =
                 ConnectionStringBuilder.createWithAadApplicationCredentials(
                         config.getKustoUrl(),
@@ -189,51 +165,82 @@ public class KustoSinkTask extends SinkTask {
                 );
         try {
             Client engineClient = ClientFactory.createClient(engineCsb);
-            // To check whether the table and database exist and fetch the schema of the existing table.
-            Results rs = engineClient.execute(database, table);
-            List<String> randomValueList = new ArrayList<>();
-            String ingestQuery = ".ingest inline into table %s <| %s";
-            // Creating random value list to be inserted as a test record into the table.
-            // TODO Add the other datatypes supported in Kusto.
-            for (Entry entry : rs.getColumnNameToType().entrySet()) {
-                switch (entry.getValue().toString().toLowerCase()) {
-                    case "string":
-                        randomValueList.add("TestValue");
-                        break;
-
-                    case "int32":
-                        randomValueList.add("1");
-                        break;
-                    default:
-                        break;
+            if (config.getKustoTopicToTableMapping() != null) {
+                JSONArray mappings = new JSONArray(config.getKustoTopicToTableMapping());
+                for (int i = 0; i < mappings.length(); i++) {
+                    JSONObject mapping = mappings.getJSONObject(i);
+                    String db = mapping.getString("db");
+                    String table = mapping.getString("table");
+                    validateTableAccess(config, engineClient, mapping);
                 }
             }
-            String randomValues = String.join(",", randomValueList);
-            // Adding a temporary record in order to check for write privileges.
-            rs = engineClient.execute(database, String.format(ingestQuery, table, randomValues));
-            // Extracting ExtentId to delete the temporary record.
-            String extentId = rs.getValues().get(0).get(0);
-            // Deleting the temporary record.
-            engineClient.execute(database, String.format(".drop extent %s", extentId));
-            log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
+        } catch (JSONException e) {
+            throw new ConfigException(String.format("Error trying to parse Kusto ingestion props %s", e.getMessage()));
         } catch (URISyntaxException e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance due to invalid URL", e);
+        }
+    }
+
+    /**
+     *  This function validates whether the user has the read and write access to the intended table
+     *  before starting to sink records into ADX.
+     * @param config KustoSinkConfig class as defined by the user.
+     * @param engineClient Client connection to run queries.
+     * @param mapping JSON Object containing a Table mapping.
+     */
+    private static void validateTableAccess(KustoSinkConfig config, Client engineClient, JSONObject mapping)
+            throws JSONException {
+        int ROLE_INDEX = 0;
+        int PRINCIPAL_DISLAY_NAME_INDEX = 2;
+        String getPrincipalsQuery = ".show table %s principals";
+        String database = mapping.getString("db");
+        String table = mapping.getString("table");
+        try {
+            boolean hasAccess = false;
+            Results rs = engineClient.execute(database, String.format(getPrincipalsQuery, table));
+            for (ArrayList<String> principal : rs.getValues()) {
+                if (principal.get(PRINCIPAL_DISLAY_NAME_INDEX).contains(config.getKustoAuthAppid()) ||
+                        principal.get(PRINCIPAL_DISLAY_NAME_INDEX).contains(config.getKustoAuthUsername())) {
+                    if (principal.get(ROLE_INDEX).toLowerCase().contains("admin") ||
+                            principal.get(ROLE_INDEX).toLowerCase().contains("ingestor")) {
+                        hasAccess = true;
+                    }
+                }
+            }
+            if (!hasAccess) {
+                throw new ConnectException(String.format("User does not have appropriate permissions " +
+                        "to sink data into the Kusto table=%s", table));
+            }
+            log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
         } catch (DataClientException e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
         } catch (DataServiceException e) {
             if (e.getCause().getMessage().contains("Database")) {
-                throw new ConfigException(
-                        String.format("Invalid or Denied Access to Database: %s", database), e);
+                throw new ConnectException(
+                        String.format("Unable to access %s database due to insufficient permissions.", database), e);
             } else if (e.getCause().getMessage().contains("Table")) {
                 if (config.getKustoAutoTableCreate()) {
                     // TODO add implementation for AutoTableCreate
+                    if (config.getKustoSinkAutoTableSchema() == null) {
+                        throw new ConfigException("Required Configuration kusto.sink.auto_table_schema");
+                    } else {
+                        createTable(config, engineClient, database, table);
+                        createTableMapping(config, engineClient, mapping);
+                    }
                 } else {
-                    throw new ConfigException(
-                            String.format("Invalid or Denied Access to Table: %s", table), e);
+                    throw new ConnectException(
+                            String.format("Unable to access %s table due to insufficient permissions.", table), e);
                 }
             }
         }
     }
+
+    private static void createTable(KustoSinkConfig config,Client engineClient, String database, String table) {
+        String createTableQuery = ".create table %s %s";
+        //engineClient.execute();
+    }
+    private static void createTableMapping(KustoSinkConfig config, Client engineClient,JSONObject mapping){}
+
 
     @Override
     public String version() {
