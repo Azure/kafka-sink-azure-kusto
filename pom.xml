@@ -8,7 +8,7 @@
     <groupId>com.microsoft.azure</groupId>
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
-    <version>0.3.4</version>
+    <version>0.4.0</version>
     <build>
         <plugins>
             <plugin>
@@ -99,11 +99,7 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>connect-api</artifactId>
             <version>${kafka.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>connect-json</artifactId>
-            <version>${kafka.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.json</groupId>
