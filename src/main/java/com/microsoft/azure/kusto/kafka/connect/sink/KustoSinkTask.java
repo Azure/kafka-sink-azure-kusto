@@ -44,30 +44,30 @@ public class KustoSinkTask extends SinkTask {
 
     public static IngestClient createKustoIngestClient(KustoSinkConfig config) throws Exception {
         if (config.getKustoAuthAppid() != null) {
-            if (config.getKustoAuthAppkey() == null) {
+            if (config.getAuthAppkey() == null) {
                 throw new ConfigException("Kusto authentication missing App Key.");
             }
 
             ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                     config.getKustoUrl(),
                     config.getKustoAuthAppid(),
-                    config.getKustoAuthAppkey(),
-                    config.getKustoAuthAuthority()
+                    config.getAuthAppkey(),
+                    config.getAuthAuthority()
             );
             kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
 
             return IngestClientFactory.createClient(kcsb);
         }
 
-        if (config.getKustoAuthUsername() != null) {
-            if (config.getKustoAuthPassword() == null) {
+        if (config.getAuthUsername() != null) {
+            if (config.getAuthPassword() == null) {
                 throw new ConfigException("Kusto authentication missing Password.");
             }
 
             return IngestClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
                     config.getKustoUrl(),
-                    config.getKustoAuthUsername(),
-                    config.getKustoAuthPassword()
+                    config.getAuthUsername(),
+                    config.getAuthPassword()
             ));
         }
 
@@ -78,8 +78,8 @@ public class KustoSinkTask extends SinkTask {
         Map<String, TopicIngestionProperties> result = new HashMap<>();
 
         try {
-            if (config.getKustoTopicToTableMapping() != null) {
-                JSONArray mappings = new JSONArray(config.getKustoTopicToTableMapping());
+            if (config.getTopicToTableMapping() != null) {
+                JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
 
                 for (int i =0;i< mappings.length();i++) {
 
@@ -186,9 +186,9 @@ public class KustoSinkTask extends SinkTask {
             topicsToIngestionProps = getTopicsToIngestionProps(config);
             // this should be read properly from settings
             kustoIngestClient = createKustoIngestClient(config);
-            tempDir = config.getKustoSinkTempDir();
-            maxFileSize = config.getKustoFlushSize();
-            flushInterval = config.getKustoFlushIntervalMS();
+            tempDir = config.getTempDirPath();
+            maxFileSize = config.getFlushSizeBytes();
+            flushInterval = config.getFlushInterval();
             log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
             open(context.assignment());
 

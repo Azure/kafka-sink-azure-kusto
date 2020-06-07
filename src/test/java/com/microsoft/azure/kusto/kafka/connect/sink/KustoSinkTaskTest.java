@@ -40,11 +40,11 @@ public class KustoSinkTaskTest {
     @Test
     public void testSinkTaskOpen() throws Exception {
         HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL, "https://cluster_name.kusto.windows.net");
+        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
 
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME, "test@test.com");
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
+        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
+        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         kustoSinkTask.start(props);
@@ -61,11 +61,11 @@ public class KustoSinkTaskTest {
     @Test
     public void testSinkTaskPutRecord() throws Exception {
         HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL, "https://cluster_name.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_SINK_TEMPDIR, System.getProperty("java.io.tmpdir"));
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME, "test@test.com");
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
+        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
+        props.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, System.getProperty("java.io.tmpdir"));
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
+        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
+        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         kustoSinkTask.start(props);
@@ -88,11 +88,11 @@ public class KustoSinkTaskTest {
     @Test
     public void testSinkTaskPutRecordMissingPartition() throws Exception {
         HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL, "https://cluster_name.kusto.windows.net");
+        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
 
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME, "test@test.com");
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
+        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
+        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         kustoSinkTask.start(props);
@@ -126,7 +126,7 @@ public class KustoSinkTaskTest {
 
         }
 
-        props.put(KustoSinkConfig.KUSTO_URL, "https://cluster_name.kusto.windows.net");
+        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
 
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
@@ -137,7 +137,7 @@ public class KustoSinkTaskTest {
         }
 
 
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
                 kustoSinkTask.start(props);
@@ -147,8 +147,8 @@ public class KustoSinkTaskTest {
         }
 
         // check malformed table mapping throws properly
-        props.remove(KustoSinkConfig.KUSTO_TABLES_MAPPING);
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "topic1");
+        props.remove(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF);
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "topic1");
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
                 kustoSinkTask.start(props);
@@ -161,8 +161,8 @@ public class KustoSinkTaskTest {
     @Test
     public void sinkStartMissingAuth() {
         HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL, "https://cluster_name.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'csv'}]");
+        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'csv'}]");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
 
@@ -175,7 +175,7 @@ public class KustoSinkTaskTest {
 
         }
 
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME, "test@test.com");
+        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
 
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
@@ -186,7 +186,7 @@ public class KustoSinkTaskTest {
 
         }
 
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
+        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
 
         {
             // should not throw any errors
@@ -194,10 +194,10 @@ public class KustoSinkTaskTest {
             assertNotNull(kustoSinkTask.kustoIngestClient);
         }
 
-        props.remove(KustoSinkConfig.KUSTO_AUTH_USERNAME);
-        props.remove(KustoSinkConfig.KUSTO_AUTH_PASSWORD);
+        props.remove(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF);
+        props.remove(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF);
 
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPID, "appid");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "appid");
 
         {
             Throwable exception = assertThrows(ConnectException.class, () -> {
@@ -208,7 +208,7 @@ public class KustoSinkTaskTest {
 
         }
 
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY, "appkey");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "appkey");
 
         {
             // should not throw any errors
@@ -221,10 +221,10 @@ public class KustoSinkTaskTest {
     @Test
     public void getTable() {
         HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL, "https://cluster_name.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv', 'eventDataCompression':'gz'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME, "test@test.com");
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD, "123456!");
+        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv', 'eventDataCompression':'gz'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
+        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
+        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         kustoSinkTask.start(props);
