@@ -63,7 +63,7 @@ public class KustoSinkTask extends SinkTask {
             }
 
             ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                    config.getKustoUrl(),
+                    config.getKustoIngestUrl(),
                     config.getKustoAuthAppid(),
                     config.getAuthAppkey(),
                     config.getAuthAuthority()
@@ -79,12 +79,42 @@ public class KustoSinkTask extends SinkTask {
             }
 
             return IngestClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
-                    config.getKustoUrl(),
+                    config.getKustoIngestUrl(),
                     config.getAuthUsername(),
                     config.getAuthPassword()
             ));
         }
 
+        throw new ConfigException("Kusto authentication method must be provided.");
+    }
+
+    public static Client createKustoEngineClient(KustoSinkConfig config) throws Exception {
+        if (config.getKustoAuthAppid() != null) {
+            if (config.getAuthAppkey() == null) {
+                throw new ConfigException("Kusto authentication missing App Key.");
+            }
+
+            ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                    config.getKustoUrl(),
+                    config.getKustoAuthAppid(),
+                    config.getAuthAppkey(),
+                    config.getAuthAuthority()
+            );
+            kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+
+            return ClientFactory.createClient(kcsb);
+        }
+
+        if (config.getAuthUsername() != null) {
+            if (config.getAuthPassword() == null) {
+                throw new ConfigException("Kusto authentication missing Password.");
+            }
+            return ClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
+                    config.getKustoUrl(),
+                    config.getAuthUsername(),
+                    config.getAuthPassword()
+            ));
+        }
         throw new ConfigException("Kusto authentication method must be provided.");
     }
 
@@ -156,17 +186,10 @@ public class KustoSinkTask extends SinkTask {
     }
 
     private void validateTableMappings(KustoSinkConfig config) {
-        ConnectionStringBuilder engineCsb =
-                ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        config.getKustoUrl(),
-                        config.getKustoAuthAppid(),
-                        config.getKustoAuthAppkey(),
-                        config.getKustoAuthAuthority()
-                );
         try {
-            Client engineClient = ClientFactory.createClient(engineCsb);
-            if (config.getKustoTopicToTableMapping() != null) {
-                JSONArray mappings = new JSONArray(config.getKustoTopicToTableMapping());
+            Client engineClient = createKustoEngineClient(config);
+            if (config.getTopicToTableMapping() != null) {
+                JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
                 for (int i = 0; i < mappings.length(); i++) {
                     JSONObject mapping = mappings.getJSONObject(i);
                     String db = mapping.getString("db");
@@ -176,8 +199,10 @@ public class KustoSinkTask extends SinkTask {
             }
         } catch (JSONException e) {
             throw new ConfigException(String.format("Error trying to parse Kusto ingestion props %s", e.getMessage()));
-        } catch (URISyntaxException e) {
-            throw new ConnectException("Unable to connect to ADX(Kusto) instance due to invalid URL", e);
+        } catch (ConfigException ex) {
+            throw new ConnectException(String.format("Kusto Connector failed to start due to configuration error. %s", ex.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -191,19 +216,26 @@ public class KustoSinkTask extends SinkTask {
     private static void validateTableAccess(KustoSinkConfig config, Client engineClient, JSONObject mapping)
             throws JSONException {
         int ROLE_INDEX = 0;
-        int PRINCIPAL_DISLAY_NAME_INDEX = 2;
+        int PRINCIPAL_DISPLAY_NAME_INDEX = 2;
         String getPrincipalsQuery = ".show table %s principals";
         String database = mapping.getString("db");
         String table = mapping.getString("table");
         try {
-            boolean hasAccess = false;
             Results rs = engineClient.execute(database, String.format(getPrincipalsQuery, table));
-            for (ArrayList<String> principal : rs.getValues()) {
-                if (principal.get(PRINCIPAL_DISLAY_NAME_INDEX).contains(config.getKustoAuthAppid()) ||
-                        principal.get(PRINCIPAL_DISLAY_NAME_INDEX).contains(config.getKustoAuthUsername())) {
+            String authenticateWith;
+            if (config.getKustoAuthAppid() != null) {
+                authenticateWith = config.getKustoAuthAppid();
+            } else {
+                authenticateWith=config.getAuthUsername();
+            }
+            boolean hasAccess = false;
+            for (int i = 0; i<rs.getValues().size(); i++) {
+                ArrayList<String> principal = rs.getValues().get(i);
+                if (principal.get(PRINCIPAL_DISPLAY_NAME_INDEX).contains(authenticateWith)) {
                     if (principal.get(ROLE_INDEX).toLowerCase().contains("admin") ||
                             principal.get(ROLE_INDEX).toLowerCase().contains("ingestor")) {
                         hasAccess = true;
+                        break;
                     }
                 }
             }
@@ -236,10 +268,12 @@ public class KustoSinkTask extends SinkTask {
     }
 
     private static void createTable(KustoSinkConfig config,Client engineClient, String database, String table) {
-        String createTableQuery = ".create table %s %s";
-        //engineClient.execute();
+        // TODO Implement create table function
+
     }
-    private static void createTableMapping(KustoSinkConfig config, Client engineClient,JSONObject mapping){}
+    private static void createTableMapping(KustoSinkConfig config, Client engineClient,JSONObject mapping){
+        // TODO Implement create table mapping funtion
+    }
 
 
     @Override

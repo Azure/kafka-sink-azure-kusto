@@ -113,7 +113,15 @@ public class KustoSinkConfig extends AbstractConfig {
         + "the Connector makes to ingest records into KustoDB.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Retry BackOff Time";
 
-    private static final String KUSTO_SINK_AUTO_TABLE_CREATE = "kusto.sink.auto_table_create";
+    static final String KUSTO_SINK_AUTO_TABLE_CREATE_CONF = "kusto.sink.auto.table.create";
+    private static final String KUSTO_SINK_AUTO_TABLE_CREATE_DOC = "If true, allows the connector to " +
+            "create table in Kusto if not already exists.";
+    private static final String KUSTO_SINK_AUTO_TABLE_CREATE_DISPLAY = "Auto Table Create";
+
+    static final String KUSTO_SINK_AUTO_TABLE_SCHEMA_CONF = "kusto.sink.auto.table.schema";
+    private static final String KUSTO_SINK_AUTO_TABLE_SCHEMA_DOC = "Table Schema to be used to create " +
+            "table and table mapping when ``kusto.sink.auto.table.create`` is set to true.";
+    private static final String KUSTO_SINK_AUTO_TABLE_SCHEMA_DISPLAY = "Auto Table Create Schema";
     
     
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
@@ -147,15 +155,15 @@ public class KustoSinkConfig extends AbstractConfig {
                 Width.MEDIUM,
                 KUSTO_URL_DISPLAY)
             .define(
-                    KUSTO_INGESTION_URL_CONF,
-                    Type.STRING,
-                    ConfigDef.NO_DEFAULT_VALUE,
-                    Importance.HIGH,
-                    KUSTO_INGESTION_URL_DOC,
-                    connectionGroupName,
-                    connectionGroupOrder++,
-                    Width.MEDIUM,
-                    KUSTO_INGESTION_URL_DISPLAY)
+                KUSTO_INGESTION_URL_CONF,
+                Type.STRING,
+                ConfigDef.NO_DEFAULT_VALUE,
+                Importance.HIGH,
+                KUSTO_INGESTION_URL_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_INGESTION_URL_DISPLAY)
             .define(
                 KUSTO_AUTH_USERNAME_CONF,
                 Type.STRING,
@@ -168,7 +176,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_USERNAME_DISPLAY)
             .define(
                 KUSTO_AUTH_PASSWORD_CONF,
-                Type.PASSWORD,
+                Type.STRING,
                 null,
                 Importance.HIGH,
                 KUSTO_AUTH_PASSWORD_DOC,
@@ -178,7 +186,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_PASSWORD_DISPLAY)
             .define(
                 KUSTO_AUTH_APPKEY_CONF,
-                Type.PASSWORD,
+                Type.STRING,
                 null,
                 Importance.HIGH,
                 KUSTO_AUTH_APPKEY_DOC,
@@ -188,7 +196,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_APPKEY_DISPLAY)
             .define(
                 KUSTO_AUTH_APPID_CONF,
-                Type.PASSWORD,
+                Type.STRING,
                 null,
                 Importance.HIGH,
                 KUSTO_AUTH_APPID_DOC,
@@ -198,7 +206,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_APPID_DISPLAY)
             .define(
                 KUSTO_AUTH_AUTHORITY_CONF,
-                Type.PASSWORD,
+                Type.STRING,
                 null,
                 Importance.HIGH,
                 KUSTO_AUTH_AUTHORITY_DOC,
@@ -298,7 +306,27 @@ public class KustoSinkConfig extends AbstractConfig {
                 errorAndRetriesGroupName,
                 errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY);    
+                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY)
+            .define(
+                KUSTO_SINK_AUTO_TABLE_CREATE_CONF,
+                Type.BOOLEAN,
+                false,
+                Importance.LOW,
+                KUSTO_SINK_AUTO_TABLE_CREATE_DOC,
+                writeGroupName,
+                writeGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_SINK_AUTO_TABLE_CREATE_DISPLAY)
+            .define(
+                KUSTO_SINK_AUTO_TABLE_SCHEMA_CONF,
+                Type.STRING,
+                null,
+                Importance.LOW,
+                KUSTO_SINK_AUTO_TABLE_SCHEMA_DOC,
+                writeGroupName,
+                writeGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_SINK_AUTO_TABLE_SCHEMA_DISPLAY);
         }
 
 
@@ -371,7 +399,11 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public boolean getKustoAutoTableCreate() {
-        return this.getBoolean(KUSTO_SINK_AUTO_TABLE_CREATE);
+        return this.getBoolean(KUSTO_SINK_AUTO_TABLE_CREATE_CONF);
+    }
+
+    public String getKustoSinkAutoTableSchema() {
+        return this.getString(KUSTO_SINK_AUTO_TABLE_SCHEMA_CONF);
     }
 }
 
