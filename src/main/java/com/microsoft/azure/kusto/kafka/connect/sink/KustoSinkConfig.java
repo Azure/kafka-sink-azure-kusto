@@ -31,45 +31,46 @@ public class KustoSinkConfig extends AbstractConfig {
   
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL_CONF = "kusto.url";
-    private static final String KUSTO_URL_DOC = "Kusto cluster url";
+    private static final String KUSTO_URL_DOC = "Kusto cluster url for ingestion.";
     private static final String KUSTO_URL_DISPLAY = "Kusto URL";
     
     static final String KUSTO_AUTH_USERNAME_CONF = "kusto.auth.username";
-    private static final String KUSTO_AUTH_USERNAME_DOC = "Kusto auth using username,password combo: username";
+    private static final String KUSTO_AUTH_USERNAME_DOC = "Kusto username for authentication, also configure kusto.auth.password.";
     private static final String KUSTO_AUTH_USERNAME_DISPLAY = "Kusto Auth Username";
     
     static final String KUSTO_AUTH_PASSWORD_CONF = "kusto.auth.password";
-    private static final String KUSTO_AUTH_PASSWORD_DOC = "Kusto auth using username,password combo: password";
+    private static final String KUSTO_AUTH_PASSWORD_DOC = "Kusto password for the configured username.";
     private static final String KUSTO_AUTH_PASSWORD_DISPLAY = "Kusto Auth Password";
     
     static final String KUSTO_AUTH_APPID_CONF = "kusto.auth.appid";
-    private static final String KUSTO_AUTH_APPID_DOC = "Kusto auth using appid,appkey combo: app id";
+    private static final String KUSTO_AUTH_APPID_DOC = "Configure this to perform authentication using Kusto AppID, "
+        + "also configure kusto.auth.appkey and kusto.auth.authority.";
     private static final String KUSTO_AUTH_APPID_DISPLAY = "Kusto Auth AppID";
     
     static final String KUSTO_AUTH_APPKEY_CONF = "kusto.auth.appkey";
-    private static final String KUSTO_AUTH_APPKEY_DOC = "Kusto auth using appid,appkey combo:  app key";
+    private static final String KUSTO_AUTH_APPKEY_DOC = "Kusto AppKey for authentication.";
     private static final String KUSTO_AUTH_APPKEY_DISPLAY = "Kusto Auth AppKey";
     
     static final String KUSTO_AUTH_AUTHORITY_CONF = "kusto.auth.authority";
-    private static final String KUSTO_AUTH_AUTHORITY_DOC = "Kusto auth using appid,appkey combo: authority";
+    private static final String KUSTO_AUTH_AUTHORITY_DOC = "Kusto authority for authentication.";
     private static final String KUSTO_AUTH_AUTHORITY_DISPLAY = "Kusto Auth Authority";
     
     static final String KUSTO_TABLES_MAPPING_CONF = "kusto.tables.topics.mapping";
     private static final String KUSTO_TABLES_MAPPING_DOC = "Kusto target tables mapping (per topic mapping, "
-        + "'topic1:table1;topic2:table2;')";
+        + "'topic1:table1;topic2:table2;').";
     private static final String KUSTO_TABLES_MAPPING_DISPLAY = "Kusto Table Topics Mapping";
     
     static final String KUSTO_SINK_TEMP_DIR_CONF = "tempdir.path";
     private static final String KUSTO_SINK_TEMP_DIR_DOC = "Temp dir that will be used by kusto sink to buffer records. "
-        + "defaults to system temp dir";
+        + "defaults to system temp dir.";
     private static final String KUSTO_SINK_TEMP_DIR_DISPLAY = "Temporary Directory";
     
     static final String KUSTO_SINK_FLUSH_SIZE_BYTES_CONF = "flush.size.bytes";
-    private static final String KUSTO_SINK_FLUSH_SIZE_BYTES_DOC = "Kusto sink max buffer size (per topic+partition combo)";
+    private static final String KUSTO_SINK_FLUSH_SIZE_BYTES_DOC = "Kusto sink max buffer size (per topic+partition combo).";
     private static final String KUSTO_SINK_FLUSH_SIZE_BYTES_DISPLAY = "Maximum Flush Size";
     
     static final String KUSTO_SINK_FLUSH_INTERVAL_MS_CONF = "flush.interval.ms";
-    private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DOC = "Kusto sink max staleness in milliseconds (per topic+partition combo)";
+    private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DOC = "Kusto sink max staleness in milliseconds (per topic+partition combo).";
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY = "Maximum Flush Interval";
     
     static final String KUSTO_SINK_ERROR_TOLERANCE_CONF = "error.tolerance";
@@ -140,7 +141,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_USERNAME_CONF,
                 Type.STRING,
-                ConfigDef.NO_DEFAULT_VALUE,
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_USERNAME_DOC,
                 connectionGroupName,
@@ -150,7 +151,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_PASSWORD_CONF,
                 Type.PASSWORD,
-                ConfigDef.NO_DEFAULT_VALUE,
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_PASSWORD_DOC,
                 connectionGroupName,
@@ -160,7 +161,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_APPKEY_CONF,
                 Type.PASSWORD,
-                ConfigDef.NO_DEFAULT_VALUE,
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_APPKEY_DOC,
                 connectionGroupName,
@@ -170,7 +171,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_APPID_CONF,
                 Type.PASSWORD,
-                ConfigDef.NO_DEFAULT_VALUE,
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_APPID_DOC,
                 connectionGroupName,
@@ -180,7 +181,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_AUTHORITY_CONF,
                 Type.PASSWORD,
-                ConfigDef.NO_DEFAULT_VALUE,
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_AUTHORITY_DOC,
                 connectionGroupName,
