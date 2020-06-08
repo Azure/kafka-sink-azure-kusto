@@ -34,10 +34,6 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_URL_DOC = "Kusto cluster URL.";
     private static final String KUSTO_URL_DISPLAY = "Kusto URL";
 
-    static final String KUSTO_INGESTION_URL_CONF = "kusto.ingest.url";
-    private static final String KUSTO_INGESTION_URL_DOC = "Kusto cluster URL for ingestion.";
-    private static final String KUSTO_INGESTION_URL_DISPLAY = "Kusto Ingestion URL";
-    
     static final String KUSTO_AUTH_USERNAME_CONF = "kusto.auth.username";
     private static final String KUSTO_AUTH_USERNAME_DOC = "Kusto username for authentication, also configure kusto.auth.password.";
     private static final String KUSTO_AUTH_USERNAME_DISPLAY = "Kusto Auth Username";
@@ -64,7 +60,7 @@ public class KustoSinkConfig extends AbstractConfig {
         + "'topic1:table1;topic2:table2;').";
     private static final String KUSTO_TABLES_MAPPING_DISPLAY = "Kusto Table Topics Mapping";
     
-    static final String KUSTO_SINK_TEMP_DIR_CONF = "tempdir.path";
+    static final String KUSTO_SINK_TEMP_DIR_CONF = "kusto.sink.tempdir";
     private static final String KUSTO_SINK_TEMP_DIR_DOC = "Temp dir that will be used by kusto sink to buffer records. "
         + "defaults to system temp dir.";
     private static final String KUSTO_SINK_TEMP_DIR_DISPLAY = "Temporary Directory";
@@ -111,16 +107,6 @@ public class KustoSinkConfig extends AbstractConfig {
         + "the Connector makes to ingest records into KustoDB.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Retry BackOff Time";
 
-    static final String KUSTO_SINK_AUTO_TABLE_CREATE_CONF = "kusto.sink.auto.table.create";
-    private static final String KUSTO_SINK_AUTO_TABLE_CREATE_DOC = "If true, allows the connector to " +
-            "create table in Kusto if not already exists.";
-    private static final String KUSTO_SINK_AUTO_TABLE_CREATE_DISPLAY = "Auto Table Create";
-
-    static final String KUSTO_SINK_AUTO_TABLE_SCHEMA_CONF = "kusto.sink.auto.table.schema";
-    private static final String KUSTO_SINK_AUTO_TABLE_SCHEMA_DOC = "Table Schema to be used to create " +
-            "table and table mapping when ``kusto.sink.auto.table.create`` is set to true.";
-    private static final String KUSTO_SINK_AUTO_TABLE_SCHEMA_DISPLAY = "Auto Table Create Schema";
-    
     
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -152,16 +138,6 @@ public class KustoSinkConfig extends AbstractConfig {
                 connectionGroupOrder++,
                 Width.MEDIUM,
                 KUSTO_URL_DISPLAY)
-            .define(
-                KUSTO_INGESTION_URL_CONF,
-                Type.STRING,
-                ConfigDef.NO_DEFAULT_VALUE,
-                Importance.HIGH,
-                KUSTO_INGESTION_URL_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_INGESTION_URL_DISPLAY)
             .define(
                 KUSTO_AUTH_USERNAME_CONF,
                 Type.STRING,
@@ -304,36 +280,12 @@ public class KustoSinkConfig extends AbstractConfig {
                 errorAndRetriesGroupName,
                 errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY)
-            .define(
-                KUSTO_SINK_AUTO_TABLE_CREATE_CONF,
-                Type.BOOLEAN,
-                false,
-                Importance.LOW,
-                KUSTO_SINK_AUTO_TABLE_CREATE_DOC,
-                writeGroupName,
-                writeGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_SINK_AUTO_TABLE_CREATE_DISPLAY)
-            .define(
-                KUSTO_SINK_AUTO_TABLE_SCHEMA_CONF,
-                Type.STRING,
-                null,
-                Importance.LOW,
-                KUSTO_SINK_AUTO_TABLE_SCHEMA_DOC,
-                writeGroupName,
-                writeGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_SINK_AUTO_TABLE_SCHEMA_DISPLAY);
+                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY);
         }
 
 
     public String getKustoUrl() {
         return this.getString(KUSTO_URL_CONF);
-    }
-
-    public String getKustoIngestUrl(){
-        return this.getString(KUSTO_INGESTION_URL_CONF);
     }
 
     public String getAuthUsername() {
@@ -390,14 +342,6 @@ public class KustoSinkConfig extends AbstractConfig {
     
     public long getBackOffTime() {
         return this.getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF);
-    }
-
-    public boolean getKustoAutoTableCreate() {
-      return this.getBoolean(KUSTO_SINK_AUTO_TABLE_CREATE_CONF);
-    }
-
-    public String getKustoSinkAutoTableSchema() {
-      return this.getString(KUSTO_SINK_AUTO_TABLE_SCHEMA_CONF);
     }
 
     public static void main(String[] args) {

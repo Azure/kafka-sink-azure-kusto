@@ -24,16 +24,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.util.Strings;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 /**
@@ -56,68 +55,78 @@ public class KustoSinkTask extends SinkTask {
         writers = new HashMap<>();
     }
 
-    public static IngestClient createKustoIngestClient(KustoSinkConfig config) throws Exception {
-        if (config.getKustoAuthAppid() != null && !config.getKustoAuthAppid().isEmpty()) {
-            if (config.getAuthAppkey() == null && !config.getAuthAppkey().isEmpty()) {
-                throw new ConfigException("Kusto authentication missing App Key.");
+    public static IngestClient createKustoIngestClient(KustoSinkConfig config) {
+        try {
+            if (!Strings.isNullOrEmpty(config.getKustoAuthAppid())) {
+                if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
+                    throw new ConfigException("Kusto authentication missing App Key.");
+                }
+
+                ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                        config.getKustoUrl(),
+                        config.getKustoAuthAppid(),
+                        config.getAuthAppkey(),
+                        config.getAuthAuthority()
+                );
+                kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+
+                return IngestClientFactory.createClient(kcsb);
             }
 
-            ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                    config.getKustoIngestUrl(),
-                    config.getKustoAuthAppid(),
-                    config.getAuthAppkey(),
-                    config.getAuthAuthority()
-            );
-            kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+            if (config.getAuthUsername() != null) {
+                if (Strings.isNullOrEmpty(config.getAuthPassword())) {
+                    throw new ConfigException("Kusto authentication missing Password.");
+                }
 
-            return IngestClientFactory.createClient(kcsb);
-        }
-
-        if (config.getAuthUsername() != null) {
-            if (config.getAuthPassword() == null && !config.getAuthPassword().isEmpty()) {
-                throw new ConfigException("Kusto authentication missing Password.");
+                return IngestClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
+                        config.getKustoUrl(),
+                        config.getAuthUsername(),
+                        config.getAuthPassword()
+                ));
             }
 
-            return IngestClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
-                    config.getKustoIngestUrl(),
-                    config.getAuthUsername(),
-                    config.getAuthPassword()
-            ));
+            throw new ConnectException("Failed to initialize KustoIngestClient, please " +
+                    "provide valid credentials. Either Kusto username and password or " +
+                    "Kusto appId, appKey, and authority should be configured.");
+        } catch (Exception e) {
+            throw new ConnectException("Failed to initialize KustoIngestClient", e);
         }
-
-        throw new ConfigException("Kusto authentication method must be provided.");
     }
 
-    public static Client createKustoEngineClient(KustoSinkConfig config) throws Exception {
-        if (config.getKustoAuthAppid() != null && !config.getKustoAuthAppid().isEmpty()) {
-            if (config.getAuthAppkey() == null && !config.getAuthAppkey().isEmpty()) {
-                throw new ConfigException("Kusto authentication missing App Key.");
+    public static Client createKustoEngineClient(KustoSinkConfig config) {
+        try {
+            String engineClientURL =  "https://" + StringUtils.removeStart(config.getKustoUrl(),"https://ingest-");
+            if (!Strings.isNullOrEmpty(config.getKustoAuthAppid())) {
+                if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
+                    throw new ConfigException("Kusto authentication missing App Key.");
+                }
+                ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                        engineClientURL,
+                        config.getKustoAuthAppid(),
+                        config.getAuthAppkey(),
+                        config.getAuthAuthority()
+                );
+                kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+
+                return ClientFactory.createClient(kcsb);
             }
 
-            ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                    config.getKustoUrl(),
-                    config.getKustoAuthAppid(),
-                    config.getAuthAppkey(),
-                    config.getAuthAuthority()
-            );
-            kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
-
-            return ClientFactory.createClient(kcsb);
-        }
-
-        if (config.getAuthUsername() != null) {
-            if (config.getAuthPassword() == null && !config.getAuthPassword().isEmpty()) {
-                throw new ConfigException("Kusto authentication missing Password.");
+            if (config.getAuthUsername() != null) {
+                if (Strings.isNullOrEmpty(config.getAuthPassword())) {
+                    throw new ConfigException("Kusto authentication missing Password.");
+                }
+                return ClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
+                        engineClientURL,
+                        config.getAuthUsername(),
+                        config.getAuthPassword()
+                ));
             }
-            return ClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
-                    config.getKustoUrl(),
-                    config.getAuthUsername(),
-                    config.getAuthPassword()
-            ));
+            throw new ConnectException("Failed to initialize KustoEngineClient, please " +
+                    "provide valid credentials. Either Kusto username and password or " +
+                    "Kusto appId, appKey, and authority should be configured.");
+        } catch (Exception e) {
+            throw new ConnectException("Failed to initialize KustoEngineClient", e);
         }
-        throw new ConnectException("Failed to initialize KustoEngineClient, please " +
-                "provide valid credentials. Either Kusto username and password or " +
-                "Kusto appId, appKey, and authority should be configured.");
     }
 
     public static Map<String, TopicIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
@@ -127,7 +136,7 @@ public class KustoSinkTask extends SinkTask {
 
             JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
 
-            for (int i =0;i< mappings.length();i++) {
+            for (int i =0; i< mappings.length(); i++) {
 
                 JSONObject mapping = mappings.getJSONObject(i);
 
@@ -187,6 +196,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     private void validateTableMappings(KustoSinkConfig config) throws Exception {
+        List<String> mappingErrorList = new ArrayList<>();
         try {
             Client engineClient = createKustoEngineClient(config);
             if (config.getTopicToTableMapping() != null) {
@@ -195,8 +205,13 @@ public class KustoSinkTask extends SinkTask {
                     JSONObject mapping = mappings.getJSONObject(i);
                     String db = mapping.getString("db");
                     String table = mapping.getString("table");
-                    validateTableAccess(config, engineClient, mapping);
+                    validateTableAccess(config, engineClient, mapping, mappingErrorList);
                 }
+            }
+            if(!mappingErrorList.isEmpty())
+            {
+                throw new ConnectException("User has insufficient access to the following " +
+                        "table mapping\n" + String.join("\n",mappingErrorList));
             }
         } catch (JSONException e) {
             throw new ConnectException("Failed to parse ``kusto.tables.topics.mapping`` configuration.", e);
@@ -210,8 +225,8 @@ public class KustoSinkTask extends SinkTask {
      * @param engineClient Client connection to run queries.
      * @param mapping JSON Object containing a Table mapping.
      */
-    private static void validateTableAccess(KustoSinkConfig config, Client engineClient, JSONObject mapping)
-            throws JSONException {
+    private static void validateTableAccess(KustoSinkConfig config, Client engineClient,
+            JSONObject mapping, List<String> ErrorList) throws JSONException {
         int ROLE_INDEX = 0;
         int PRINCIPAL_DISPLAY_NAME_INDEX = 2;
         String getPrincipalsQuery = ".show table %s principals";
@@ -237,29 +252,19 @@ public class KustoSinkTask extends SinkTask {
                 }
             }
             if (!hasAccess) {
-                throw new ConnectException(String.format("User does not have appropriate permissions " +
-                        "to sink data into the Kusto table=%s", table));
+                ErrorList.add(String.format("User does not have appropriate permissions " +
+                        "to sink data into the Kusto table=%s in database %s", table,database));
             }
             log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
         } catch (DataClientException e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
         } catch (DataServiceException e) {
             if (e.getCause().getMessage().contains("Database")) {
-                throw new ConnectException(
-                        String.format("Unable to access %s database due to insufficient permissions.", database), e);
+                ErrorList.add(String.format("Unable to access %s database due to %s",
+                        database, e.getCause().getMessage()));
             } else if (e.getCause().getMessage().contains("Table")) {
-                if (config.getKustoAutoTableCreate()) {
-                    // TODO add implementation for AutoTableCreate
-                    if (config.getKustoSinkAutoTableSchema() == null) {
-                        throw new ConfigException("Required Configuration kusto.sink.auto_table_schema");
-                    } else {
-                        createTable(config, engineClient, database, table);
-                        createTableMapping(config, engineClient, mapping);
-                    }
-                } else {
-                    throw new ConnectException(
-                            String.format("Unable to access %s table due to insufficient permissions.", table), e);
-                }
+                ErrorList.add(String.format("Unable to access %s table due to %s",
+                        database, e.getCause().getMessage()));
             }
         }
     }

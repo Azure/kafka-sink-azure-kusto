@@ -27,7 +27,6 @@ public class KustoSinkConnectorConfigTest {
     public void shouldAcceptValidConfig() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_INGESTION_URL_CONF, "ingest-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'kafka','db': 'Database', 'table': 'tableName','format': 'csv', 'mapping':'tableMapping'}]");
         config = new KustoSinkConfig(settings);
         assertNotNull(config);
@@ -37,18 +36,14 @@ public class KustoSinkConnectorConfigTest {
     public void shouldHaveDefaultValues() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_INGESTION_URL_CONF, "ingest-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'kafka','db': 'Database', 'table': 'tableName','format': 'csv', 'mapping':'tableMapping'}]");
         config = new KustoSinkConfig(settings);
         assertNotNull(config.getKustoUrl());
-        assertNotNull(config.getKustoIngestUrl());
         assertNotNull(config.getTopicToTableMapping());
         assertNotNull(config.getFlushSizeBytes());
         assertNotNull(config.getFlushInterval());
         assertNull(config.getDlqBootstrapServers());
         assertNull(config.getDlqTopicName());
-        assertNull(config.getKustoSinkAutoTableSchema());
-        assertFalse(config.getKustoAutoTableCreate());
     }
 
     @Test(expected = ConfigException.class)
@@ -59,19 +54,9 @@ public class KustoSinkConnectorConfigTest {
     }
 
     @Test(expected = ConfigException.class)
-    public void shouldThrowExceptionWhenKustoIngestionURLNotPassed() {
-        // Adding required Configuration with no default value.
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.remove(KustoSinkConfig.KUSTO_INGESTION_URL_CONF);
-        config = new KustoSinkConfig(settings);
-    }
-
-    @Test(expected = ConfigException.class)
     public void shouldThrowExceptionWhenTableMappingIsNull() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_INGESTION_URL_CONF, "ingest-url");
-
         settings.remove(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF);
         config = new KustoSinkConfig(settings);
     }
@@ -80,7 +65,6 @@ public class KustoSinkConnectorConfigTest {
     public void shouldThrowExceptionWhenInvalidErrorTolerance() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_INGESTION_URL_CONF, "ingest-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'kafka','db': 'Database', 'table': 'tableName','format': 'csv', 'mapping':'tableMapping'}]");
         settings.put(KustoSinkConfig.KUSTO_SINK_ERROR_TOLERANCE_CONF, "test");
         config = new KustoSinkConfig(settings);
