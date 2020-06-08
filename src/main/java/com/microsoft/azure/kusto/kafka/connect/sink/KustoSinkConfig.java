@@ -14,8 +14,6 @@ import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
 
-
-
   enum ErrorTolerance {
       ALL, NONE;
     
@@ -33,11 +31,11 @@ public class KustoSinkConfig extends AbstractConfig {
   
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL_CONF = "kusto.url";
-    private static final String KUSTO_URL_DOC = "Kusto cluster.";
+    private static final String KUSTO_URL_DOC = "Kusto cluster URL.";
     private static final String KUSTO_URL_DISPLAY = "Kusto URL";
 
     static final String KUSTO_INGESTION_URL_CONF = "kusto.ingest.url";
-    private static final String KUSTO_INGESTION_URL_DOC = "Kusto cluster url for ingestion.";
+    private static final String KUSTO_INGESTION_URL_DOC = "Kusto cluster URL for ingestion.";
     private static final String KUSTO_INGESTION_URL_DISPLAY = "Kusto Ingestion URL";
     
     static final String KUSTO_AUTH_USERNAME_CONF = "kusto.auth.username";
@@ -176,8 +174,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_USERNAME_DISPLAY)
             .define(
                 KUSTO_AUTH_PASSWORD_CONF,
-                Type.STRING,
-                null,
+                Type.PASSWORD,
+                "",
                 Importance.HIGH,
                 KUSTO_AUTH_PASSWORD_DOC,
                 connectionGroupName,
@@ -186,8 +184,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_PASSWORD_DISPLAY)
             .define(
                 KUSTO_AUTH_APPKEY_CONF,
-                Type.STRING,
-                null,
+                Type.PASSWORD,
+                "",
                 Importance.HIGH,
                 KUSTO_AUTH_APPKEY_DOC,
                 connectionGroupName,
@@ -196,8 +194,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_APPKEY_DISPLAY)
             .define(
                 KUSTO_AUTH_APPID_CONF,
-                Type.STRING,
-                null,
+                Type.PASSWORD,
+                "",
                 Importance.HIGH,
                 KUSTO_AUTH_APPID_DOC,
                 connectionGroupName,
@@ -206,8 +204,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_APPID_DISPLAY)
             .define(
                 KUSTO_AUTH_AUTHORITY_CONF,
-                Type.STRING,
-                null,
+                Type.PASSWORD,
+                "",
                 Importance.HIGH,
                 KUSTO_AUTH_AUTHORITY_DOC,
                 connectionGroupName,
@@ -343,19 +341,19 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getAuthPassword() {
-        return this.getString(KUSTO_AUTH_PASSWORD_CONF);
+        return this.getPassword(KUSTO_AUTH_PASSWORD_CONF).value();
     }
   
     public String getKustoAuthAppid() {
-        return this.getString(KUSTO_AUTH_APPID_CONF);
+        return this.getPassword(KUSTO_AUTH_APPID_CONF).value();
     }
   
     public String getAuthAppkey() {
-        return this.getString(KUSTO_AUTH_APPKEY_CONF);
+        return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
     }
   
     public String getAuthAuthority() {
-        return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
+        return this.getPassword(KUSTO_AUTH_AUTHORITY_CONF).value();
     }
   
     public String getTopicToTableMapping() {
@@ -393,17 +391,17 @@ public class KustoSinkConfig extends AbstractConfig {
     public long getBackOffTime() {
         return this.getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF);
     }
-    
-    public static void main(String[] args) {
-      System.out.println(getConfig().toEnrichedRst());
-    }
 
     public boolean getKustoAutoTableCreate() {
-        return this.getBoolean(KUSTO_SINK_AUTO_TABLE_CREATE_CONF);
+      return this.getBoolean(KUSTO_SINK_AUTO_TABLE_CREATE_CONF);
     }
 
     public String getKustoSinkAutoTableSchema() {
-        return this.getString(KUSTO_SINK_AUTO_TABLE_SCHEMA_CONF);
+      return this.getString(KUSTO_SINK_AUTO_TABLE_SCHEMA_CONF);
+    }
+
+    public static void main(String[] args) {
+      System.out.println(getConfig().toEnrichedRst());
     }
 }
 

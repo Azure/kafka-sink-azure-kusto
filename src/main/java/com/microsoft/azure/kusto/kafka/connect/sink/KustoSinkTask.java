@@ -57,8 +57,8 @@ public class KustoSinkTask extends SinkTask {
     }
 
     public static IngestClient createKustoIngestClient(KustoSinkConfig config) throws Exception {
-        if (config.getKustoAuthAppid() != null) {
-            if (config.getAuthAppkey() == null) {
+        if (config.getKustoAuthAppid() != null && !config.getKustoAuthAppid().isEmpty()) {
+            if (config.getAuthAppkey() == null && !config.getAuthAppkey().isEmpty()) {
                 throw new ConfigException("Kusto authentication missing App Key.");
             }
 
@@ -74,7 +74,7 @@ public class KustoSinkTask extends SinkTask {
         }
 
         if (config.getAuthUsername() != null) {
-            if (config.getAuthPassword() == null) {
+            if (config.getAuthPassword() == null && !config.getAuthPassword().isEmpty()) {
                 throw new ConfigException("Kusto authentication missing Password.");
             }
 
@@ -89,8 +89,8 @@ public class KustoSinkTask extends SinkTask {
     }
 
     public static Client createKustoEngineClient(KustoSinkConfig config) throws Exception {
-        if (config.getKustoAuthAppid() != null) {
-            if (config.getAuthAppkey() == null) {
+        if (config.getKustoAuthAppid() != null && !config.getKustoAuthAppid().isEmpty()) {
+            if (config.getAuthAppkey() == null && !config.getAuthAppkey().isEmpty()) {
                 throw new ConfigException("Kusto authentication missing App Key.");
             }
 
@@ -106,7 +106,7 @@ public class KustoSinkTask extends SinkTask {
         }
 
         if (config.getAuthUsername() != null) {
-            if (config.getAuthPassword() == null) {
+            if (config.getAuthPassword() == null && !config.getAuthPassword().isEmpty()) {
                 throw new ConfigException("Kusto authentication missing Password.");
             }
             return ClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
@@ -115,60 +115,61 @@ public class KustoSinkTask extends SinkTask {
                     config.getAuthPassword()
             ));
         }
-        throw new ConfigException("Kusto authentication method must be provided.");
+        throw new ConnectException("Failed to initialize KustoEngineClient, please " +
+                "provide valid credentials. Either Kusto username and password or " +
+                "Kusto appId, appKey, and authority should be configured.");
     }
 
     public static Map<String, TopicIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
         Map<String, TopicIngestionProperties> result = new HashMap<>();
 
         try {
-            if (config.getTopicToTableMapping() != null) {
-                JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
 
-                for (int i =0;i< mappings.length();i++) {
+            JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
 
-                    JSONObject mapping = mappings.getJSONObject(i);
+            for (int i =0;i< mappings.length();i++) {
 
-                    try {
-                        String db = mapping.getString("db");
-                        String table = mapping.getString("table");
+                JSONObject mapping = mappings.getJSONObject(i);
 
-                        String format = mapping.optString("format");
-                        CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
+                try {
+                    String db = mapping.getString("db");
+                    String table = mapping.getString("table");
 
-                        IngestionProperties props = new IngestionProperties(db, table);
+                    String format = mapping.optString("format");
+                    CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
 
-                        if (format != null && !format.isEmpty()) {
-                            if (format.equals("json") || format.equals("singlejson")){
-                                props.setDataFormat("multijson");
-                            }
-                            props.setDataFormat(format);
+                    IngestionProperties props = new IngestionProperties(db, table);
+
+                    if (format != null && !format.isEmpty()) {
+                        if (format.equals("json") || format.equals("singlejson")){
+                            props.setDataFormat("multijson");
                         }
-
-                        String mappingRef = mapping.optString("mapping");
-
-                        if (mappingRef != null && !mappingRef.isEmpty()) {
-                            if (format != null) {
-                                if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
-                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
-                                } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
-                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
-                                } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
-                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
-                                } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
-                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
-                                } else {
-                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
-                                }
-                            }
-                        }
-                        TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
-                        topicIngestionProperties.eventDataCompression = compressionType;
-                        topicIngestionProperties.ingestionProperties = props;
-                        result.put(mapping.getString("topic"), topicIngestionProperties);
-                    } catch (Exception ex) {
-                        throw new ConfigException("Malformed topics to kusto ingestion props mappings", ex);
+                        props.setDataFormat(format);
                     }
+
+                    String mappingRef = mapping.optString("mapping");
+
+                    if (mappingRef != null && !mappingRef.isEmpty()) {
+                        if (format != null) {
+                            if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
+                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
+                            } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
+                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
+                            } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
+                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
+                            } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
+                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
+                            } else {
+                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
+                            }
+                        }
+                    }
+                    TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
+                    topicIngestionProperties.eventDataCompression = compressionType;
+                    topicIngestionProperties.ingestionProperties = props;
+                    result.put(mapping.getString("topic"), topicIngestionProperties);
+                } catch (Exception ex) {
+                    throw new ConfigException("Malformed topics to kusto ingestion props mappings", ex);
                 }
 
                 return result;
@@ -185,7 +186,7 @@ public class KustoSinkTask extends SinkTask {
         return topicsToIngestionProps.get(topic);
     }
 
-    private void validateTableMappings(KustoSinkConfig config) {
+    private void validateTableMappings(KustoSinkConfig config) throws Exception {
         try {
             Client engineClient = createKustoEngineClient(config);
             if (config.getTopicToTableMapping() != null) {
@@ -198,11 +199,7 @@ public class KustoSinkTask extends SinkTask {
                 }
             }
         } catch (JSONException e) {
-            throw new ConfigException(String.format("Error trying to parse Kusto ingestion props %s", e.getMessage()));
-        } catch (ConfigException ex) {
-            throw new ConnectException(String.format("Kusto Connector failed to start due to configuration error. %s", ex.getMessage()));
-        } catch (Exception e) {
-            e.printStackTrace();
+            throw new ConnectException("Failed to parse ``kusto.tables.topics.mapping`` configuration.", e);
         }
     }
 
