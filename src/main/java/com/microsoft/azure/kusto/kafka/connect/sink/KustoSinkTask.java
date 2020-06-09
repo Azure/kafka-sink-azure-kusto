@@ -210,7 +210,7 @@ public class KustoSinkTask extends SinkTask {
             }
             if(!mappingErrorList.isEmpty())
             {
-                throw new ConnectException("User has insufficient access to the following " +
+                throw new ConnectException("User has insufficient access for the following " +
                         "table mapping\n" + String.join("\n",mappingErrorList));
             }
         } catch (JSONException e) {
@@ -253,7 +253,7 @@ public class KustoSinkTask extends SinkTask {
             }
             if (!hasAccess) {
                 ErrorList.add(String.format("User does not have appropriate permissions " +
-                        "to sink data into the Kusto table=%s in database %s", table,database));
+                        "to sink data into the Kusto table=%s in database %s", table, database));
             }
             log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
         } catch (DataClientException e) {
@@ -268,15 +268,6 @@ public class KustoSinkTask extends SinkTask {
             }
         }
     }
-
-    private static void createTable(KustoSinkConfig config,Client engineClient, String database, String table) {
-        // TODO Implement create table function
-
-    }
-    private static void createTableMapping(KustoSinkConfig config, Client engineClient,JSONObject mapping){
-        // TODO Implement create table mapping funtion
-    }
-
 
     @Override
     public String version() {
