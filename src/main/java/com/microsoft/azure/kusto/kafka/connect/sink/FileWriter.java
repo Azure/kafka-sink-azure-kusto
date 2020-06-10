@@ -192,7 +192,9 @@ public class FileWriter implements Closeable {
                     flushByTimeImpl();
                 }
             };
-            timer.schedule(t, flushInterval);
+            if(timer != null) {
+                timer.schedule(t, flushInterval);
+            }
         }
     }
 
@@ -212,7 +214,6 @@ public class FileWriter implements Closeable {
             flushError = String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize);
             log.error(flushError, e);
         }
-
     }
 
     private class CountingOutputStream extends FilterOutputStream {

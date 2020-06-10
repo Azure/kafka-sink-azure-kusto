@@ -276,7 +276,7 @@ public class KustoSinkTask extends SinkTask {
                 Long offset = writers.get(tp).lastCommittedOffset;
 
                 if (offset != null) {
-                    log.debug("Forwarding to framework request to commit offset: {} for {}", offset, tp);
+                    log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
                     offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
                 }
             }

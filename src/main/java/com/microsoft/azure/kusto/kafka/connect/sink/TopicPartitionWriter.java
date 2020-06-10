@@ -75,6 +75,8 @@ class TopicPartitionWriter {
                     currentRetries--;
                     return handleRollFile(fileDescriptor);
                 } else {
+                  currentRetries = defaultRetriesCount;
+
                   // Returning string will make the caller throw
                   return "Ingestion Failed for file : " + fileDescriptor.file.getName() + ", defaultRetriesCount left '" + defaultRetriesCount + "'. message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e);
                 }
@@ -128,8 +130,14 @@ class TopicPartitionWriter {
                 // Current offset is saved after flushing for the flush timer to use
                 fileWriter.write(value, record.kafkaOffset());
                 this.currentOffset = record.kafkaOffset();
-            } catch (IOException ex){
-                throw new org.apache.kafka.connect.errors.ConnectException("Got an IOExcption while writing to file with message:" + ex.getMessage());
+            } catch (ConnectException ex) {
+                if (commitImmediately) {
+                    throw ex;
+                }
+            } catch (IOException ex) {
+                if (commitImmediately) {
+                    throw new ConnectException("Got an IOExcption while writing to file with message:" + ex.getMessage());
+                }
             } finally {
                 reentrantReadWriteLock.readLock().unlock();
             }
