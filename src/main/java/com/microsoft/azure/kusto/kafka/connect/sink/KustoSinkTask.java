@@ -62,14 +62,14 @@ public class KustoSinkTask extends SinkTask {
 
     public static IngestClient createKustoIngestClient(KustoSinkConfig config) {
         try {
-            if (!Strings.isNullOrEmpty(config.getKustoAuthAppid())) {
+            if (!Strings.isNullOrEmpty(config.getAuthAppid())) {
                 if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
                     throw new ConfigException("Kusto authentication missing App Key.");
                 }
 
                 ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                         config.getKustoUrl(),
-                        config.getKustoAuthAppid(),
+                        config.getAuthAppid(),
                         config.getAuthAppkey(),
                         config.getAuthAuthority()
                 );
@@ -101,13 +101,13 @@ public class KustoSinkTask extends SinkTask {
     public static Client createKustoEngineClient(KustoSinkConfig config) {
         try {
             String engineClientURL = config.getKustoUrl().replace("https://ingest-", "https://");
-            if (!Strings.isNullOrEmpty(config.getKustoAuthAppid())) {
+            if (!Strings.isNullOrEmpty(config.getAuthAppid())) {
                 if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
                     throw new ConfigException("Kusto authentication missing App Key.");
                 }
                 ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                         engineClientURL,
-                        config.getKustoAuthAppid(),
+                        config.getAuthAppid(),
                         config.getAuthAppkey(),
                         config.getAuthAuthority()
                 );
@@ -242,8 +242,8 @@ public class KustoSinkTask extends SinkTask {
         try {
             Results rs = engineClient.execute(database, String.format(getPrincipalsQuery, table));
             String authenticateWith;
-            if (config.getKustoAuthAppid() != null) {
-                authenticateWith = config.getKustoAuthAppid();
+            if (config.getAuthAppid() != null) {
+                authenticateWith = config.getAuthAppid();
             } else {
                 authenticateWith=config.getAuthUsername();
             }

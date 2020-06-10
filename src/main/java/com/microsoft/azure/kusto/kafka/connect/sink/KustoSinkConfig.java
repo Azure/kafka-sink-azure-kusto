@@ -233,7 +233,7 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getPassword(KUSTO_AUTH_PASSWORD_CONF).value();
     }
   
-    public String getKustoAuthAppid() {
+    public String getAuthAppid() {
         return this.getPassword(KUSTO_AUTH_APPID_CONF).value();
     }
   
