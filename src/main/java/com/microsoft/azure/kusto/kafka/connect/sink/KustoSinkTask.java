@@ -196,8 +196,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     private void validateTableMappings(KustoSinkConfig config) {
-        List<String> databaseErrorList = new ArrayList<>();
-        List<String> tableErrorList = new ArrayList<>();
+        List<String> databaseTableErrorList = new ArrayList<>();
         List<String> accessErrorList = new ArrayList<>();
         try {
             Client engineClient = createKustoEngineClient(config);
@@ -207,30 +206,26 @@ public class KustoSinkTask extends SinkTask {
                     JSONObject mapping = mappings.getJSONObject(i);
                     String db = mapping.getString("db");
                     String table = mapping.getString("table");
-                    validateTableAccess(config, engineClient, mapping, databaseErrorList, tableErrorList, accessErrorList);
+                    validateTableAccess(config, engineClient, mapping, databaseTableErrorList, accessErrorList);
                 }
             }
-            String invalidTableMapping ="";
-            if(!databaseErrorList.isEmpty())
+            String tableAccessErrorMessage ="";
+
+            if(!databaseTableErrorList.isEmpty())
             {
-                invalidTableMapping = invalidTableMapping + "\n\n Unable to access the following databases : " +
-                        String.join(",",databaseErrorList);
-            }
-            if(!tableErrorList.isEmpty())
-            {
-                invalidTableMapping = invalidTableMapping + "\n\n Unable to access the following tables :\n " +
-                        String.join("\n",tableErrorList);
+                tableAccessErrorMessage = "\n\n Unable to access the following database:table \n " +
+                        String.join("\n",databaseTableErrorList);
             }
             if(!accessErrorList.isEmpty())
             {
-                invalidTableMapping = invalidTableMapping + "\n\nUser does not have appropriate permissions " +
+                tableAccessErrorMessage = tableAccessErrorMessage + "\n\nUser does not have appropriate permissions " +
                         "to sink data into the Kusto database:table combinations. " +
                         "Verify your Kusto principals and roles before proceeding for the following: \n " +
                         String.join("\n",accessErrorList);
             }
 
-            if(!invalidTableMapping.isEmpty()) {
-                throw new ConnectException(String.format("User has insufficient access for the following %s",invalidTableMapping));
+            if(!tableAccessErrorMessage.isEmpty()) {
+                throw new ConnectException(tableAccessErrorMessage);
             }
         } catch (JSONException e) {
             throw new ConnectException("Failed to parse ``kusto.tables.topics.mapping`` configuration.", e);
@@ -244,7 +239,7 @@ public class KustoSinkTask extends SinkTask {
      * @param engineClient Client connection to run queries.
      * @param mapping JSON Object containing a Table mapping.
      */
-    private static void validateTableAccess(KustoSinkConfig config, Client engineClient, JSONObject mapping, List<String> databaseErrorList, List<String> tableErrorList, List<String> accessErrorList) throws JSONException {
+    private static void validateTableAccess(KustoSinkConfig config, Client engineClient, JSONObject mapping, List<String> databaseTableErrorList, List<String> accessErrorList) throws JSONException {
         int ROLE_INDEX = 0;
         int PRINCIPAL_DISPLAY_NAME_INDEX = 2;
         String getPrincipalsQuery = ".show table %s principals";
@@ -270,20 +265,14 @@ public class KustoSinkTask extends SinkTask {
                 }
             }
             if (!hasAccess) {
-                log.info("DOEN't have ACCEss");
                 accessErrorList.add(String.format("%s:%s", database, table));
             }
             log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
         } catch (DataClientException e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
         } catch (DataServiceException e) {
-            if (e.getCause().getMessage().contains("Database")) {
-                log.error("The database {} might not exist or access denied ", database, e);
-                databaseErrorList.add(database);
-            } else if (e.getCause().getMessage().contains("Table")) {
-                log.error("The table {} in database {} might not exist or access denied ", table, database, e);
-                tableErrorList.add(String.format("Database:%s Table:%s", database, table));
-            }
+            log.error("The table {} in database {} might not exist or access denied ", table, database, e);
+            databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
         }
     }
 
