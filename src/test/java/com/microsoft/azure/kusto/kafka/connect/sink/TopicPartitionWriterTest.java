@@ -248,7 +248,7 @@ public class TopicPartitionWriterTest {
         String db = "testdb1";
         String table = "testtable1";
         String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
-        FileInputStream fis = new FileInputStream("data.avro");
+        FileInputStream fis = new FileInputStream("src/test/resources/data.avro");
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         int content;
         while ((content = fis.read()) != -1) {

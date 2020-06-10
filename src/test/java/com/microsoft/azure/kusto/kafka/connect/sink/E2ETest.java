@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Assertions;
 import org.testng.Assert;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
@@ -31,20 +30,19 @@ public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
     private String appId = System.getProperty("appId");
     private String appKey = System.getProperty("appKey");
-    private String authority = System.getProperty("authority", "microsoft.com");
+    private String authority = System.getProperty("authority");
     private String cluster = System.getProperty("cluster");
     private String database = System.getProperty("database");
     private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
 
     @Test
-    @Ignore
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "csv";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
         Client engineClient = ClientFactory.createClient(engineCsb);
 
-        if(tableBaseName.startsWith(testPrefix)) {
+        if (tableBaseName.startsWith(testPrefix)) {
             engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
         }
         try {

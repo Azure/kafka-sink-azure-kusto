@@ -31,9 +31,9 @@ public class KustoSinkConfig extends AbstractConfig {
   
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL_CONF = "kusto.url";
-    private static final String KUSTO_URL_DOC = "Kusto cluster url for ingestion.";
+    private static final String KUSTO_URL_DOC = "Kusto cluster URL.";
     private static final String KUSTO_URL_DISPLAY = "Kusto URL";
-    
+
     static final String KUSTO_AUTH_USERNAME_CONF = "kusto.auth.username";
     private static final String KUSTO_AUTH_USERNAME_DOC = "Kusto username for authentication, also configure kusto.auth.password.";
     private static final String KUSTO_AUTH_USERNAME_DISPLAY = "Kusto Auth Username";
@@ -60,7 +60,7 @@ public class KustoSinkConfig extends AbstractConfig {
         + "'topic1:table1;topic2:table2;').";
     private static final String KUSTO_TABLES_MAPPING_DISPLAY = "Kusto Table Topics Mapping";
     
-    static final String KUSTO_SINK_TEMP_DIR_CONF = "tempdir.path";
+    static final String KUSTO_SINK_TEMP_DIR_CONF = "kusto.sink.tempdir";
     private static final String KUSTO_SINK_TEMP_DIR_DOC = "Temp dir that will be used by kusto sink to buffer records. "
         + "defaults to system temp dir.";
     private static final String KUSTO_SINK_TEMP_DIR_DISPLAY = "Temporary Directory";
@@ -106,7 +106,7 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
         + "the Connector makes to ingest records into KustoDB.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Retry BackOff Time";
-    
+
     
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -137,7 +137,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 connectionGroupName,
                 connectionGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_URL_DISPLAY)    
+                KUSTO_URL_DISPLAY)
             .define(
                 KUSTO_AUTH_USERNAME_CONF,
                 Type.STRING,
@@ -151,7 +151,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_PASSWORD_CONF,
                 Type.PASSWORD,
-                null,
+                "",
                 Importance.HIGH,
                 KUSTO_AUTH_PASSWORD_DOC,
                 connectionGroupName,
@@ -161,7 +161,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_APPKEY_CONF,
                 Type.PASSWORD,
-                null,
+                "",
                 Importance.HIGH,
                 KUSTO_AUTH_APPKEY_DOC,
                 connectionGroupName,
@@ -171,7 +171,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_APPID_CONF,
                 Type.PASSWORD,
-                null,
+                "",
                 Importance.HIGH,
                 KUSTO_AUTH_APPID_DOC,
                 connectionGroupName,
@@ -181,7 +181,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_AUTHORITY_CONF,
                 Type.PASSWORD,
-                null,
+                "",
                 Importance.HIGH,
                 KUSTO_AUTH_AUTHORITY_DOC,
                 connectionGroupName,
@@ -280,8 +280,9 @@ public class KustoSinkConfig extends AbstractConfig {
                 errorAndRetriesGroupName,
                 errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY);    
+                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY);
         }
+
 
     public String getKustoUrl() {
         return this.getString(KUSTO_URL_CONF);
@@ -292,19 +293,19 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getAuthPassword() {
-        return this.getString(KUSTO_AUTH_PASSWORD_CONF);
+        return this.getPassword(KUSTO_AUTH_PASSWORD_CONF).value();
     }
   
     public String getKustoAuthAppid() {
-        return this.getString(KUSTO_AUTH_APPID_CONF);
+        return this.getPassword(KUSTO_AUTH_APPID_CONF).value();
     }
   
     public String getAuthAppkey() {
-        return this.getString(KUSTO_AUTH_APPKEY_CONF);
+        return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
     }
   
     public String getAuthAuthority() {
-        return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
+        return this.getPassword(KUSTO_AUTH_AUTHORITY_CONF).value();
     }
   
     public String getTopicToTableMapping() {
@@ -342,7 +343,7 @@ public class KustoSinkConfig extends AbstractConfig {
     public long getBackOffTime() {
         return this.getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF);
     }
-    
+
     public static void main(String[] args) {
       System.out.println(getConfig().toEnrichedRst());
     }
