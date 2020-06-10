@@ -41,14 +41,19 @@ import java.util.Set;
  * Currently only ingested files are "committed" in the sense that we can advance the offset according to it.
  */
 public class KustoSinkTask extends SinkTask {
-    private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
+    
+  private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
+    static final int ROLE_INDEX = 0;
+    static final int PRINCIPAL_DISPLAY_NAME_INDEX = 2;
+    
     private final Set<TopicPartition> assignment;
     private Map<String, TopicIngestionProperties> topicsToIngestionProps;
-    IngestClient kustoIngestClient;
-    Map<TopicPartition, TopicPartitionWriter> writers;
     private long maxFileSize;
     private long flushInterval;
     private String tempDir;
+    
+    IngestClient kustoIngestClient;
+    Map<TopicPartition, TopicPartitionWriter> writers;
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
@@ -95,7 +100,7 @@ public class KustoSinkTask extends SinkTask {
 
     public static Client createKustoEngineClient(KustoSinkConfig config) {
         try {
-            String engineClientURL =  "https://" + StringUtils.removeStart(config.getKustoUrl(),"https://ingest-");
+            String engineClientURL = config.getKustoUrl().replace("https://ingest-", "https://");
             if (!Strings.isNullOrEmpty(config.getKustoAuthAppid())) {
                 if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
                     throw new ConfigException("Kusto authentication missing App Key.");
@@ -129,7 +134,7 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
-    public static Map<String, TopicIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
+    public static Map<String, TopicIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) {
         Map<String, TopicIngestionProperties> result = new HashMap<>();
 
         try {
@@ -140,55 +145,48 @@ public class KustoSinkTask extends SinkTask {
 
                 JSONObject mapping = mappings.getJSONObject(i);
 
-                try {
-                    String db = mapping.getString("db");
-                    String table = mapping.getString("table");
+                String db = mapping.getString("db");
+                String table = mapping.getString("table");
 
-                    String format = mapping.optString("format");
-                    CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
+                String format = mapping.optString("format");
+                CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
 
-                    IngestionProperties props = new IngestionProperties(db, table);
+                IngestionProperties props = new IngestionProperties(db, table);
 
-                    if (format != null && !format.isEmpty()) {
-                        if (format.equals("json") || format.equals("singlejson")){
-                            props.setDataFormat("multijson");
-                        }
-                        props.setDataFormat(format);
+                if (format != null && !format.isEmpty()) {
+                    if (format.equals("json") || format.equals("singlejson")){
+                        props.setDataFormat("multijson");
                     }
-
-                    String mappingRef = mapping.optString("mapping");
-
-                    if (mappingRef != null && !mappingRef.isEmpty()) {
-                        if (format != null) {
-                            if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
-                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
-                            } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
-                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
-                            } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
-                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
-                            } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
-                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
-                            } else {
-                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
-                            }
-                        }
-                    }
-                    TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
-                    topicIngestionProperties.eventDataCompression = compressionType;
-                    topicIngestionProperties.ingestionProperties = props;
-                    result.put(mapping.getString("topic"), topicIngestionProperties);
-                } catch (Exception ex) {
-                    throw new ConfigException("Malformed topics to kusto ingestion props mappings", ex);
+                    props.setDataFormat(format);
                 }
 
-                return result;
+                String mappingRef = mapping.optString("mapping");
+
+                if (mappingRef != null && !mappingRef.isEmpty()) {
+                    if (format != null) {
+                        if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
+                        } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
+                        } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
+                        } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
+                        } else {
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
+                        }
+                    }
+                }
+                TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
+                topicIngestionProperties.eventDataCompression = compressionType;
+                topicIngestionProperties.ingestionProperties = props;
+                result.put(mapping.getString("topic"), topicIngestionProperties);
             }
+            return result;
         }
         catch (Exception ex) {
-            throw new ConfigException(String.format("Error trying to parse kusto ingestion props %s",ex.getMessage()));
+            throw new ConfigException("Error while parsing kusto ingestion properties.", ex);
         }
-
-        throw new ConfigException("Malformed topics to kusto ingestion props mappings");
     }
 
     public TopicIngestionProperties getIngestionProps(String topic) {
@@ -204,22 +202,20 @@ public class KustoSinkTask extends SinkTask {
                 JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
                 for (int i = 0; i < mappings.length(); i++) {
                     JSONObject mapping = mappings.getJSONObject(i);
-                    String db = mapping.getString("db");
-                    String table = mapping.getString("table");
                     validateTableAccess(config, engineClient, mapping, databaseTableErrorList, accessErrorList);
                 }
             }
-            String tableAccessErrorMessage ="";
+            String tableAccessErrorMessage = "";
 
             if(!databaseTableErrorList.isEmpty())
             {
-                tableAccessErrorMessage = "\n\n Unable to access the following database:table \n " +
+                tableAccessErrorMessage = "\n\nUnable to access the following database:table\n" +
                         String.join("\n",databaseTableErrorList);
             }
             if(!accessErrorList.isEmpty())
             {
                 tableAccessErrorMessage = tableAccessErrorMessage + "\n\nUser does not have appropriate permissions " +
-                        "to sink data into the Kusto database:table combinations. " +
+                        "to sink data into the Kusto database:table combination(s). " +
                         "Verify your Kusto principals and roles before proceeding for the following: \n " +
                         String.join("\n",accessErrorList);
             }
@@ -240,8 +236,6 @@ public class KustoSinkTask extends SinkTask {
      * @param mapping JSON Object containing a Table mapping.
      */
     private static void validateTableAccess(KustoSinkConfig config, Client engineClient, JSONObject mapping, List<String> databaseTableErrorList, List<String> accessErrorList) throws JSONException {
-        int ROLE_INDEX = 0;
-        int PRINCIPAL_DISPLAY_NAME_INDEX = 2;
         String getPrincipalsQuery = ".show table %s principals";
         String database = mapping.getString("db");
         String table = mapping.getString("table");
@@ -271,6 +265,7 @@ public class KustoSinkTask extends SinkTask {
         } catch (DataClientException e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
         } catch (DataServiceException e) {
+            // Logging the error so that the trace is not lost.
             log.error("The table {} in database {} might not exist or access denied ", table, database, e);
             databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
         }
@@ -282,7 +277,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     @Override
-    public void open(Collection<TopicPartition> partitions) throws ConnectException {
+    public void open(Collection<TopicPartition> partitions) {
         assignment.addAll(partitions);
         for (TopicPartition tp : assignment) {
             TopicIngestionProperties ingestionProps = getIngestionProps(tp.topic());
@@ -323,7 +318,8 @@ public class KustoSinkTask extends SinkTask {
         tempDir = config.getTempDirPath();
         maxFileSize = config.getFlushSizeBytes();
         flushInterval = config.getFlushInterval();
-        log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
+        log.info(String.format("Started KustoSinkTask with target cluster: (%s), source topics: (%s)", 
+            url, topicsToIngestionProps.keySet().toString()));
         open(context.assignment());
     }
 
@@ -334,7 +330,7 @@ public class KustoSinkTask extends SinkTask {
             writer.close();
         }
         try {
-            if(kustoIngestClient!=null) {
+            if(kustoIngestClient != null) {
                 kustoIngestClient.close();
             }
         } catch (IOException e) {
