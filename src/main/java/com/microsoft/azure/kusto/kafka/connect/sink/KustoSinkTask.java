@@ -195,7 +195,7 @@ public class KustoSinkTask extends SinkTask {
         return topicsToIngestionProps.get(topic);
     }
 
-    private void validateTableMappings(KustoSinkConfig config) throws Exception {
+    private void validateTableMappings(KustoSinkConfig config) {
         List<String> mappingErrorList = new ArrayList<>();
         try {
             Client engineClient = createKustoEngineClient(config);
@@ -306,25 +306,18 @@ public class KustoSinkTask extends SinkTask {
 
 
     @Override
-    public void start(Map<String, String> props) throws ConnectException {
-        try {
-            KustoSinkConfig config = new KustoSinkConfig(props);
-            String url = config.getKustoUrl();
-            validateTableMappings(config);
-            topicsToIngestionProps = getTopicsToIngestionProps(config);
-            // this should be read properly from settings
-            kustoIngestClient = createKustoIngestClient(config);
-            tempDir = config.getTempDirPath();
-            maxFileSize = config.getFlushSizeBytes();
-            flushInterval = config.getFlushInterval();
-            log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
-            open(context.assignment());
-
-        } catch (ConfigException ex) {
-            throw new ConnectException(String.format("Kusto Connector failed to start due to configuration error. %s", ex.getMessage()));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public void start(Map<String, String> props) {
+        KustoSinkConfig config = new KustoSinkConfig(props);
+        String url = config.getKustoUrl();
+        validateTableMappings(config);
+        topicsToIngestionProps = getTopicsToIngestionProps(config);
+        // this should be read properly from settings
+        kustoIngestClient = createKustoIngestClient(config);
+        tempDir = config.getTempDirPath();
+        maxFileSize = config.getFlushSizeBytes();
+        flushInterval = config.getFlushInterval();
+        log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
+        open(context.assignment());
     }
 
     @Override
@@ -334,7 +327,9 @@ public class KustoSinkTask extends SinkTask {
             writer.close();
         }
         try {
-            kustoIngestClient.close();
+            if(kustoIngestClient!=null) {
+                kustoIngestClient.close();
+            }
         } catch (IOException e) {
             log.error("Error closing kusto client", e);
         }
