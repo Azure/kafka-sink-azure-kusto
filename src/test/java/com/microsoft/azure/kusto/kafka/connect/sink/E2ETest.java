@@ -19,13 +19,13 @@ import org.junit.jupiter.api.Assertions;
 import org.testng.Assert;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
@@ -36,6 +36,7 @@ public class E2ETest {
     private String database = System.getProperty("database");
     private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
+    private Logger log = Logger.getLogger(this.getClass().getName());
 
     @Test
     @Ignore
@@ -69,7 +70,7 @@ public class E2ETest {
             props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
             props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.csv);
 
-            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, Paths.get(basePath, "csv").toString(), fileThreshold, flushInterval);
+            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, Paths.get(basePath, "csv").toString(), fileThreshold, flushInterval, false, 0);
             writer.open();
 
             List<SinkRecord> records = new ArrayList<SinkRecord>();
@@ -117,7 +118,7 @@ public class E2ETest {
             props2.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
             props2.ingestionProperties.setIngestionMapping("avri", IngestionMapping.IngestionMappingKind.avro);
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
-            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, Paths.get(basePath, "avro").toString(), 10, 300000);
+            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, Paths.get(basePath, "avro").toString(), 10, 300000, false, 0);
             writer2.open();
             List<SinkRecord> records2 = new ArrayList<SinkRecord>();
 
@@ -157,5 +158,6 @@ public class E2ETest {
             timeElapsedMs += sleepPeriodMs;
         }
         Assertions.assertEquals(res.getValues().get(0).get(0), expectedNumberOfRows.toString());
+        this.log.info("Succesfully ingested " + expectedNumberOfRows + " records.");
     }
 }
