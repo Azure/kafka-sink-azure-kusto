@@ -49,7 +49,6 @@ example configuration:
 ```config
 name=KustoSinkConnector 
 connector.class=com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector 
-kusto.sink.flush_interval_ms=300000 
 key.converter=org.apache.kafka.connect.storage.StringConverter 
 value.converter=org.apache.kafka.connect.storage.StringConverter 
 tasks.max=1 
@@ -61,6 +60,7 @@ kusto.auth.appid=XXX
 kusto.auth.appkey=XXX 
 kusto.sink.tempdir=/var/tmp/ 
 kusto.sink.flush_size=1000
+kusto.sink.flush_interval_ms=300000 
 ```
 Aggregation in the sink is done using files, these are sent to kusto if the aggregated file has reached the flush_size 
 (size is in bytes) or if the flush_interval_ms interval has passed. 

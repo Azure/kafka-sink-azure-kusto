@@ -57,6 +57,15 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DOC = "Kusto sink max staleness in milliseconds (per topic+partition combo).";
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY = "Maximum Flush Interval";
     
+    static final String KUSTO_COMMIT_IMMEDIATLY_CONF = "kusto.sink.commit";
+    private static final String KUSTO_COMMIT_IMMEDIATLY_DOC = "Whether kafka call to commit offsets will flush and commit the last offsets or only the ingested ones\"";
+    private static final String KUSTO_COMMIT_IMMEDIATLY_DISPLAY = "kusto.sink.commit";
+    
+    
+    static final String KUSTO_RETRIES_COUNT_CONF = "kusto.sink.retries";
+    private static final String KUSTO_RETRIES_COUNT_DOC = "Number of retries on ingestions before throwing";
+    private static final String KUSTO_RETRIES_COUNT_DISPLAY = "kusto.sink.retries";
+    
     // Deprecated configs
     static final String KUSTO_TABLES_MAPPING_CONF_DEPRECATED = "kusto.tables.topics_mapping";
     static final String KUSTO_SINK_FLUSH_SIZE_BYTES_CONF_DEPRECATED = "kusto.sink.flush_size";
@@ -64,7 +73,6 @@ public class KustoSinkConfig extends AbstractConfig {
     
     private static final String DEPRECATED_CONFIG_DOC = "This configuration has been deprecated.";
 
-    
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
     }
@@ -216,9 +224,28 @@ public class KustoSinkConfig extends AbstractConfig {
                 writeGroupName,
                 writeGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY);
-        }
-
+                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY)
+            .define(
+                KUSTO_COMMIT_IMMEDIATLY_CONF,
+                Type.BOOLEAN,
+                false,
+                Importance.LOW,
+                KUSTO_COMMIT_IMMEDIATLY_DOC,
+                writeGroupName,
+                writeGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_COMMIT_IMMEDIATLY_DISPLAY)
+            .define(
+                KUSTO_RETRIES_COUNT_CONF,
+                Type.INT,
+                2,
+                Importance.LOW,
+                KUSTO_RETRIES_COUNT_DOC,
+                writeGroupName,
+                writeGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_RETRIES_COUNT_DISPLAY);
+    }
 
     public String getKustoUrl() {
         return this.getString(KUSTO_URL_CONF);
@@ -268,9 +295,18 @@ public class KustoSinkConfig extends AbstractConfig {
             ? getLong(KUSTO_SINK_FLUSH_INTERVAL_MS_CONF_DEPRECATED)
             : getLong(KUSTO_SINK_FLUSH_INTERVAL_MS_CONF);
     }
+    
+    public boolean getKustoCommitImmediatly() {
+        return this.getBoolean(KUSTO_COMMIT_IMMEDIATLY_CONF);
+    }
+    
+    public int getKustoRetriesCount() {
+        return this.getInt(KUSTO_RETRIES_COUNT_CONF);
+    }
 
     public static void main(String[] args) {
         System.out.println(getConfig().toEnrichedRst());
     }
+
 }
 

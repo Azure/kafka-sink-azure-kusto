@@ -34,6 +34,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Kusto sink uses file system to buffer records.
@@ -51,6 +56,8 @@ public class KustoSinkTask extends SinkTask {
     private long maxFileSize;
     private long flushInterval;
     private String tempDir;
+    private boolean commitImmediately;
+    private int retiresCount;
     
     IngestClient kustoIngestClient;
     Map<TopicPartition, TopicPartitionWriter> writers;
@@ -152,6 +159,13 @@ public class KustoSinkTask extends SinkTask {
                 CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
 
                 IngestionProperties props = new IngestionProperties(db, table);
+
+                if (format != null && !format.isEmpty()) {
+                    if (format.equals("json") || format.equals("singlejson") || format.equalsIgnoreCase("multijson")) {
+                        props.setDataFormat("multijson");
+                    }
+                    props.setDataFormat(format);
+                }
 
                 if (format != null && !format.isEmpty()) {
                     if (format.equals("json") || format.equals("singlejson")){
@@ -285,7 +299,7 @@ public class KustoSinkTask extends SinkTask {
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval, commitImmediately, retiresCount);
 
                 writer.open();
                 writers.put(tp, writer);
@@ -295,6 +309,7 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void close(Collection<TopicPartition> partitions) {
+        log.warn("KustoConnector got a request to close sink task");
         for (TopicPartition tp : partitions) {
             try {
                 writers.get(tp).close();
@@ -309,15 +324,23 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void start(Map<String, String> props) {
+        
         KustoSinkConfig config = new KustoSinkConfig(props);
         String url = config.getKustoUrl();
+      
         validateTableMappings(config);
+        
         topicsToIngestionProps = getTopicsToIngestionProps(config);
+        
         // this should be read properly from settings
         kustoIngestClient = createKustoIngestClient(config);
+        
         tempDir = config.getTempDirPath();
         maxFileSize = config.getFlushSizeBytes();
         flushInterval = config.getFlushInterval();
+        commitImmediately = config.getKustoCommitImmediatly();
+        retiresCount = config.getKustoRetriesCount();
+        
         log.info(String.format("Started KustoSinkTask with target cluster: (%s), source topics: (%s)", 
             url, topicsToIngestionProps.keySet().toString()));
         open(context.assignment());
@@ -340,9 +363,16 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void put(Collection<SinkRecord> records) throws ConnectException {
+        log.debug("put '"+ records.size() + "' num of records");
+        int i = 0;
+        SinkRecord lastRecord = null;
         for (SinkRecord record : records) {
-            log.debug("record to topic:" + record.topic());
-
+            if (i == 0) {
+                log.debug("First record is to topic:" + record.topic());
+                log.debug("First record offset:" + record.kafkaOffset());
+            }
+            lastRecord = record;
+            i++;
             TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
             TopicPartitionWriter writer = writers.get(tp);
 
@@ -354,6 +384,11 @@ public class KustoSinkTask extends SinkTask {
 
             writer.writeRecord(record);
         }
+
+        if (lastRecord != null) {
+            log.debug("Last record was for topic:" + lastRecord.topic());
+            log.debug("Last record had offset:" + lastRecord.kafkaOffset());
+        }
     }
 
     // This is a neat trick, since our rolling files commit whenever they like, offsets may drift
@@ -362,23 +397,38 @@ public class KustoSinkTask extends SinkTask {
     public Map<TopicPartition, OffsetAndMetadata> preCommit(
             Map<TopicPartition, OffsetAndMetadata> offsets
     ) {
+        log.info("preCommit called and sink is configured to " + (commitImmediately ? "flush and commit immediatly": "commit only successfully sent for ingestion offsets"));
         Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>();
-        for (TopicPartition tp : assignment) {
+        if (commitImmediately) {
+            CompletableFuture[] tasks = new CompletableFuture[assignment.size()];
+            int i = 0;
+            for (TopicPartition tp : assignment) {
+                TopicPartitionWriter topicPartitionWriter = writers.get(tp);
+                tasks[i] = (CompletableFuture.runAsync(() -> topicPartitionWriter.fileWriter.flushByTimeImpl()));
+            }
+            CompletableFuture<Void> voidCompletableFuture = CompletableFuture.allOf(tasks);
+            try {
+                voidCompletableFuture.get(4L, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                log.warn("failed to flush some of the partition writers in 4 seconds before comitting");
+            }
+        } else {
+            for (TopicPartition tp : assignment) {
 
-            Long offset = writers.get(tp).lastCommittedOffset;
+                Long offset = writers.get(tp).lastCommittedOffset;
 
-            if (offset != null) {
-                log.debug("Forwarding to framework request to commit offset: {} for {}", offset, tp);
-                offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
+                if (offset != null) {
+                    log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
+                    offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
+                }
             }
         }
 
-        return offsetsToCommit;
+        return commitImmediately ? offsets : offsetsToCommit;
     }
 
     @Override
     public void flush(Map<TopicPartition, OffsetAndMetadata> offsets) throws ConnectException {
         // do nothing , rolling files can handle writing
-
     }
 }

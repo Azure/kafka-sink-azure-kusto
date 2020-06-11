@@ -1,13 +1,15 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.google.common.base.Function;
+import org.apache.kafka.connect.errors.ConnectException;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -20,17 +22,19 @@ public class FileWriter implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     SourceFile currentFile;
     private Timer timer;
-    private Consumer<SourceFile> onRollCallback;
+    private Function<SourceFile, String> onRollCallback;
     private final long flushInterval;
     private final boolean shouldCompressData;
-    private Supplier<String> getFilePath;
+    private Function<Long, String> getFilePath;
     private OutputStream outputStream;
     private String basePath;
     private CountingOutputStream countingStream;
     private long fileThreshold;
-
+    // Lock is given from TopicPartitionWriter to lock while ingesting
+    private ReentrantReadWriteLock reentrantReadWriteLock;
     // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
     private FileDescriptor currentFileDescriptor;
+    private String flushError;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -41,27 +45,38 @@ public class FileWriter implements Closeable {
      */
     public FileWriter(String basePath,
                       long fileThreshold,
-                      Consumer<SourceFile> onRollCallback,
-                      Supplier<String> getFilePath,
+                      Function<SourceFile, String> onRollCallback,
+                      Function<Long, String> getFilePath,
                       long flushInterval,
-                      boolean shouldCompressData) {
+                      boolean shouldCompressData,
+                      ReentrantReadWriteLock reentrantLock) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
         this.shouldCompressData = shouldCompressData;
+
+        // This is a fair lock so that we flush close to the time intervals
+        this.reentrantReadWriteLock = reentrantLock;
+
+        // If we failed on flush we want to throw the error from the put() flow.
+        flushError = null;
+
     }
 
     boolean isDirty() {
         return this.currentFile != null && this.currentFile.rawBytes > 0;
     }
 
-    public synchronized void write(byte[] data) throws IOException {
+    public synchronized void write(byte[] data, @Nullable Long offset) throws IOException {
+        if (flushError != null) {
+            throw new ConnectException(flushError);
+        }
         if (data == null || data.length == 0) return;
 
         if (currentFile == null) {
-            openFile();
+            openFile(offset);
             resetFlushTimer(true);
         }
 
@@ -72,12 +87,12 @@ public class FileWriter implements Closeable {
         currentFile.numRecords++;
 
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold) {
-            rotate();
+            rotate(offset);
             resetFlushTimer(true);
         }
     }
 
-    public void openFile() throws IOException {
+    public void openFile(@Nullable Long offset) throws IOException {
         SourceFile fileProps = new SourceFile();
 
         File folder = new File(basePath);
@@ -85,7 +100,7 @@ public class FileWriter implements Closeable {
             throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
         }
 
-        String filePath = getFilePath.get();
+        String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
 
         File file = new File(filePath);
@@ -102,9 +117,9 @@ public class FileWriter implements Closeable {
         currentFile = fileProps;
     }
 
-    void rotate() throws IOException {
+    void rotate(@Nullable Long offset) throws IOException {
         finishFile(true);
-        openFile();
+        openFile(offset);
     }
 
     void finishFile(Boolean delete) throws IOException {
@@ -115,8 +130,10 @@ public class FileWriter implements Closeable {
             } else {
                 outputStream.flush();
             }
-
-            onRollCallback.accept(currentFile);
+            String err = onRollCallback.apply(currentFile);
+            if(err != null){
+                throw new ConnectException(err);
+            }
             if (delete){
                 dumpFile();
             }
@@ -132,6 +149,7 @@ public class FileWriter implements Closeable {
         if (!deleted) {
             log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());
         }
+        currentFile = null;
     }
 
     public void rollback() throws IOException {
@@ -174,22 +192,28 @@ public class FileWriter implements Closeable {
                     flushByTimeImpl();
                 }
             };
-            timer.schedule(t, flushInterval);
+            if(timer != null) {
+                timer.schedule(t, flushInterval);
+            }
         }
     }
 
-    private void flushByTimeImpl() {
+    void flushByTimeImpl() {
         try {
+            // Flush time interval gets the write lock so that it won't starve
+            reentrantReadWriteLock.writeLock().lock();
+            // Lock before the check so that if a writing process just flushed this won't ingest empty files
             if (currentFile != null && currentFile.rawBytes > 0) {
-                rotate();
+                finishFile(true);
             }
+            reentrantReadWriteLock.writeLock().unlock();
+            resetFlushTimer(false);
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
-            log.error(String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize), e);
+            flushError = String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize);
+            log.error(flushError, e);
         }
-
-        resetFlushTimer(false);
     }
 
     private class CountingOutputStream extends FilterOutputStream {
