@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class KustoSinkConnectorConfigTest {
     Map<String, String> settings;
@@ -23,7 +24,6 @@ public class KustoSinkConnectorConfigTest {
     public void shouldAcceptValidConfig() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'kafka','db': 'Database', 'table': 'tableName','format': 'csv', 'mapping':'tableMapping'}]");
         config = new KustoSinkConfig(settings);
         assertNotNull(config);
     }
@@ -32,10 +32,9 @@ public class KustoSinkConnectorConfigTest {
     public void shouldHaveDefaultValues() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'kafka','db': 'Database', 'table': 'tableName','format': 'csv', 'mapping':'tableMapping'}]");
         config = new KustoSinkConfig(settings);
         assertNotNull(config.getKustoUrl());
-        assertNotNull(config.getTopicToTableMapping());
+        assertNull(config.getTopicToTableMapping());
         assertNotNull(config.getFlushSizeBytes());
         assertNotNull(config.getFlushInterval());
     }
@@ -44,22 +43,6 @@ public class KustoSinkConnectorConfigTest {
     public void shouldThrowExceptionWhenKustoURLNotGiven() {
         // Adding required Configuration with no default value.
         settings.remove(KustoSinkConfig.KUSTO_URL_CONF);
-        config = new KustoSinkConfig(settings);
-    }
-
-    @Test(expected = ConfigException.class)
-    public void shouldThrowExceptionWhenTableMappingIsNull() {
-        // Adding required Configuration with no default value.
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.remove(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF);
-        config = new KustoSinkConfig(settings);
-    }
-
-    @Test(expected = ConfigException.class)
-    public void shouldThrowExceptionWhenInvalidErrorTolerance() {
-        // Adding required Configuration with no default value.
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'kafka','db': 'Database', 'table': 'tableName','format': 'csv', 'mapping':'tableMapping'}]");
         config = new KustoSinkConfig(settings);
     }
 

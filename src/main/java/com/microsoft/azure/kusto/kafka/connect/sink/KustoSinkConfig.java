@@ -16,8 +16,8 @@ public class KustoSinkConfig extends AbstractConfig {
   
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL_CONF = "kusto.url";
-    private static final String KUSTO_URL_DOC = "Kusto cluster ingestion URL.";
-    private static final String KUSTO_URL_DISPLAY = "Kusto URL";
+    private static final String KUSTO_URL_DOC = "Kusto ingestion service URI.";
+    private static final String KUSTO_URL_DISPLAY = "Kusto cluster URI";
 
     static final String KUSTO_AUTH_USERNAME_CONF = "kusto.auth.username";
     private static final String KUSTO_AUTH_USERNAME_DOC = "Kusto username for authentication, also configure kusto.auth.password.";
@@ -27,17 +27,16 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_AUTH_PASSWORD_DOC = "Kusto password for the configured username.";
     private static final String KUSTO_AUTH_PASSWORD_DISPLAY = "Kusto Auth Password";
     
-    static final String KUSTO_AUTH_APPID_CONF = "kusto.auth.appid";
-    private static final String KUSTO_AUTH_APPID_DOC = "Configure this to perform authentication using Kusto AppID, "
-        + "also configure kusto.auth.appkey and kusto.auth.authority.";
+    static final String KUSTO_AUTH_APPID_CONF = "aad.auth.appid";
+    private static final String KUSTO_AUTH_APPID_DOC = "Application Id for Azure Active Directory authentication.";
     private static final String KUSTO_AUTH_APPID_DISPLAY = "Kusto Auth AppID";
     
-    static final String KUSTO_AUTH_APPKEY_CONF = "kusto.auth.appkey";
-    private static final String KUSTO_AUTH_APPKEY_DOC = "Kusto AppKey for authentication.";
+    static final String KUSTO_AUTH_APPKEY_CONF = "aad.auth.appkey";
+    private static final String KUSTO_AUTH_APPKEY_DOC = "Application Key for Azure Active Directory authentication.";
     private static final String KUSTO_AUTH_APPKEY_DISPLAY = "Kusto Auth AppKey";
     
-    static final String KUSTO_AUTH_AUTHORITY_CONF = "kusto.auth.authority";
-    private static final String KUSTO_AUTH_AUTHORITY_DOC = "Kusto authority for authentication.";
+    static final String KUSTO_AUTH_AUTHORITY_CONF = "aad.auth.authority";
+    private static final String KUSTO_AUTH_AUTHORITY_DOC = "Azure Active Directory tenant.";
     private static final String KUSTO_AUTH_AUTHORITY_DISPLAY = "Kusto Auth Authority";
     
     static final String KUSTO_TABLES_MAPPING_CONF = "kusto.tables.topics.mapping";
