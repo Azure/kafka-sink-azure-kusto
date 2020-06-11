@@ -19,7 +19,6 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.NotFoundException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
-import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -194,7 +193,7 @@ public class KustoSinkTask extends SinkTask {
         return topicsToIngestionProps.get(topic);
     }
 
-    public void validateTableMappings(KustoSinkConfig config) {
+    void validateTableMappings(KustoSinkConfig config) {
         List<String> databaseTableErrorList = new ArrayList<>();
         List<String> accessErrorList = new ArrayList<>();
         try {
@@ -321,6 +320,7 @@ public class KustoSinkTask extends SinkTask {
         flushInterval = config.getFlushInterval();
         log.info(String.format("Started KustoSinkTask with target cluster: (%s), source topics: (%s)", 
             url, topicsToIngestionProps.keySet().toString()));
+        // Adding this check to make code testable
         if(context!=null) {
             open(context.assignment());
         }
