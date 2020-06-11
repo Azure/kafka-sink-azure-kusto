@@ -193,7 +193,7 @@ public class KustoSinkTask extends SinkTask {
         return topicsToIngestionProps.get(topic);
     }
 
-    private void validateTableMappings(KustoSinkConfig config) {
+    void validateTableMappings(KustoSinkConfig config) {
         List<String> databaseTableErrorList = new ArrayList<>();
         List<String> accessErrorList = new ArrayList<>();
         try {
@@ -320,7 +320,10 @@ public class KustoSinkTask extends SinkTask {
         flushInterval = config.getFlushInterval();
         log.info(String.format("Started KustoSinkTask with target cluster: (%s), source topics: (%s)", 
             url, topicsToIngestionProps.keySet().toString()));
-        open(context.assignment());
+        // Adding this check to make code testable
+        if(context!=null) {
+            open(context.assignment());
+        }
     }
 
     @Override
