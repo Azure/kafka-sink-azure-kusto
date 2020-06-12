@@ -31,7 +31,7 @@ public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
     private String appId = System.getProperty("appId");
     private String appKey = System.getProperty("appKey");
-    private String authority = System.getProperty("authority", "microsoft.com");
+    private String authority = System.getProperty("authority");
     private String cluster = System.getProperty("cluster");
     private String database = System.getProperty("database");
     private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
@@ -45,7 +45,7 @@ public class E2ETest {
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
         Client engineClient = ClientFactory.createClient(engineCsb);
 
-        if(tableBaseName.startsWith(testPrefix)) {
+        if (tableBaseName.startsWith(testPrefix)) {
             engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
         }
         try {
