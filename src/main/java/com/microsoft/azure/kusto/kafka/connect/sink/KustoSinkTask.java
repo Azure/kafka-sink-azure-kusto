@@ -1,11 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.data.Client;
-import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
-import com.microsoft.azure.kusto.data.Results;
-import com.microsoft.azure.kusto.data.exceptions.DataClientException;
-import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -20,260 +15,130 @@ import org.apache.kafka.connect.errors.NotFoundException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.util.Strings;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
 
 /**
  * Kusto sink uses file system to buffer records.
  * Every time a file is rolled, we used the kusto client to ingest it.
- * Currently only ingested files are "committed" in the sense that we can advance the offset according to it.
+ * Currently only ingested files are "commited" in the sense that we can advance the offset according to it.
  */
 public class KustoSinkTask extends SinkTask {
-    
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
-    
-    static final String FETCH_PRINCIPAL_ROLES_QUERY = ".show table %s principal roles";
-    static final int ROLE_INDEX = 3;
-    
     private final Set<TopicPartition> assignment;
     private Map<String, TopicIngestionProperties> topicsToIngestionProps;
+    IngestClient kustoIngestClient;
+    Map<TopicPartition, TopicPartitionWriter> writers;
     private long maxFileSize;
     private long flushInterval;
     private String tempDir;
-    private boolean commitImmediately;
-    private int retiresCount;
-    
-    IngestClient kustoIngestClient;
-    Map<TopicPartition, TopicPartitionWriter> writers;
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
         writers = new HashMap<>();
     }
 
-    public static IngestClient createKustoIngestClient(KustoSinkConfig config) {
-        try {
-            if (!Strings.isNullOrEmpty(config.getAuthAppid())) {
-                if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
-                    throw new ConfigException("Kusto authentication missing App Key.");
-                }
-
-                ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        config.getKustoUrl(),
-                        config.getAuthAppid(),
-                        config.getAuthAppkey(),
-                        config.getAuthAuthority()
-                );
-                kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
-
-                return IngestClientFactory.createClient(kcsb);
+    public static IngestClient createKustoIngestClient(KustoSinkConfig config) throws Exception {
+        if (config.getKustoAuthAppid() != null) {
+            if (config.getAuthAppkey() == null) {
+                throw new ConfigException("Kusto authentication missing App Key.");
             }
 
-            if (config.getAuthUsername() != null) {
-                if (Strings.isNullOrEmpty(config.getAuthPassword())) {
-                    throw new ConfigException("Kusto authentication missing Password.");
-                }
+            ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                    config.getKustoUrl(),
+                    config.getKustoAuthAppid(),
+                    config.getAuthAppkey(),
+                    config.getAuthAuthority()
+            );
+            kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
 
-                return IngestClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
-                        config.getKustoUrl(),
-                        config.getAuthUsername(),
-                        config.getAuthPassword()
-                ));
-            }
-
-            throw new ConnectException("Failed to initialize KustoIngestClient, please " +
-                    "provide valid credentials. Either Kusto username and password or " +
-                    "Kusto appId, appKey, and authority should be configured.");
-        } catch (Exception e) {
-            throw new ConnectException("Failed to initialize KustoIngestClient", e);
+            return IngestClientFactory.createClient(kcsb);
         }
+
+        if (config.getAuthUsername() != null) {
+            if (config.getAuthPassword() == null) {
+                throw new ConfigException("Kusto authentication missing Password.");
+            }
+
+            return IngestClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
+                    config.getKustoUrl(),
+                    config.getAuthUsername(),
+                    config.getAuthPassword()
+            ));
+        }
+
+        throw new ConfigException("Kusto authentication method must be provided.");
     }
 
-    public static Client createKustoEngineClient(KustoSinkConfig config) {
-        try {
-            String engineClientURL = config.getKustoUrl().replace("https://ingest-", "https://");
-            if (!Strings.isNullOrEmpty(config.getAuthAppid())) {
-                if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
-                    throw new ConfigException("Kusto authentication missing App Key.");
-                }
-                ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        engineClientURL,
-                        config.getAuthAppid(),
-                        config.getAuthAppkey(),
-                        config.getAuthAuthority()
-                );
-                kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
-
-                return ClientFactory.createClient(kcsb);
-            }
-
-            if (config.getAuthUsername() != null) {
-                if (Strings.isNullOrEmpty(config.getAuthPassword())) {
-                    throw new ConfigException("Kusto authentication missing Password.");
-                }
-                return ClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
-                        engineClientURL,
-                        config.getAuthUsername(),
-                        config.getAuthPassword()
-                ));
-            }
-            throw new ConnectException("Failed to initialize KustoEngineClient, please " +
-                    "provide valid credentials. Either Kusto username and password or " +
-                    "Kusto appId, appKey, and authority should be configured.");
-        } catch (Exception e) {
-            throw new ConnectException("Failed to initialize KustoEngineClient", e);
-        }
-    }
-
-    public static Map<String, TopicIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) {
+    public static Map<String, TopicIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) throws ConfigException {
         Map<String, TopicIngestionProperties> result = new HashMap<>();
 
         try {
+            if (config.getTopicToTableMapping() != null) {
+                JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
 
-            JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
+                for (int i =0;i< mappings.length();i++) {
 
-            for (int i =0; i< mappings.length(); i++) {
+                    JSONObject mapping = mappings.getJSONObject(i);
 
-                JSONObject mapping = mappings.getJSONObject(i);
+                    try {
+                        String db = mapping.getString("db");
+                        String table = mapping.getString("table");
 
-                String db = mapping.getString("db");
-                String table = mapping.getString("table");
+                        String format = mapping.optString("format");
+                        CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
 
-                String format = mapping.optString("format");
-                CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
+                        IngestionProperties props = new IngestionProperties(db, table);
 
-                IngestionProperties props = new IngestionProperties(db, table);
-
-                if (format != null && !format.isEmpty()) {
-                    if (format.equals("json") || format.equals("singlejson") || format.equalsIgnoreCase("multijson")) {
-                        props.setDataFormat("multijson");
-                    }
-                    props.setDataFormat(format);
-                }
-
-                if (format != null && !format.isEmpty()) {
-                    if (format.equals("json") || format.equals("singlejson")){
-                        props.setDataFormat("multijson");
-                    }
-                    props.setDataFormat(format);
-                }
-
-                String mappingRef = mapping.optString("mapping");
-
-                if (mappingRef != null && !mappingRef.isEmpty()) {
-                    if (format != null) {
-                        if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
-                        } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
-                        } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
-                        } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
-                        } else {
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
+                        if (format != null && !format.isEmpty()) {
+                            if (format.equalsIgnoreCase("json") || format.equalsIgnoreCase("singlejson")  || format.equalsIgnoreCase("multijson")){
+                                props.setDataFormat("multijson");
+                            }
+                            props.setDataFormat(format);
                         }
+
+                        String mappingRef = mapping.optString("mapping");
+
+                        if (mappingRef != null && !mappingRef.isEmpty()) {
+                            if (format != null) {
+                                if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
+                                } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
+                                } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
+                                } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
+                                } else {
+                                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
+                                }
+                            }
+                        }
+                        TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
+                        topicIngestionProperties.eventDataCompression = compressionType;
+                        topicIngestionProperties.ingestionProperties = props;
+                        result.put(mapping.getString("topic"), topicIngestionProperties);
+                    } catch (Exception ex) {
+                        throw new ConfigException("Malformed topics to kusto ingestion props mappings", ex);
                     }
                 }
-                TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
-                topicIngestionProperties.eventDataCompression = compressionType;
-                topicIngestionProperties.ingestionProperties = props;
-                result.put(mapping.getString("topic"), topicIngestionProperties);
+
+                return result;
             }
-            return result;
         }
         catch (Exception ex) {
-            throw new ConfigException("Error while parsing kusto ingestion properties.", ex);
+            throw new ConfigException(String.format("Error trying to parse kusto ingestion props %s",ex.getMessage()));
         }
+
+        throw new ConfigException("Malformed topics to kusto ingestion props mappings");
     }
 
     public TopicIngestionProperties getIngestionProps(String topic) {
         return topicsToIngestionProps.get(topic);
-    }
-
-    void validateTableMappings(KustoSinkConfig config) {
-        List<String> databaseTableErrorList = new ArrayList<>();
-        List<String> accessErrorList = new ArrayList<>();
-        try {
-            Client engineClient = createKustoEngineClient(config);
-            if (config.getTopicToTableMapping() != null) {
-                JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
-                for (int i = 0; i < mappings.length(); i++) {
-                    JSONObject mapping = mappings.getJSONObject(i);
-                    validateTableAccess(engineClient, mapping, databaseTableErrorList, accessErrorList);
-                }
-            }
-            String tableAccessErrorMessage = "";
-
-            if(!databaseTableErrorList.isEmpty())
-            {
-                tableAccessErrorMessage = "\n\nUnable to access the following database:table\n" +
-                        String.join("\n",databaseTableErrorList);
-            }
-            if(!accessErrorList.isEmpty())
-            {
-                tableAccessErrorMessage = tableAccessErrorMessage + "\n\nUser does not have appropriate permissions " +
-                        "to sink data into the Kusto database:table combination(s). " +
-                        "Verify your Kusto principals and roles before proceeding for the following: \n " +
-                        String.join("\n",accessErrorList);
-            }
-
-            if(!tableAccessErrorMessage.isEmpty()) {
-                throw new ConnectException(tableAccessErrorMessage);
-            }
-        } catch (JSONException e) {
-            throw new ConnectException("Failed to parse ``kusto.tables.topics.mapping`` configuration.", e);
-        }
-    }
-
-    /**
-     *  This function validates whether the user has the read and write access to the intended table
-     *  before starting to sink records into ADX.
-     * @param engineClient Client connection to run queries.
-     * @param mapping JSON Object containing a Table mapping.
-     */
-    private static void validateTableAccess(Client engineClient, JSONObject mapping, List<String> databaseTableErrorList, List<String> accessErrorList) throws JSONException {
-        
-        String database = mapping.getString("db");
-        String table = mapping.getString("table");
-        try {
-            Results rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, table));
-            boolean hasAccess = false;
-            for (int i = 0; i<rs.getValues().size(); i++) {
-                ArrayList<String> principal = rs.getValues().get(i);
-                if (principal.get(ROLE_INDEX).toLowerCase().contains("admin") ||
-                        principal.get(ROLE_INDEX).toLowerCase().contains("ingestor")) {
-                    hasAccess = true;
-                    break;
-                }
-            }
-            if (!hasAccess) {
-                accessErrorList.add(String.format("%s:%s", database, table));
-            }
-            log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
-        } catch (DataClientException e) {
-            throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
-        } catch (DataServiceException e) {
-            // Logging the error so that the trace is not lost.
-            log.error("The table {} in database {} might not exist or access denied ", table, database, e);
-            databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
-        }
     }
 
     @Override
@@ -282,7 +147,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     @Override
-    public void open(Collection<TopicPartition> partitions) {
+    public void open(Collection<TopicPartition> partitions) throws ConnectException {
         assignment.addAll(partitions);
         for (TopicPartition tp : assignment) {
             TopicIngestionProperties ingestionProps = getIngestionProps(tp.topic());
@@ -290,7 +155,7 @@ public class KustoSinkTask extends SinkTask {
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval, commitImmediately, retiresCount);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval);
 
                 writer.open();
                 writers.put(tp, writer);
@@ -300,7 +165,6 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void close(Collection<TopicPartition> partitions) {
-        log.warn("KustoConnector got a request to close sink task");
         for (TopicPartition tp : partitions) {
             try {
                 writers.get(tp).close();
@@ -314,29 +178,24 @@ public class KustoSinkTask extends SinkTask {
 
 
     @Override
-    public void start(Map<String, String> props) {
-        
-        KustoSinkConfig config = new KustoSinkConfig(props);
-        String url = config.getKustoUrl();
-      
-        validateTableMappings(config);
-        
-        topicsToIngestionProps = getTopicsToIngestionProps(config);
-        
-        // this should be read properly from settings
-        kustoIngestClient = createKustoIngestClient(config);
-        
-        tempDir = config.getTempDirPath();
-        maxFileSize = config.getFlushSizeBytes();
-        flushInterval = config.getFlushInterval();
-        commitImmediately = config.getKustoCommitImmediatly();
-        retiresCount = config.getKustoRetriesCount();
-        
-        log.info(String.format("Started KustoSinkTask with target cluster: (%s), source topics: (%s)", 
-            url, topicsToIngestionProps.keySet().toString()));
-        // Adding this check to make code testable
-        if(context!=null) {
+    public void start(Map<String, String> props) throws ConnectException {
+        try {
+            KustoSinkConfig config = new KustoSinkConfig(props);
+            String url = config.getKustoUrl();
+
+            topicsToIngestionProps = getTopicsToIngestionProps(config);
+            // this should be read properly from settings
+            kustoIngestClient = createKustoIngestClient(config);
+            tempDir = config.getTempDirPath();
+            maxFileSize = config.getFlushSizeBytes();
+            flushInterval = config.getFlushInterval();
+            log.info(String.format("Kafka Kusto Sink started. target cluster: (%s), source topics: (%s)", url, topicsToIngestionProps.keySet().toString()));
             open(context.assignment());
+
+        } catch (ConfigException ex) {
+            throw new ConnectException(String.format("Kusto Connector failed to start due to configuration error. %s", ex.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -347,9 +206,7 @@ public class KustoSinkTask extends SinkTask {
             writer.close();
         }
         try {
-            if(kustoIngestClient != null) {
-                kustoIngestClient.close();
-            }
+            kustoIngestClient.close();
         } catch (IOException e) {
             log.error("Error closing kusto client", e);
         }
@@ -357,16 +214,11 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void put(Collection<SinkRecord> records) throws ConnectException {
-        log.debug("put '"+ records.size() + "' num of records");
-        int i = 0;
         SinkRecord lastRecord = null;
         for (SinkRecord record : records) {
-            if (i == 0) {
-                log.debug("First record is to topic:" + record.topic());
-                log.debug("First record offset:" + record.kafkaOffset());
-            }
+            log.debug("record to topic:" + record.topic());
+
             lastRecord = record;
-            i++;
             TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
             TopicPartitionWriter writer = writers.get(tp);
 
@@ -380,8 +232,7 @@ public class KustoSinkTask extends SinkTask {
         }
 
         if (lastRecord != null) {
-            log.debug("Last record was for topic:" + lastRecord.topic());
-            log.debug("Last record had offset:" + lastRecord.kafkaOffset());
+            log.debug("Last record offset:" + lastRecord.kafkaOffset());
         }
     }
 
@@ -391,38 +242,23 @@ public class KustoSinkTask extends SinkTask {
     public Map<TopicPartition, OffsetAndMetadata> preCommit(
             Map<TopicPartition, OffsetAndMetadata> offsets
     ) {
-        log.info("preCommit called and sink is configured to " + (commitImmediately ? "flush and commit immediatly": "commit only successfully sent for ingestion offsets"));
         Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>();
-        if (commitImmediately) {
-            CompletableFuture[] tasks = new CompletableFuture[assignment.size()];
-            int i = 0;
-            for (TopicPartition tp : assignment) {
-                TopicPartitionWriter topicPartitionWriter = writers.get(tp);
-                tasks[i] = (CompletableFuture.runAsync(() -> topicPartitionWriter.fileWriter.flushByTimeImpl()));
-            }
-            CompletableFuture<Void> voidCompletableFuture = CompletableFuture.allOf(tasks);
-            try {
-                voidCompletableFuture.get(4L, TimeUnit.SECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                log.warn("failed to flush some of the partition writers in 4 seconds before comitting");
-            }
-        } else {
-            for (TopicPartition tp : assignment) {
+        for (TopicPartition tp : assignment) {
 
-                Long offset = writers.get(tp).lastCommittedOffset;
+            Long offset = writers.get(tp).lastCommittedOffset;
 
-                if (offset != null) {
-                    log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
-                    offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
-                }
+            if (offset != null) {
+                log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
+                offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
             }
         }
 
-        return commitImmediately ? offsets : offsetsToCommit;
+        return offsetsToCommit;
     }
 
     @Override
     public void flush(Map<TopicPartition, OffsetAndMetadata> offsets) throws ConnectException {
         // do nothing , rolling files can handle writing
+
     }
 }
