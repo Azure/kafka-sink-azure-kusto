@@ -1,6 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
@@ -8,12 +9,29 @@ import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.testng.util.Strings;
 
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 
 public class KustoSinkConfig extends AbstractConfig {
-  
+
+    enum ErrorTolerance {
+        ALL, NONE;
+    
+        /**
+         * Gets names of available error tolerance mode.
+         * @return array of available tolerance mode names
+         */
+        public static String[] getNames() {
+            return Arrays
+                    .stream(ErrorTolerance.class.getEnumConstants())
+                    .map(Enum::name)
+                    .toArray(String[]::new);
+        }
+    }
+
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL_CONF = "kusto.url";
     private static final String KUSTO_URL_DOC = "Kusto ingestion service URI.";
@@ -61,10 +79,39 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_COMMIT_IMMEDIATLY_DOC = "Whether kafka call to commit offsets will flush and commit the last offsets or only the ingested ones\"";
     private static final String KUSTO_COMMIT_IMMEDIATLY_DISPLAY = "kusto.sink.commit";
     
+    static final String KUSTO_ERROR_TOLERANCE_CONF = "error.tolerance";
+    private static final String KUSTO_ERROR_TOLERANCE_DOC = "Error tolerance setting. "
+        + "Must be configured to one of the following:\n"
+        + "``NONE``\n"
+        + "The Connector throws ConnectException and stops processing records "
+        + "when an error occurs while processing or ingesting records into KustoDB.\n"
+        + "``ALL``\n"
+        + "Continues to process next subsequent records "
+        + "when error occurs while processing or ingesting records into KustoDB.\n";
+    private static final String KUSTO_ERROR_TOLERANCE_DISPLAY = "Error Tolerance";
     
-    static final String KUSTO_RETRIES_COUNT_CONF = "kusto.sink.retries";
-    private static final String KUSTO_RETRIES_COUNT_DOC = "Number of retries on ingestions before throwing";
-    private static final String KUSTO_RETRIES_COUNT_DISPLAY = "kusto.sink.retries";
+    static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "dlq.bootstrap.servers";
+    private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this to Kafka broker's address(es) "
+        + "to which the Connector should write failed records to.";
+    private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY = "Dead-Letter Queue Bootstrap Servers";
+    
+    static final String KUSTO_DLQ_TOPIC_NAME_CONF = "dlq.topic.name";
+    private static final String KUSTO_DLQ_TOPIC_NAME_DOC = "Set this to Kafka topic's name "
+        + "to which the failed records are to be sinked. "
+        + "By default, the Connector will write failed records to {$origin-topic}-failed. "
+        + "The Connector will create the topic if not already present with replication factor as 1. "
+        + "To configure this to a desirable value, create topic from CLI prior to running the Connector.";
+    private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Dead-Letter Queue Topic Name";
+    
+    static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "max.retry.time.ms";
+    private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DOC = "Maximum time upto which the Connector "
+        + "should retry writing records to KustoDB in case of failures.";
+    private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DISPLAY = "Maximum Retry Time";
+    
+    static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "retry.backoff.time.ms";
+    private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
+        + "the Connector makes to ingest records into KustoDB.";
+    private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Retry BackOff Time";
     
     // Deprecated configs
     static final String KUSTO_TABLES_MAPPING_CONF_DEPRECATED = "kusto.tables.topics_mapping";
@@ -83,74 +130,83 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public static ConfigDef getConfig() {
       
-      final String connectionGroupName = "Connection";
-      final String writeGroupName = "Writes";
-      
-      int connectionGroupOrder = 0;
-      int writeGroupOrder = 0;
-      
-      //TODO: Add display name, validators, recommenders to configs.
-        return new ConfigDef()
+        final String connectionGroupName = "Connection";
+        final String writeGroupName = "Writes";
+        final String errorAndRetriesGroupName = "Error Handling and Retries";
+        
+        int connectionGroupOrder = 0;
+        int writeGroupOrder = 0;
+        int errorAndRetriesGroupOrder = 0;
+        
+        //TODO: Add display name, validators, recommenders to configs.
+        ConfigDef result = new ConfigDef();
+        
+        defineConnectionConfigs(connectionGroupName, connectionGroupOrder, result);
+        defineWriteConfigs(writeGroupName, writeGroupOrder, result);
+        defineErrorHandlingAndRetriesConfgis(errorAndRetriesGroupName, errorAndRetriesGroupOrder, result);
+        
+        return result;
+    }
+
+    private static void defineErrorHandlingAndRetriesConfgis(final String errorAndRetriesGroupName,
+        int errorAndRetriesGroupOrder, ConfigDef result) {
+        result
             .define(
-                KUSTO_URL_CONF,
+                KUSTO_ERROR_TOLERANCE_CONF,
                 Type.STRING,
-                ConfigDef.NO_DEFAULT_VALUE,
-                Importance.HIGH,
-                KUSTO_URL_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
+                ErrorTolerance.NONE.name(),
+                ConfigDef.ValidString.in(ErrorTolerance.NONE.name(), ErrorTolerance.ALL.name()),
+                Importance.LOW,
+                KUSTO_ERROR_TOLERANCE_DOC,
+                errorAndRetriesGroupName,
+                errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_URL_DISPLAY)
+                KUSTO_ERROR_TOLERANCE_DISPLAY)
             .define(
-                KUSTO_AUTH_USERNAME_CONF,
+                KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF,
                 Type.STRING,
                 null,
-                Importance.HIGH,
-                KUSTO_AUTH_USERNAME_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
+                Importance.LOW,
+                KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC,
+                errorAndRetriesGroupName,
+                errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_AUTH_USERNAME_DISPLAY)
+                KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY)
             .define(
-                KUSTO_AUTH_PASSWORD_CONF,
-                Type.PASSWORD,
-                "",
-                Importance.HIGH,
-                KUSTO_AUTH_PASSWORD_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
+                KUSTO_DLQ_TOPIC_NAME_CONF,
+                Type.STRING,
+                "kusto-dead-letter-queue",
+                Importance.LOW,
+                KUSTO_DLQ_TOPIC_NAME_DOC,
+                errorAndRetriesGroupName,
+                errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_AUTH_PASSWORD_DISPLAY)
+                KUSTO_DLQ_TOPIC_NAME_DISPLAY)
             .define(
-                KUSTO_AUTH_APPKEY_CONF,
-                Type.PASSWORD,
-                "",
-                Importance.HIGH,
-                KUSTO_AUTH_APPKEY_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
+                KUSTO_SINK_MAX_RETRY_TIME_MS_CONF,
+                Type.LONG,
+                TimeUnit.SECONDS.toMillis(300),
+                Importance.LOW,
+                KUSTO_SINK_MAX_RETRY_TIME_MS_DOC,
+                errorAndRetriesGroupName,
+                errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_AUTH_APPKEY_DISPLAY)
+                KUSTO_SINK_MAX_RETRY_TIME_MS_DISPLAY)
             .define(
-                KUSTO_AUTH_APPID_CONF,
-                Type.PASSWORD,
-                "",
-                Importance.HIGH,
-                KUSTO_AUTH_APPID_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
+                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF,
+                Type.LONG,
+                TimeUnit.SECONDS.toMillis(10),
+                Importance.LOW,
+                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC,
+                errorAndRetriesGroupName,
+                errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_AUTH_APPID_DISPLAY)
-            .define(
-                KUSTO_AUTH_AUTHORITY_CONF,
-                Type.PASSWORD,
-                "",
-                Importance.HIGH,
-                KUSTO_AUTH_AUTHORITY_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_AUTH_AUTHORITY_DISPLAY)
+                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY); 
+    }
+
+    private static void defineWriteConfigs(final String writeGroupName, int writeGroupOrder,
+        ConfigDef result) {
+        result
             .define(
                 KUSTO_TABLES_MAPPING_CONF,
                 Type.STRING,
@@ -234,17 +290,72 @@ public class KustoSinkConfig extends AbstractConfig {
                 writeGroupName,
                 writeGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_COMMIT_IMMEDIATLY_DISPLAY)
+                KUSTO_COMMIT_IMMEDIATLY_DISPLAY);
+    }
+
+    private static void defineConnectionConfigs(final String connectionGroupName,
+        int connectionGroupOrder, ConfigDef result) {
+        result
             .define(
-                KUSTO_RETRIES_COUNT_CONF,
-                Type.INT,
-                2,
-                Importance.LOW,
-                KUSTO_RETRIES_COUNT_DOC,
-                writeGroupName,
-                writeGroupOrder++,
+                KUSTO_URL_CONF,
+                Type.STRING,
+                ConfigDef.NO_DEFAULT_VALUE,
+                Importance.HIGH,
+                KUSTO_URL_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_RETRIES_COUNT_DISPLAY);
+                KUSTO_URL_DISPLAY)
+            .define(
+                KUSTO_AUTH_USERNAME_CONF,
+                Type.STRING,
+                null,
+                Importance.HIGH,
+                KUSTO_AUTH_USERNAME_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_AUTH_USERNAME_DISPLAY)
+            .define(
+                KUSTO_AUTH_PASSWORD_CONF,
+                Type.PASSWORD,
+                "",
+                Importance.HIGH,
+                KUSTO_AUTH_PASSWORD_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_AUTH_PASSWORD_DISPLAY)
+            .define(
+                KUSTO_AUTH_APPKEY_CONF,
+                Type.PASSWORD,
+                "",
+                Importance.HIGH,
+                KUSTO_AUTH_APPKEY_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_AUTH_APPKEY_DISPLAY)
+            .define(
+                KUSTO_AUTH_APPID_CONF,
+                Type.PASSWORD,
+                "",
+                Importance.HIGH,
+                KUSTO_AUTH_APPID_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_AUTH_APPID_DISPLAY)
+            .define(
+                KUSTO_AUTH_AUTHORITY_CONF,
+                Type.PASSWORD,
+                "",
+                Importance.HIGH,
+                KUSTO_AUTH_AUTHORITY_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_AUTH_AUTHORITY_DISPLAY);
     }
 
     public String getKustoUrl() {
@@ -300,10 +411,28 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getBoolean(KUSTO_COMMIT_IMMEDIATLY_CONF);
     }
     
-    public int getKustoRetriesCount() {
-        return this.getInt(KUSTO_RETRIES_COUNT_CONF);
+    public ErrorTolerance getErrorTolerance() {
+        return ErrorTolerance.valueOf(
+            this.getString(KUSTO_ERROR_TOLERANCE_CONF).toUpperCase());
     }
-
+    
+    public String getDlqBootstrapServers() {
+        return this.getString(KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF);
+    }
+    
+    public String getDlqTopicName() {
+        return this.getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+    }
+    
+    public long getMaxRetryAttempts() {
+        return this.getLong(KUSTO_SINK_MAX_RETRY_TIME_MS_CONF) 
+            / this.getLong(KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF);
+    }
+    
+    public long getRetryBackOffTimeMs() {
+        return this.getLong(KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF);
+    }
+    
     public static void main(String[] args) {
         System.out.println(getConfig().toEnrichedRst());
     }

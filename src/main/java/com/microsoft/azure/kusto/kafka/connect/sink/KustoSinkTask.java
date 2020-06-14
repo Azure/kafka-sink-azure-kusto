@@ -53,11 +53,12 @@ public class KustoSinkTask extends SinkTask {
     
     private final Set<TopicPartition> assignment;
     private Map<String, TopicIngestionProperties> topicsToIngestionProps;
-    private long maxFileSize;
-    private long flushInterval;
-    private String tempDir;
+    //private long maxFileSize;
+    //private long flushInterval;
+    //private String tempDir;
     private boolean commitImmediately;
-    private int retiresCount;
+    
+    private KustoSinkConfig config;
     
     IngestClient kustoIngestClient;
     Map<TopicPartition, TopicPartitionWriter> writers;
@@ -290,7 +291,8 @@ public class KustoSinkTask extends SinkTask {
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, tempDir, maxFileSize, flushInterval, commitImmediately, retiresCount);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, 
+                    ingestionProps, commitImmediately, config);
 
                 writer.open();
                 writers.put(tp, writer);
@@ -307,7 +309,7 @@ public class KustoSinkTask extends SinkTask {
                 writers.remove(tp);
                 assignment.remove(tp);
             } catch (ConnectException e) {
-                log.error("Error closing writer for {}. Error: {}", tp, e.getMessage());
+                log.error("Error closing writer for {}. Error: {}", tp, e);
             }
         }
     }
@@ -316,7 +318,7 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void start(Map<String, String> props) {
         
-        KustoSinkConfig config = new KustoSinkConfig(props);
+        config = new KustoSinkConfig(props);
         String url = config.getKustoUrl();
       
         validateTableMappings(config);
@@ -326,11 +328,7 @@ public class KustoSinkTask extends SinkTask {
         // this should be read properly from settings
         kustoIngestClient = createKustoIngestClient(config);
         
-        tempDir = config.getTempDirPath();
-        maxFileSize = config.getFlushSizeBytes();
-        flushInterval = config.getFlushInterval();
         commitImmediately = config.getKustoCommitImmediatly();
-        retiresCount = config.getKustoRetriesCount();
         
         log.info(String.format("Started KustoSinkTask with target cluster: (%s), source topics: (%s)", 
             url, topicsToIngestionProps.keySet().toString()));
@@ -341,7 +339,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     @Override
-    public void stop() throws ConnectException {
+    public void stop() {
         log.warn("Stopping KustoSinkTask");
         for (TopicPartitionWriter writer : writers.values()) {
             writer.close();
@@ -356,7 +354,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     @Override
-    public void put(Collection<SinkRecord> records) throws ConnectException {
+    public void put(Collection<SinkRecord> records) {
         log.debug("put '"+ records.size() + "' num of records");
         int i = 0;
         SinkRecord lastRecord = null;
@@ -422,7 +420,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     @Override
-    public void flush(Map<TopicPartition, OffsetAndMetadata> offsets) throws ConnectException {
+    public void flush(Map<TopicPartition, OffsetAndMetadata> offsets) {
         // do nothing , rolling files can handle writing
     }
 }

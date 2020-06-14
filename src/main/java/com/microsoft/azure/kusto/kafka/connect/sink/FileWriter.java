@@ -2,6 +2,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Function;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import java.io.OutputStream;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -28,7 +30,7 @@ public class FileWriter implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     SourceFile currentFile;
     private Timer timer;
-    private Function<SourceFile, String> onRollCallback;
+    private Consumer<SourceFile> onRollCallback;
     private final long flushInterval;
     private final boolean shouldCompressData;
     private Function<Long, String> getFilePath;
@@ -51,7 +53,7 @@ public class FileWriter implements Closeable {
      */
     public FileWriter(String basePath,
                       long fileThreshold,
-                      Function<SourceFile, String> onRollCallback,
+                      Consumer<SourceFile> onRollCallback,
                       Function<Long, String> getFilePath,
                       long flushInterval,
                       boolean shouldCompressData,
@@ -75,25 +77,26 @@ public class FileWriter implements Closeable {
         return this.currentFile != null && this.currentFile.rawBytes > 0;
     }
 
-    public synchronized void write(byte[] data, @Nullable Long offset) throws IOException {
+    public synchronized void write(byte[] data, @Nullable SinkRecord record) throws IOException {
         if (flushError != null) {
             throw new ConnectException(flushError);
         }
         if (data == null || data.length == 0) return;
 
         if (currentFile == null) {
-            openFile(offset);
+            openFile(record.kafkaOffset());
             resetFlushTimer(true);
         }
 
         outputStream.write(data);
-
+        currentFile.records.add(record);
+        
         currentFile.rawBytes += data.length;
         currentFile.zippedBytes += countingStream.numBytes;
         currentFile.numRecords++;
 
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold) {
-            rotate(offset);
+            rotate(record.kafkaOffset());
             resetFlushTimer(true);
         }
     }
@@ -136,10 +139,7 @@ public class FileWriter implements Closeable {
             } else {
                 outputStream.flush();
             }
-            String err = onRollCallback.apply(currentFile);
-            if(err != null){
-                throw new ConnectException(err);
-            }
+            onRollCallback.accept(currentFile);
             if (delete){
                 dumpFile();
             }
