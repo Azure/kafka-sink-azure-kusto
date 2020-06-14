@@ -32,23 +32,21 @@ class TopicPartitionWriter {
     FileWriter fileWriter;
     long currentOffset;
     Long lastCommittedOffset;
-    private int defaultRetriesCount;
+    private int defaultRetriesCount = 2;
     private int currentRetries;
     private ReentrantReadWriteLock reentrantReadWriteLock;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, String basePath,
-                         long fileThreshold, long flushInterval, boolean commitImmediatly, int retriesCount) {
+                         long fileThreshold, long flushInterval) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps.ingestionProperties;
         this.fileThreshold = fileThreshold;
         this.basePath = basePath;
         this.flushInterval = flushInterval;
-        this.commitImmediately = commitImmediatly;
         this.currentOffset = 0;
         this.eventDataCompression = ingestionProps.eventDataCompression;
-        this.defaultRetriesCount = retriesCount;
-        this.currentRetries = retriesCount;
+        this.currentRetries = defaultRetriesCount;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
     }
 
@@ -169,6 +167,7 @@ class TopicPartitionWriter {
 
     static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
         return !(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
+                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.apacheavro.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
                 || eventDataCompression != null);
