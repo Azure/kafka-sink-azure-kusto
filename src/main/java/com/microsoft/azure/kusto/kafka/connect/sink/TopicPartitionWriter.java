@@ -6,6 +6,7 @@ import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.ErrorTolerance;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -22,7 +23,6 @@ import org.testng.util.Strings;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -48,6 +48,7 @@ class TopicPartitionWriter {
     private final boolean isDlqEnabled;
     private final String dlqTopicName;
     private final Producer<byte[], byte[]> kafkaProducer;
+    private final ErrorTolerance errorTolerance;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, 
         boolean commitImmediatly, KustoSinkConfig config) 
@@ -64,6 +65,7 @@ class TopicPartitionWriter {
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
         this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
+        this.errorTolerance = config.getErrorTolerance();
         
         if (Strings.isNotNullAndNotEmpty(config.getDlqBootstrapServers())) {
           isDlqEnabled = true;
@@ -89,13 +91,14 @@ class TopicPartitionWriter {
                 client.ingestFromFile(fileSourceInfo, ingestionProps);
                 log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
                 this.lastCommittedOffset = currentOffset;
-            } catch (IngestionClientException e) {
+            } catch (IngestionClientException exception) {
                 //retrying transient exceptions
-                backOffForRemainingAttempts(retryAttempts, e, fileDescriptor);
-            } catch (IngestionServiceException e) {
+                backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
+            } catch (IngestionServiceException exception) {
                 // non-retriable and non-transient exceptions
+                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
                 fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
-                throw new ConnectException("Unable to ingest reccords into KustoDB", e);
+                throw new ConnectException("Unable to ingest reccords into KustoDB", exception);
             }
         }
     }
@@ -110,9 +113,12 @@ class TopicPartitionWriter {
             try {
                 TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
             } catch (InterruptedException interruptedErr) {
+                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
             }
         } else {
+            log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
             fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
         }
@@ -188,25 +194,22 @@ class TopicPartitionWriter {
                 fileWriter.write(value, record);
                 this.currentOffset = record.kafkaOffset();
             } catch (ConnectException ex) {
-                handleErrors(ex);
+                handleErrors(ex, "Failed to ingest records into KustoDB.");
             } catch (IOException ex) {
-                if (commitImmediately) {
-                    throw new ConnectException("Exception while writing record "
-                        + "to the file to be ingested into KustoDB", ex);
-                }
+                handleErrors(ex, "Failed to write records into file for ingestion.");
             } finally {
                 reentrantReadWriteLock.readLock().unlock();
             }
         }
     }
 
-
-    private void handleErrors(ConnectException ex) {
-      if (commitImmediately) {
-          throw ex;
-      }
+    private void handleErrors(Exception ex, String message) {
+        if (KustoSinkConfig.ErrorTolerance.NONE == errorTolerance) {
+            throw new ConnectException(message, ex);
+        } else {
+          log.error(String.format("%s, Exception=%s", message, ex));
+        }
     }
-
 
     void open() {
         // Should compress binary files
