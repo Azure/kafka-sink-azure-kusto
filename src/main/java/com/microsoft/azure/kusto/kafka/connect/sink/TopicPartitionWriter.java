@@ -14,11 +14,11 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.util.Strings;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -67,7 +67,7 @@ class TopicPartitionWriter {
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
         this.errorTolerance = config.getErrorTolerance();
         
-        if (Strings.isNotNullAndNotEmpty(config.getDlqBootstrapServers())) {
+        if (config.isDlqEnabled()) {
           isDlqEnabled = true;
           dlqTopicName = config.getDlqTopicName();
           Properties properties = new Properties();
@@ -91,6 +91,7 @@ class TopicPartitionWriter {
                 client.ingestFromFile(fileSourceInfo, ingestionProps);
                 log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
                 this.lastCommittedOffset = currentOffset;
+                return;
             } catch (IngestionClientException exception) {
                 //retrying transient exceptions
                 backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
@@ -125,14 +126,13 @@ class TopicPartitionWriter {
     }
     
     public void sendFailedRecordToDlq(SinkRecord record) {
-        byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
-            + "topic=%s, partition=%s, offset=%s.", 
-            record.topic(), 
-            record.kafkaPartition(), 
-            record.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
-        byte[] recordValue = record.value().toString().getBytes(StandardCharsets.UTF_8);
-        
         if (isDlqEnabled) {
+            byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
+                + "topic=%s, partition=%s, offset=%s.", 
+                record.topic(), 
+                record.kafkaPartition(), 
+                record.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
+            byte[] recordValue = record.value().toString().getBytes(StandardCharsets.UTF_8);
             ProducerRecord<byte[], byte[]> dlqRecord = new ProducerRecord<>(dlqTopicName, recordKey, recordValue);
             try {
                 kafkaProducer.send(dlqRecord, (recordMetadata, exception) -> {
@@ -181,8 +181,10 @@ class TopicPartitionWriter {
 
             value = valueWithSeparator;
         } else {
-       // TODO: add behavior on error logic
-          log.error(String.format("Unexpected value type, skipping record %s", record));
+          sendFailedRecordToDlq(record);
+          String errorMessage = String.format("KustoSinkConnect can only process records having value type as String or ByteArray. "
+              + "Failed to process record with coordinates, topic=%s, partition=%s, offset=%s", record.topic(), record.kafkaPartition(), record.kafkaOffset());
+          handleErrors(new DataException(errorMessage), "Unexpected type of kafka record's value");
         }
         if (value == null) {
             this.currentOffset = record.kafkaOffset();

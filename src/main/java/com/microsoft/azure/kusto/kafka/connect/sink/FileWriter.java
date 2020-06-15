@@ -27,7 +27,8 @@ import java.util.zip.GZIPOutputStream;
  */
 public class FileWriter implements Closeable {
 
-    private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
+    private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
+    
     SourceFile currentFile;
     private Timer timer;
     private Consumer<SourceFile> onRollCallback;

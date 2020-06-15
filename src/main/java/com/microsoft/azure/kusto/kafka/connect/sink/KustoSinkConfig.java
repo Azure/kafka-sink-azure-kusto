@@ -10,10 +10,9 @@ import org.apache.kafka.common.config.ConfigDef.Width;
 import org.testng.util.Strings;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 
 public class KustoSinkConfig extends AbstractConfig {
 
@@ -87,7 +86,7 @@ public class KustoSinkConfig extends AbstractConfig {
         + "when an error occurs while processing or ingesting records into KustoDB.\n"
         + "``ALL``\n"
         + "Continues to process next subsequent records "
-        + "when error occurs while processing or ingesting records into KustoDB.\n";
+        + "when an error occurs while processing or ingesting records into KustoDB.\n";
     private static final String KUSTO_ERROR_TOLERANCE_DISPLAY = "Error Tolerance";
     
     static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "dlq.bootstrap.servers";
@@ -98,9 +97,10 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_DLQ_TOPIC_NAME_CONF = "dlq.topic.name";
     private static final String KUSTO_DLQ_TOPIC_NAME_DOC = "Set this to Kafka topic's name "
         + "to which the failed records are to be sinked. "
-        + "By default, the Connector will write failed records to {$origin-topic}-failed. "
+        + "By default, the Connector will write failed records to {$connector-name}-error. "
         + "The Connector will create the topic if not already present with replication factor as 1. "
         + "To configure this to a desirable value, create topic from CLI prior to running the Connector.";
+    private static final String KUSTO_DLQ_TOPIC_NAME_DEFAULT = "${connector}-error";
     private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Dead-Letter Queue Topic Name";
     
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "max.retry.time.ms";
@@ -164,8 +164,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_ERROR_TOLERANCE_DISPLAY)
             .define(
                 KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF,
-                Type.STRING,
-                null,
+                Type.LIST,
+                "",
                 Importance.LOW,
                 KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC,
                 errorAndRetriesGroupName,
@@ -175,7 +175,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_DLQ_TOPIC_NAME_CONF,
                 Type.STRING,
-                "kusto-dead-letter-queue",
+                KUSTO_DLQ_TOPIC_NAME_DEFAULT,
                 Importance.LOW,
                 KUSTO_DLQ_TOPIC_NAME_DOC,
                 errorAndRetriesGroupName,
@@ -416,12 +416,21 @@ public class KustoSinkConfig extends AbstractConfig {
             this.getString(KUSTO_ERROR_TOLERANCE_CONF).toUpperCase());
     }
     
-    public String getDlqBootstrapServers() {
-        return this.getString(KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF);
+    public boolean isDlqEnabled() {
+        return !getDlqBootstrapServers().isEmpty();
+    }
+    
+    public List<String> getDlqBootstrapServers() {
+        return this.getList(KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF);
     }
     
     public String getDlqTopicName() {
-        return this.getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+        String connectorName = this.getString("name");
+        String dlqTopicName = this.getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+        dlqTopicName = (dlqTopicName.contains("${connector}"))
+            ? dlqTopicName.replace("${connector}", connectorName)
+            : dlqTopicName;
+        return dlqTopicName;
     }
     
     public long getMaxRetryAttempts() {
