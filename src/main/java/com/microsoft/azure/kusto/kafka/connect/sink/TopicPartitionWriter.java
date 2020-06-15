@@ -27,7 +27,7 @@ class TopicPartitionWriter {
     private final IngestionProperties ingestionProps;
     private final String basePath;
     private final long flushInterval;
-    private boolean commitImmediately;
+    private boolean commitImmediately = false;
     private final long fileThreshold;
     FileWriter fileWriter;
     long currentOffset;
@@ -84,10 +84,8 @@ class TopicPartitionWriter {
         return null;
     }
 
-    String getFilePath(@Nullable Long offset) {
+    String getFilePath(Long offset) {
         // Should be null if flushed by interval
-        offset = offset == null ? currentOffset : offset;
-        long nextOffset = fileWriter != null && fileWriter.isDirty() ? offset + 1 : offset;
 
         String compressionExtension = "";
         if (shouldCompressData(ingestionProps, null) || eventDataCompression != null) {
@@ -98,7 +96,7 @@ class TopicPartitionWriter {
             }
         }
 
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
+        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), currentOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
     }
 
     void writeRecord(SinkRecord record) throws ConnectException {
