@@ -216,7 +216,6 @@ public class FileWriterTest {
         Thread.sleep(510);
 
         // Assertions
-        System.out.println(files.size());
         Assert.assertEquals(files.size(), 2);
 
         // Make sure that the first file is from offset 1 till 2 and second is from 3 till 3
