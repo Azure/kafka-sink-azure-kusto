@@ -59,7 +59,7 @@ public class TopicPartitionWriterTest {
         IngestionProperties ingestionProperties = new IngestionProperties(db, table);
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = ingestionProperties;
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, basePath, fileThreshold, flushInterval, false, 0);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, basePath, fileThreshold, flushInterval);
 
         SourceFile descriptor = new SourceFile();
         descriptor.rawBytes = 1024;
@@ -94,7 +94,7 @@ public class TopicPartitionWriterTest {
 
         props.ingestionProperties = new IngestionProperties(db, table);
         props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval, false, 0);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
         Assert.assertEquals(writer.getFilePath(null), Paths.get(basePath, "kafka_testTopic_11_0.csv.gz").toString());
     }
@@ -111,7 +111,7 @@ public class TopicPartitionWriterTest {
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval, false, 0);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
 
@@ -137,7 +137,7 @@ public class TopicPartitionWriterTest {
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval, false, 0);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
         writer.open();
         writer.close();
     }
@@ -181,7 +181,7 @@ public class TopicPartitionWriterTest {
 
         props.ingestionProperties = new IngestionProperties(db, table);
         props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval, false, 0);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
 
         writer.open();
@@ -213,7 +213,7 @@ public class TopicPartitionWriterTest {
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval, false, 0);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<SinkRecord>();
@@ -261,7 +261,7 @@ public class TopicPartitionWriterTest {
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(db, table);
         props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval, false, 0);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, basePath, fileThreshold, flushInterval);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<SinkRecord>();

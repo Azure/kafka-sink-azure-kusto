@@ -191,10 +191,9 @@ class TopicPartitionWriter {
         } else {
             try {
                 reentrantReadWriteLock.readLock().lock();
-
-                // Current offset is saved after flushing for the flush timer to use
-                fileWriter.write(value, record);
                 this.currentOffset = record.kafkaOffset();
+
+                fileWriter.write(value, record);
             } catch (ConnectException ex) {
                 handleErrors(ex, "Failed to ingest records into KustoDB.");
             } catch (IOException ex) {
@@ -243,6 +242,7 @@ class TopicPartitionWriter {
 
     static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
         return !(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
+                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.apacheavro.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
                 || eventDataCompression != null);

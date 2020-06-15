@@ -1,9 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.data.Client;
-import com.microsoft.azure.kusto.data.ClientFactory;
-import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
-import com.microsoft.azure.kusto.data.Results;
+import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.ingest.IngestClient;
@@ -39,7 +36,7 @@ public class E2ETest {
     private Logger log = Logger.getLogger(this.getClass().getName());
 
     @Test
-    @Ignore
+//    @Ignore
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "csv";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
@@ -68,9 +65,9 @@ public class E2ETest {
             TopicIngestionProperties props = new TopicIngestionProperties();
             props.ingestionProperties = ingestionProperties;
             props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-            props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.csv);
+            props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.Csv);
 
-            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, Paths.get(basePath, "csv").toString(), fileThreshold, flushInterval, false, 0);
+            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, Paths.get(basePath, "csv").toString(), fileThreshold, flushInterval);
             writer.open();
 
             List<SinkRecord> records = new ArrayList<SinkRecord>();
@@ -93,7 +90,7 @@ public class E2ETest {
     }
 
     @Test
-    @Ignore
+//    @Ignore
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "avro";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
@@ -116,9 +113,9 @@ public class E2ETest {
             TopicIngestionProperties props2 = new TopicIngestionProperties();
             props2.ingestionProperties = ingestionProperties;
             props2.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
-            props2.ingestionProperties.setIngestionMapping("avri", IngestionMapping.IngestionMappingKind.avro);
+            props2.ingestionProperties.setIngestionMapping("avri", IngestionMapping.IngestionMappingKind.Avro);
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
-            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, Paths.get(basePath, "avro").toString(), 10, 300000, false, 0);
+            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, Paths.get(basePath, "avro").toString(), 10, 300000);
             writer2.open();
             List<SinkRecord> records2 = new ArrayList<SinkRecord>();
 
@@ -145,19 +142,21 @@ public class E2ETest {
     private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table) throws InterruptedException, DataClientException, DataServiceException {
         String query = String.format("%s | count", table);
 
-        Results res = engineClient.execute(database, query);
+        KustoResultSetTable res = engineClient.execute(database, query).getPrimaryResults();
+        res.next();
         Integer timeoutMs = 60 * 6 * 1000;
-        Integer rowCount = 0;
+        Integer rowCount = res.getInt(0);
         Integer timeElapsedMs = 0;
         Integer sleepPeriodMs = 5 * 1000;
 
         while (rowCount < expectedNumberOfRows && timeElapsedMs < timeoutMs) {
             Thread.sleep(sleepPeriodMs);
-            res = engineClient.execute(database, query);
-            rowCount = Integer.valueOf(res.getValues().get(0).get(0));
+            res = engineClient.execute(database, query).getPrimaryResults();
+            res.next();
+            rowCount = res.getInt(0);
             timeElapsedMs += sleepPeriodMs;
         }
-        Assertions.assertEquals(res.getValues().get(0).get(0), expectedNumberOfRows.toString());
+        Assertions.assertEquals(rowCount, expectedNumberOfRows);
         this.log.info("Succesfully ingested " + expectedNumberOfRows + " records.");
     }
 }

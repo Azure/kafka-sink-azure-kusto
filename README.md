@@ -110,18 +110,20 @@ See that newly ingested data becomes available for querying
 KafkaTest | count
 ```
 
-#Supported formats
-csv, json, avro, parquet, orc, tsv, scsv, sohsv, psv, txt.
-> Note - avro, parquet and orc files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
+
+####Supported formats
+csv, json, avro, apacheAvro parquet, orc, tsv, scsv, sohsv, psv, txt.
+> Note - avro, apacheAvro, parquet and orc files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
 Use value.converter=org.apache.kafka.connect.converters.ByteArrayConverter.
 
-#Supported compressions
+
+####Supported compressions
 Kusto Kafka connector can get compressed data, this can be specified in the topics_mapping in the configuration under 
 'eventDataCompression', this can get all the compression types kusto accepts. Using this configuration files does'nt get 
 aggregated in the connector and are sent straight for ingestion.
 
-#Avro example
-Props 
+
+####Avro example
 One can use this gist [FilesKafkaProducer]("https://gist.github.com/ohadbitt/8475dc9f63df1c0d0bc322e9b00fdd00") to create
 a JAR file that can be used as a file producer which sends files as bytes to kafka. 
 Create an avro file as in `src\test\resources\data.avro`

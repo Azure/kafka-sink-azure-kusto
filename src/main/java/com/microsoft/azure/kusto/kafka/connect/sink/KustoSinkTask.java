@@ -98,6 +98,7 @@ public class KustoSinkTask extends SinkTask {
                 ));
             }
 
+
             throw new ConnectException("Failed to initialize KustoIngestClient, please " +
                     "provide valid credentials. Either Kusto username and password or " +
                     "Kusto appId, appKey, and authority should be configured.");
@@ -302,7 +303,6 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void close(Collection<TopicPartition> partitions) {
-        log.warn("KustoConnector got a request to close sink task");
         for (TopicPartition tp : partitions) {
             try {
                 writers.get(tp).close();
@@ -359,12 +359,9 @@ public class KustoSinkTask extends SinkTask {
         int i = 0;
         SinkRecord lastRecord = null;
         for (SinkRecord record : records) {
-            if (i == 0) {
-                log.debug("First record is to topic:" + record.topic());
-                log.debug("First record offset:" + record.kafkaOffset());
-            }
+            log.debug("record to topic:" + record.topic());
+
             lastRecord = record;
-            i++;
             TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
             TopicPartitionWriter writer = writers.get(tp);
 
@@ -378,8 +375,7 @@ public class KustoSinkTask extends SinkTask {
         }
 
         if (lastRecord != null) {
-            log.debug("Last record was for topic:" + lastRecord.topic());
-            log.debug("Last record had offset:" + lastRecord.kafkaOffset());
+            log.debug("Last record offset:" + lastRecord.kafkaOffset());
         }
     }
 
@@ -389,38 +385,23 @@ public class KustoSinkTask extends SinkTask {
     public Map<TopicPartition, OffsetAndMetadata> preCommit(
             Map<TopicPartition, OffsetAndMetadata> offsets
     ) {
-        log.info("preCommit called and sink is configured to " + (commitImmediately ? "flush and commit immediatly": "commit only successfully sent for ingestion offsets"));
         Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>();
-        if (commitImmediately) {
-            CompletableFuture[] tasks = new CompletableFuture[assignment.size()];
-            int i = 0;
-            for (TopicPartition tp : assignment) {
-                TopicPartitionWriter topicPartitionWriter = writers.get(tp);
-                tasks[i] = (CompletableFuture.runAsync(() -> topicPartitionWriter.fileWriter.flushByTimeImpl()));
-            }
-            CompletableFuture<Void> voidCompletableFuture = CompletableFuture.allOf(tasks);
-            try {
-                voidCompletableFuture.get(4L, TimeUnit.SECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                log.warn("failed to flush some of the partition writers in 4 seconds before comitting");
-            }
-        } else {
-            for (TopicPartition tp : assignment) {
+        for (TopicPartition tp : assignment) {
 
-                Long offset = writers.get(tp).lastCommittedOffset;
+            Long offset = writers.get(tp).lastCommittedOffset;
 
-                if (offset != null) {
-                    log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
-                    offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
-                }
+            if (offset != null) {
+                log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
+                offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
             }
         }
 
-        return commitImmediately ? offsets : offsetsToCommit;
+        return offsetsToCommit;
     }
 
     @Override
     public void flush(Map<TopicPartition, OffsetAndMetadata> offsets) {
         // do nothing , rolling files can handle writing
+
     }
 }
