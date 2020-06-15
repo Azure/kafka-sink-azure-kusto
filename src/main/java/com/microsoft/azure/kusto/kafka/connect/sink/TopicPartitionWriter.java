@@ -124,10 +124,9 @@ class TopicPartitionWriter {
         } else {
             try {
                 reentrantReadWriteLock.readLock().lock();
-
-                // Current offset is saved after flushing for the flush timer to use
-                fileWriter.write(value, record.kafkaOffset());
                 this.currentOffset = record.kafkaOffset();
+
+                fileWriter.write(value, record.kafkaOffset());
             } catch (ConnectException ex) {
                 if (commitImmediately) {
                     throw ex;
