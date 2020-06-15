@@ -170,7 +170,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_APPKEY_DISPLAY)
             .define(
                 KUSTO_AUTH_APPID_CONF,
-                Type.PASSWORD,
+                Type.STRING,
                 null,
                 Importance.HIGH,
                 KUSTO_AUTH_APPID_DOC,
@@ -180,7 +180,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_APPID_DISPLAY)
             .define(
                 KUSTO_AUTH_AUTHORITY_CONF,
-                Type.PASSWORD,
+                Type.STRING,
                 null,
                 Importance.HIGH,
                 KUSTO_AUTH_AUTHORITY_DOC,
@@ -292,11 +292,11 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getAuthPassword() {
-        return this.getString(KUSTO_AUTH_PASSWORD_CONF);
+        return this.getPassword(KUSTO_AUTH_PASSWORD_CONF).value();
     }
 
     public String getKustoAuthAppid() {
-        return this.getPassword(KUSTO_AUTH_APPID_CONF).value();
+        return KUSTO_AUTH_APPID_CONF;
     }
 
     public String getAuthAppkey() {
@@ -304,7 +304,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getAuthAuthority() {
-        return this.getPassword(KUSTO_AUTH_AUTHORITY_CONF).value();
+        return KUSTO_AUTH_AUTHORITY_CONF;
     }
 
     public String getTopicToTableMapping() {
