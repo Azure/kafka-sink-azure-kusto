@@ -105,15 +105,15 @@ public class KustoSinkTask extends SinkTask {
 
                         if (mappingRef != null && !mappingRef.isEmpty()) {
                             if (format != null) {
-                                if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
+                                if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.json.toString())){
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Json);
-                                } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
+                                } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.avro.toString())){
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Avro);
-                                } else if (format.equals(IngestionProperties.DATA_FORMAT.apacheavro.toString())){
+                                } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.apacheavro.toString())){
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.ApacheAvro);
-                                } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
+                                } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.parquet.toString())) {
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Parquet);
-                                } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
+                                } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.orc.toString())){
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Orc);
                                 } else {
                                     props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Csv);
