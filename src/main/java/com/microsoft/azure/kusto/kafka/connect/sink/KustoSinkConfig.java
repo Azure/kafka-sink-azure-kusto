@@ -32,6 +32,8 @@ public class KustoSinkConfig extends AbstractConfig {
         }
     }
 
+    static final String CONNECTOR_NAME_CONF = "name";
+    
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL_CONF = "kusto.url";
     private static final String KUSTO_URL_DOC = "Kusto ingestion service URI.";
@@ -426,8 +428,8 @@ public class KustoSinkConfig extends AbstractConfig {
     }
     
     public String getDlqTopicName() {
-        String connectorName = this.getString("name");
-        String dlqTopicName = this.getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+        String connectorName = getString(CONNECTOR_NAME_CONF);
+        String dlqTopicName = getString(KUSTO_DLQ_TOPIC_NAME_CONF);
         dlqTopicName = (dlqTopicName.contains("${connector}"))
             ? dlqTopicName.replace("${connector}", connectorName)
             : dlqTopicName;
