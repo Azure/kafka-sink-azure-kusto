@@ -3,7 +3,6 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
-import com.microsoft.azure.kusto.data.KustoOperationResult;
 import com.microsoft.azure.kusto.data.Results;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
@@ -182,15 +181,15 @@ public class KustoSinkTask extends SinkTask {
                 if (mappingRef != null && !mappingRef.isEmpty()) {
                     if (format != null) {
                         if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Json);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
                         } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Avro);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
                         } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Parquet);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
                         } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Orc);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
                         } else {
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Csv);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
                         }
                     }
                 }
