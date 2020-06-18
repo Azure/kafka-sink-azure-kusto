@@ -29,7 +29,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 class TopicPartitionWriter {
   
-    private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
+    private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
     
     private final CompressionType eventDataCompression;
     private final TopicPartition tp;
@@ -92,19 +92,21 @@ class TopicPartitionWriter {
                 log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
                 this.lastCommittedOffset = currentOffset;
                 return;
-            } catch (IngestionClientException exception) {
+            } catch (IngestionServiceException exception) {
                 //retrying transient exceptions
                 backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
-            } catch (IngestionServiceException exception) {
+            } catch (IngestionClientException exception) {
                 // non-retriable and non-transient exceptions
-                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
-                fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+                if (isDlqEnabled) {
+                    log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                    fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+                }
                 throw new ConnectException("Unable to ingest reccords into KustoDB", exception);
             }
         }
     }
 
-    private void backOffForRemainingAttempts(int retryAttempts, IngestionClientException e, SourceFile fileDescriptor) {
+    private void backOffForRemainingAttempts(int retryAttempts, IngestionServiceException e, SourceFile fileDescriptor) {
       
         if (retryAttempts < maxRetryAttempts) {
             // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
@@ -114,13 +116,17 @@ class TopicPartitionWriter {
             try {
                 TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
             } catch (InterruptedException interruptedErr) {
-                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
-                fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+                if (isDlqEnabled) {
+                    log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                    fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+                }
                 throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
             }
         } else {
-            log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
-            fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+            if (isDlqEnabled) {
+                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+            }
             throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
         }
     }
