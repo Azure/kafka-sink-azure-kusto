@@ -274,7 +274,7 @@ public class KustoSinkTask extends SinkTask {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
         } catch (DataServiceException e) {
             // Logging the error so that the trace is not lost.
-            log.error("DataServiceException Occurred ", e);
+            log.error("{}", e);
             databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
         }
     }
