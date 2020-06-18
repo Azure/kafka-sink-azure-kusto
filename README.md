@@ -39,8 +39,11 @@ docker run --rm -p 3030:3030 -p 9092:9092 -p 8081:8081 -p 8083:8083 -p 8082:8082
 ```
 
 #### Verify 
-connect to container and run:
-`cat /var/log/broker.log /var/log/connect-distributed.log | grep -C 4 i kusto`
+Connect to container and run:
+
+```bash
+cat /var/log/broker.log /var/log/connect-distributed.log | grep -C 4 i kusto
+```
 
 #### Add plugin 
 Go to `http://localhost:3030/kafka-connect-ui/#/cluster/fast-data-dev/` and using the UI add Kusto Sink (NEW button, then pick kusto from list)
@@ -92,25 +95,26 @@ KafkaTest | count
 ```
 
 
-####Supported formats
-csv, json, avro, apacheAvro parquet, orc, tsv, scsv, sohsv, psv, txt.
-> Note - avro, apacheAvro, parquet and orc files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
-Use value.converter=org.apache.kafka.connect.converters.ByteArrayConverter.
+#### Supported formats
+`csv`, `json`, `avro`, `apacheAvro`, `parquet`, `orc`, `tsv`, `scsv`, `sohsv`, `psv`, `txt`.
+
+> Note - `avro`, `apacheAvro`, `parquet` and `orc` files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
+> 
+>Use `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter`
 
 
-####Supported compressions
+#### Supported compressions
 Kusto Kafka connector can get compressed data, this can be specified in the topics_mapping in the configuration under 
-'eventDataCompression', this can get all the compression types kusto accepts. Using this configuration files does'nt get 
-aggregated in the connector and are sent straight for ingestion.
+`eventDataCompression`, this can get all the compression types kusto accepts. Using this configuration, files don't get aggregated in the connector and are sent straight for ingestion.
 
 
-####Avro example
+#### Avro example
 One can use this gist [FilesKafkaProducer]("https://gist.github.com/ohadbitt/8475dc9f63df1c0d0bc322e9b00fdd00") to create
 a JAR file that can be used as a file producer which sends files as bytes to kafka. 
-Create an avro file as in `src\test\resources\data.avro`
-copy the jar `docker cp C:\Users\ohbitton\IdeaProjects\kafka-producer-test\target\kafka-producer-all.jar <container id>:/FilesKafkaProducer.jar`
-Connect to the container `docker exec -it <id> bash`.
-Run from the container `java -jar FilesKafkaProducer.jar fileName [topic] [times]`
+* Create an avro file as in `src\test\resources\data.avro`
+* Copy the jar `docker cp C:\Users\ohbitton\IdeaProjects\kafka-producer-test\target\kafka-producer-all.jar <container id>:/FilesKafkaProducer.jar`
+* Connect to the container `docker exec -it <id> bash`.
+* Run from the container `java -jar FilesKafkaProducer.jar fileName [topic] [times]`
 
 ## Need Support?
 - **Have a feature request for SDKs?** Please post it on [User Voice](https://feedback.azure.com/forums/915733-azure-data-explorer) to help us prioritize
