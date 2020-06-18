@@ -3,6 +3,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
+import com.microsoft.azure.kusto.data.KustoOperationResult;
 import com.microsoft.azure.kusto.data.Results;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
@@ -44,8 +45,8 @@ public class KustoSinkTask extends SinkTask {
     
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     
-    static final String FETCH_PRINCIPAL_ROLES_QUERY = ".show table %s principal roles";
-    static final int ROLE_INDEX = 3;
+    static final String FETCH_PRINCIPAL_ROLES_QUERY = ".show principal access with (principal = '%s', accesstype='ingest',database='%s',table='%s')";
+    static final int INGESTION_ALLOWED_INDEX = 3;
     
     private final Set<TopicPartition> assignment;
     private Map<String, TopicIngestionProperties> topicsToIngestionProps;
@@ -177,15 +178,17 @@ public class KustoSinkTask extends SinkTask {
                 if (mappingRef != null && !mappingRef.isEmpty()) {
                     if (format != null) {
                         if (format.equals(IngestionProperties.DATA_FORMAT.json.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.json);
-                        } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.avro);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Json);
+                        } else if (format.equals(IngestionProperties.DATA_FORMAT.avro.toString())) {
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Avro);
+                        } else if (format.equals(IngestionProperties.DATA_FORMAT.apacheavro.toString())){
+                                props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.ApacheAvro);
                         } else if (format.equals(IngestionProperties.DATA_FORMAT.parquet.toString())) {
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.parquet);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Parquet);
                         } else if (format.equals(IngestionProperties.DATA_FORMAT.orc.toString())){
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.orc);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Orc);
                         } else {
-                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.csv);
+                            props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Csv);
                         }
                     }
                 }
@@ -214,14 +217,14 @@ public class KustoSinkTask extends SinkTask {
                 JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
                 for (int i = 0; i < mappings.length(); i++) {
                     JSONObject mapping = mappings.getJSONObject(i);
-                    validateTableAccess(engineClient, mapping, databaseTableErrorList, accessErrorList);
+                    validateTableAccess(engineClient, mapping, config, databaseTableErrorList, accessErrorList);
                 }
             }
             String tableAccessErrorMessage = "";
 
             if(!databaseTableErrorList.isEmpty())
             {
-                tableAccessErrorMessage = "\n\nUnable to access the following database:table\n" +
+                tableAccessErrorMessage = "\n\nError occurred while trying to access the following database:table\n" +
                         String.join("\n",databaseTableErrorList);
             }
             if(!accessErrorList.isEmpty())
@@ -245,31 +248,33 @@ public class KustoSinkTask extends SinkTask {
      *  before starting to sink records into ADX.
      * @param engineClient Client connection to run queries.
      * @param mapping JSON Object containing a Table mapping.
+     * @param config
      */
-    private static void validateTableAccess(Client engineClient, JSONObject mapping, List<String> databaseTableErrorList, List<String> accessErrorList) throws JSONException {
+    private static void validateTableAccess(Client engineClient, JSONObject mapping, KustoSinkConfig config, List<String> databaseTableErrorList, List<String> accessErrorList) throws JSONException {
         
         String database = mapping.getString("db");
         String table = mapping.getString("table");
         try {
-            Results rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, table));
-            boolean hasAccess = false;
-            for (int i = 0; i<rs.getValues().size(); i++) {
-                ArrayList<String> principal = rs.getValues().get(i);
-                if (principal.get(ROLE_INDEX).toLowerCase().contains("admin") ||
-                        principal.get(ROLE_INDEX).toLowerCase().contains("ingestor")) {
-                    hasAccess = true;
-                    break;
-                }
+
+            String authenticateWith;
+            if (config.getAuthAppid() != null) {
+                authenticateWith = "aadapp=" + config.getAuthAppid();
+            } else {
+                authenticateWith = "aaduser=" + config.getAuthUsername();
             }
-            if (!hasAccess) {
-                accessErrorList.add(String.format("%s:%s", database, table));
+            KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, authenticateWith, database, table));
+            boolean hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
+            if (hasAccess) {
+                log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
+            } else  {
+                accessErrorList.add(String.format("User does not have appropriate permissions " +
+                        "to sink data into the Kusto database %s", database));
             }
-            log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
         } catch (DataClientException e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
         } catch (DataServiceException e) {
             // Logging the error so that the trace is not lost.
-            log.error("The table {} in database {} might not exist or access denied ", table, database, e);
+            log.error("DataServiceException Occurred ", e);
             databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
         }
     }
