@@ -17,8 +17,8 @@ import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
 
-    enum ErrorTolerance {
-        ALL, NONE;
+    enum BehaviorOnError {
+        FAIL, LOG, IGNORE;
     
         /**
          * Gets names of available error tolerance mode.
@@ -26,7 +26,7 @@ public class KustoSinkConfig extends AbstractConfig {
          */
         public static String[] getNames() {
             return Arrays
-                    .stream(ErrorTolerance.class.getEnumConstants())
+                    .stream(BehaviorOnError.class.getEnumConstants())
                     .map(Enum::name)
                     .toArray(String[]::new);
         }
@@ -81,16 +81,27 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_COMMIT_IMMEDIATLY_DOC = "Whether kafka call to commit offsets will flush and commit the last offsets or only the ingested ones\"";
     private static final String KUSTO_COMMIT_IMMEDIATLY_DISPLAY = "kusto.sink.commit";
     
-    static final String KUSTO_ERROR_TOLERANCE_CONF = "error.tolerance";
-    private static final String KUSTO_ERROR_TOLERANCE_DOC = "Error tolerance setting. "
+    static final String KUSTO_BEHAVIOR_ON_ERROR_CONF = "behavior.on.error";
+    private static final String KUSTO_BEHAVIOR_ON_ERROR_DOC = "Behavior on error setting for "
+        + "ingestion of records in KustoDB. "
         + "Must be configured to one of the following:\n"
-        + "``NONE``\n"
-        + "The Connector throws ConnectException and stops processing records "
-        + "when an error occurs while processing or ingesting records into KustoDB.\n"
-        + "``ALL``\n"
-        + "Continues to process next subsequent records "
-        + "when an error occurs while processing or ingesting records into KustoDB.\n";
-    private static final String KUSTO_ERROR_TOLERANCE_DISPLAY = "Error Tolerance";
+        
+        + "``fail``\n"
+        + "    Stops the connector when an error occurs "
+        + "while processing records or ingesting records in KustoDB.\n"
+        
+        + "``ignore``\n"
+        + "    Continues to process next set of records. "
+        + "when error occurs while processing records or ingesting records in KustoDB.\n"
+        
+        + "``log``\n"
+        + "    Logs the error message when an error occurs "
+        + "while processing records or ingesting records in KustoDB, available in connect logs and "
+        + "continues to process subsequent records. "
+        + "Also, if dlq is enabled i.e. 'dlq.bootstrap.servers' is set to appropriate value, "
+        + "the Connector will send the failed records to Kafka, "
+        + "making them availble in 'dlq.topic.name' topic.";
+    private static final String KUSTO_BEHAVIOR_ON_ERROR_DISPLAY = "Behavior On Error";
     
     static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "dlq.bootstrap.servers";
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this to Kafka broker's address(es) "
@@ -155,16 +166,18 @@ public class KustoSinkConfig extends AbstractConfig {
         int errorAndRetriesGroupOrder, ConfigDef result) {
         result
             .define(
-                KUSTO_ERROR_TOLERANCE_CONF,
+                KUSTO_BEHAVIOR_ON_ERROR_CONF,
                 Type.STRING,
-                ErrorTolerance.NONE.name(),
-                ConfigDef.ValidString.in(ErrorTolerance.NONE.name(), ErrorTolerance.ALL.name()),
+                BehaviorOnError.FAIL.name(),
+                ConfigDef.ValidString.in(
+                    BehaviorOnError.FAIL.name(), BehaviorOnError.LOG.name(), BehaviorOnError.IGNORE.name(), 
+                    BehaviorOnError.FAIL.name().toLowerCase(), BehaviorOnError.LOG.name().toLowerCase(), BehaviorOnError.IGNORE.name().toLowerCase()),
                 Importance.LOW,
-                KUSTO_ERROR_TOLERANCE_DOC,
+                KUSTO_BEHAVIOR_ON_ERROR_DOC,
                 errorAndRetriesGroupName,
                 errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_ERROR_TOLERANCE_DISPLAY)
+                KUSTO_BEHAVIOR_ON_ERROR_DISPLAY)
             .define(
                 KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF,
                 Type.LIST,
@@ -414,9 +427,9 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getBoolean(KUSTO_COMMIT_IMMEDIATLY_CONF);
     }
     
-    public ErrorTolerance getErrorTolerance() {
-        return ErrorTolerance.valueOf(
-            this.getString(KUSTO_ERROR_TOLERANCE_CONF).toUpperCase());
+    public BehaviorOnError getBehaviorOnError() {
+        return BehaviorOnError.valueOf(
+            getString(KUSTO_BEHAVIOR_ON_ERROR_CONF).toUpperCase());
     }
     
     public boolean isDlqEnabled() {

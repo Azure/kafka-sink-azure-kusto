@@ -6,7 +6,7 @@ import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.ErrorTolerance;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -48,7 +48,7 @@ class TopicPartitionWriter {
     private final boolean isDlqEnabled;
     private final String dlqTopicName;
     private final Producer<byte[], byte[]> kafkaProducer;
-    private final ErrorTolerance errorTolerance;
+    private final BehaviorOnError behaviorOnError;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, 
         boolean commitImmediatly, KustoSinkConfig config) 
@@ -65,7 +65,7 @@ class TopicPartitionWriter {
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
         this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
-        this.errorTolerance = config.getErrorTolerance();
+        this.behaviorOnError = config.getBehaviorOnError();
         
         if (config.isDlqEnabled()) {
           isDlqEnabled = true;
@@ -216,10 +216,12 @@ class TopicPartitionWriter {
     }
 
     private void handleErrors(Exception ex, String message) {
-        if (KustoSinkConfig.ErrorTolerance.NONE == errorTolerance) {
+        if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(message, ex);
+        } else if (KustoSinkConfig.BehaviorOnError.IGNORE == behaviorOnError) {
+            log.error(String.format("%s, Exception=%s", message, ex));
         } else {
-          log.error(String.format("%s, Exception=%s", message, ex));
+            log.debug(String.format("%s, Exception=%s", message, ex));
         }
     }
 

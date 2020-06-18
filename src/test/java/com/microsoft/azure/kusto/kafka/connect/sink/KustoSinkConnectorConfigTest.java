@@ -4,7 +4,7 @@ import org.apache.kafka.common.config.ConfigException;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.ErrorTolerance;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -44,7 +44,7 @@ public class KustoSinkConnectorConfigTest {
         assertNotNull(config.getFlushSizeBytes());
         assertNotNull(config.getFlushInterval());
         assertFalse(config.isDlqEnabled());
-        assertEquals(ErrorTolerance.NONE, config.getErrorTolerance());
+        assertEquals(BehaviorOnError.FAIL, config.getBehaviorOnError());
     }
 
     @Test(expected = ConfigException.class)
@@ -59,7 +59,7 @@ public class KustoSinkConnectorConfigTest {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         
-        settings.put(KustoSinkConfig.KUSTO_ERROR_TOLERANCE_CONF, "DummyValue");
+        settings.put(KustoSinkConfig.KUSTO_BEHAVIOR_ON_ERROR_CONF, "DummyValue");
         config = new KustoSinkConfig(settings);
     }
     
