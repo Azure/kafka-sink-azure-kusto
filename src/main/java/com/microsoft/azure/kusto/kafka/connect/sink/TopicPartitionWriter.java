@@ -93,6 +93,7 @@ class TopicPartitionWriter {
                 this.lastCommittedOffset = currentOffset;
                 return;
             } catch (IngestionServiceException exception) {
+                // TODO : improve handling of specific transient exceptions once the client supports them.
                 //retrying transient exceptions
                 backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
             } catch (IngestionClientException exception) {
@@ -201,7 +202,11 @@ class TopicPartitionWriter {
 
                 fileWriter.write(value, record);
             } catch (ConnectException ex) {
-                handleErrors(ex, "Failed to ingest records into KustoDB.");
+                /*
+                 * The Connector has already retries with backOff and 
+                 * there's no point processing subsequent records.
+                 */
+                throw ex;
             } catch (IOException ex) {
                 handleErrors(ex, "Failed to write records into file for ingestion.");
             } finally {
