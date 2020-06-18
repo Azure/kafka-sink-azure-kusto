@@ -201,7 +201,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_SINK_TEMP_DIR_CONF,
                 Type.STRING,
-                System.getProperty("java.io.tempdir"),
+                System.getProperty("java.io.tmpdir"),
                 Importance.LOW,
                 KUSTO_SINK_TEMP_DIR_DOC,
                 writeGroupName,
