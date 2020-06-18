@@ -324,27 +324,26 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getErrorTolerance() {
-        return this.getString(KUSTO_SINK_TEMP_DIR_CONF);
+        return this.getString(KUSTO_SINK_ERROR_TOLERANCE_CONF);
     }
 
     public String getDlqBootstrapServers() {
-        return this.getString(KUSTO_SINK_TEMP_DIR_CONF);
+        return this.getString(KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF);
     }
 
     public String getDlqTopicName() {
-        return this.getString(KUSTO_SINK_TEMP_DIR_CONF);
+        return this.getString(KUSTO_DLQ_TOPIC_NAME_CONF);
     }
 
     public long getMaxRetryTime() {
-        return this.getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF);
+        return this.getLong(KUSTO_SINK_MAX_RETRY_TIME_MS_CONF);
     }
 
     public long getBackOffTime() {
-        return this.getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF);
+        return this.getLong(KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF);
     }
 
     public static void main(String[] args) {
       System.out.println(getConfig().toEnrichedRst());
     }
 }
-
