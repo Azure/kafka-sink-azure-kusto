@@ -69,7 +69,7 @@ public class E2ETest {
             TopicIngestionProperties props = new TopicIngestionProperties();
             props.ingestionProperties = ingestionProperties;
             props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-            props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.csv);
+            props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.Csv);
             Map<String, String> settings = new HashMap<>();
             settings.put(KustoSinkConfig.KUSTO_URL_CONF, String.format("https://ingest-%s.kusto.windows.net", cluster));
             settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, Paths.get(basePath, "csv").toString());
@@ -123,7 +123,7 @@ public class E2ETest {
             TopicIngestionProperties props2 = new TopicIngestionProperties();
             props2.ingestionProperties = ingestionProperties;
             props2.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
-            props2.ingestionProperties.setIngestionMapping("avri", IngestionMapping.IngestionMappingKind.avro);
+            props2.ingestionProperties.setIngestionMapping("avri", IngestionMapping.IngestionMappingKind.Avro);
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
             Map<String, String> settings = new HashMap<>();
             settings.put(KustoSinkConfig.KUSTO_URL_CONF, String.format("https://ingest-%s.kusto.windows.net", cluster));
@@ -158,18 +158,21 @@ public class E2ETest {
     private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table) throws InterruptedException, DataClientException, DataServiceException {
         String query = String.format("%s | count", table);
 
-        Results res = engineClient.execute(database, query);
+        KustoResultSetTable res = engineClient.execute(database, query).getPrimaryResults();
+        res.next();
         Integer timeoutMs = 60 * 6 * 1000;
-        Integer rowCount = 0;
+        Integer rowCount = res.getInt(0);
         Integer timeElapsedMs = 0;
         Integer sleepPeriodMs = 5 * 1000;
 
         while (rowCount < expectedNumberOfRows && timeElapsedMs < timeoutMs) {
             Thread.sleep(sleepPeriodMs);
-            res = engineClient.execute(database, query);
-            rowCount = Integer.valueOf(res.getValues().get(0).get(0));
+            res = engineClient.execute(database, query).getPrimaryResults();
+            res.next();
+            rowCount = res.getInt(0);
             timeElapsedMs += sleepPeriodMs;
         }
-        Assertions.assertEquals(res.getValues().get(0).get(0), expectedNumberOfRows.toString());
+        Assertions.assertEquals(rowCount, expectedNumberOfRows);
+        this.log.info("Succesfully ingested " + expectedNumberOfRows + " records.");
     }
 }

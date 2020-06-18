@@ -255,6 +255,7 @@ class TopicPartitionWriter {
 
     static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
         return !(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
+                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.apacheavro.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
                 || eventDataCompression != null);
