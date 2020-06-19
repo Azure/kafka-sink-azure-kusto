@@ -35,9 +35,10 @@ class TopicPartitionWriter {
     private int defaultRetriesCount = 2;
     private int currentRetries;
     private ReentrantReadWriteLock reentrantReadWriteLock;
+    private KustoSinkConfig config;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, String basePath,
-                         long fileThreshold, long flushInterval) {
+                         long fileThreshold, long flushInterval,KustoSinkConfig config) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps.ingestionProperties;
@@ -48,6 +49,7 @@ class TopicPartitionWriter {
         this.eventDataCompression = ingestionProps.eventDataCompression;
         this.currentRetries = defaultRetriesCount;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
+        this.config=config;
     }
 
     String handleRollFile(SourceFile fileDescriptor) {
@@ -55,7 +57,6 @@ class TopicPartitionWriter {
         new ArrayList<>();
         try {
             client.ingestFromFile(fileSourceInfo, ingestionProps);
-
             log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
             this.lastCommittedOffset = currentOffset;
             currentRetries = defaultRetriesCount;
@@ -102,31 +103,13 @@ class TopicPartitionWriter {
     }
 
     void writeRecord(SinkRecord record) throws ConnectException {
-        byte[] value = null;
-
-        // TODO: should probably refactor this code out into a value transformer
-        if (record.valueSchema() == null || record.valueSchema().type() == Schema.Type.STRING) {
-            value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
-        } else if (record.valueSchema().type() == Schema.Type.BYTES) {
-            byte[] valueBytes = (byte[]) record.value();
-            byte[] separator = "\n".getBytes(StandardCharsets.UTF_8);
-            byte[] valueWithSeparator = new byte[valueBytes.length + separator.length];
-
-            System.arraycopy(valueBytes, 0, valueWithSeparator, 0, valueBytes.length);
-            System.arraycopy(separator, 0, valueWithSeparator, valueBytes.length, separator.length);
-
-            value = valueWithSeparator;
-        } else {
-            log.error(String.format("Unexpected value type, skipping record %s", record));
-        }
-        if (value == null) {
+        if (record == null) {
             this.currentOffset = record.kafkaOffset();
         } else {
             try {
                 reentrantReadWriteLock.readLock().lock();
                 this.currentOffset = record.kafkaOffset();
-
-                fileWriter.write(value, record.kafkaOffset());
+                fileWriter.writeData(record,record.kafkaOffset());
             } catch (ConnectException ex) {
                 if (commitImmediately) {
                     throw ex;
@@ -150,9 +133,10 @@ class TopicPartitionWriter {
                 fileThreshold,
                 this::handleRollFile,
                 this::getFilePath,
-                !shouldCompressData ? 0 : flushInterval,
+                flushInterval,
                 shouldCompressData,
-                reentrantReadWriteLock);
+                reentrantReadWriteLock,
+                config);
     }
 
     void close() {
@@ -165,9 +149,7 @@ class TopicPartitionWriter {
     }
 
     static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
-        return !(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
-                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.apacheavro.toString())
-                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
+        return !(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
                 || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
                 || eventDataCompression != null);
     }

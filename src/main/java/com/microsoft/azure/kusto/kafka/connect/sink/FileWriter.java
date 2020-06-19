@@ -1,7 +1,15 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Function;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
+import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -41,6 +50,10 @@ public class FileWriter implements Closeable {
     // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
     private FileDescriptor currentFileDescriptor;
     private String flushError;
+    private RecordWriterProvider recordWriterProvider;
+    private RecordWriter recordWriter;
+    private File file;
+    private KustoSinkConfig config;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -55,14 +68,15 @@ public class FileWriter implements Closeable {
                       Function<Long, String> getFilePath,
                       long flushInterval,
                       boolean shouldCompressData,
-                      ReentrantReadWriteLock reentrantLock) {
+                      ReentrantReadWriteLock reentrantLock,
+                      KustoSinkConfig config) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
         this.shouldCompressData = shouldCompressData;
-
+        this.config = config;
         // This is a fair lock so that we flush close to the time intervals
         this.reentrantReadWriteLock = reentrantLock;
 
@@ -75,29 +89,6 @@ public class FileWriter implements Closeable {
         return this.currentFile != null && this.currentFile.rawBytes > 0;
     }
 
-    public synchronized void write(byte[] data, @Nullable Long offset) throws IOException {
-        if (flushError != null) {
-            throw new ConnectException(flushError);
-        }
-        if (data == null || data.length == 0) return;
-
-        if (currentFile == null) {
-            openFile(offset);
-            resetFlushTimer(true);
-        }
-
-        outputStream.write(data);
-
-        currentFile.rawBytes += data.length;
-        currentFile.zippedBytes += countingStream.numBytes;
-        currentFile.numRecords++;
-
-        if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold) {
-            rotate(offset);
-            resetFlushTimer(true);
-        }
-    }
-
     public void openFile(@Nullable Long offset) throws IOException {
         SourceFile fileProps = new SourceFile();
 
@@ -105,22 +96,21 @@ public class FileWriter implements Closeable {
         if (!folder.exists() && !folder.mkdirs()) {
             throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
         }
-
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
-
-        File file = new File(filePath);
+        file = new File(filePath);
 
         file.createNewFile();
-
         FileOutputStream fos = new FileOutputStream(file);
         currentFileDescriptor = fos.getFD();
         fos.getChannel().truncate(0);
 
         countingStream = new CountingOutputStream(fos);
-        outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
         fileProps.file = file;
         currentFile = fileProps;
+
+        outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
+        recordWriter = recordWriterProvider.getRecordWriter(config,currentFile.path,outputStream);
     }
 
     void rotate(@Nullable Long offset) throws IOException {
@@ -130,10 +120,12 @@ public class FileWriter implements Closeable {
 
     void finishFile(Boolean delete) throws IOException {
         if(isDirty()){
+            recordWriter.commit();
             if(shouldCompressData){
                 GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
                 gzip.finish();
             } else {
+                recordWriter.commit();
                 outputStream.flush();
             }
             String err = onRollCallback.apply(currentFile);
@@ -219,6 +211,45 @@ public class FileWriter implements Closeable {
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
             flushError = String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize);
             log.error(flushError, e);
+        }
+    }
+
+    public synchronized void writeData(SinkRecord record, @Nullable Long offset) throws IOException {
+        if (flushError != null) {
+            throw new ConnectException(flushError);
+        }
+        if (record == null) return;
+        if (recordWriterProvider == null) {
+            initializeRecordWriter(record);
+        }
+        if (currentFile == null) {
+            openFile(offset);
+            resetFlushTimer(true);
+        }
+        recordWriter.write(record);
+        currentFile.rawBytes = recordWriter.getDataSize();
+        currentFile.zippedBytes += countingStream.numBytes;
+        currentFile.numRecords++;
+        currentFile.zippedBytes = countingStream.numBytes;
+        currentFile.numRecords++;
+        if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold) {
+            rotate(offset);
+            resetFlushTimer(true);
+        }
+    }
+
+    public void initializeRecordWriter(SinkRecord record) {
+        if (record.value() instanceof Map) {
+            recordWriterProvider = new JsonRecordWriterProvider();
+        }
+        else if (record.valueSchema().type() == Schema.Type.STRUCT) {
+            recordWriterProvider = new AvroRecordWriterProvider();
+        }
+        else if (record.valueSchema().type() == Schema.Type.STRING){
+            recordWriterProvider = new StringRecordWriterProvider();
+        }
+        else if (record.valueSchema().type() == Schema.Type.BYTES){
+            recordWriterProvider = new ByteRecordWriterProvider();
         }
     }
 

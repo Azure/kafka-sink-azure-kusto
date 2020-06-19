@@ -23,6 +23,7 @@ public class KustoSinkConnectorConfigTest {
     @Test
     public void shouldAcceptValidConfig() {
         // Adding required Configuration with no default value.
+        settings.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         config = new KustoSinkConfig(settings);
         assertNotNull(config);
@@ -31,10 +32,10 @@ public class KustoSinkConnectorConfigTest {
     @Test
     public void shouldHaveDefaultValues() {
         // Adding required Configuration with no default value.
+        settings.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         config = new KustoSinkConfig(settings);
         assertNotNull(config.getKustoUrl());
-        assertNull(config.getTopicToTableMapping());
         assertNotNull(config.getFlushSizeBytes());
         assertNotNull(config.getFlushInterval());
     }

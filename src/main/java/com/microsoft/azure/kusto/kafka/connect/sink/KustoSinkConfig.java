@@ -107,6 +107,14 @@ public class KustoSinkConfig extends AbstractConfig {
         + "the Connector makes to ingest records into KustoDB.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Retry BackOff Time";
 
+    private static final String AVRO_CODEC_CONFIG = "avro.codec";
+    private static final String AVRO_CODEC_DEFAULT = "null";
+    private static final String AVRO_CODEC_DISPLAY = "Avro Compression Codec";
+    private static final String AVRO_CODEC_DOC = "The Avro compression codec to be used for output  "
+      + "files. Available values: null, deflate, snappy and bzip2 (CodecSource is org.apache"
+      + ".avro.file.CodecFactory)";
+    private static final String[] AVRO_SUPPORTED_CODECS = new String[]{"null", "deflate", "snappy",
+      "bzip2"};
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -121,10 +129,12 @@ public class KustoSinkConfig extends AbstractConfig {
       final String connectionGroupName = "Connection";
       final String writeGroupName = "Writes";
       final String errorAndRetriesGroupName = "Error Handling and Retries";
+      final String formatGroupName = "formatter";
 
       int connectionGroupOrder = 0;
       int writeGroupOrder = 0;
       int errorAndRetriesGroupOrder = 0;
+      int formatGroupNameOrder =0;
 
       //TODO: Add display name, validators, recommenders to configs.
         return new ConfigDef()
@@ -280,7 +290,19 @@ public class KustoSinkConfig extends AbstractConfig {
                 errorAndRetriesGroupName,
                 errorAndRetriesGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY);
+                KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY)
+            .define(
+                AVRO_CODEC_CONFIG,
+                Type.STRING,
+                AVRO_CODEC_DEFAULT,
+                ConfigDef.ValidString.in(AVRO_SUPPORTED_CODECS),
+                Importance.LOW,
+                AVRO_CODEC_DOC,
+                formatGroupName,
+                formatGroupNameOrder,
+                ConfigDef.Width.MEDIUM,
+                AVRO_CODEC_DISPLAY
+            );
         }
 
     public String getKustoUrl() {
@@ -296,7 +318,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getKustoAuthAppid() {
-        return KUSTO_AUTH_APPID_CONF;
+        return this.getString(KUSTO_AUTH_APPID_CONF);
     }
 
     public String getAuthAppkey() {
@@ -304,7 +326,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getAuthAuthority() {
-        return KUSTO_AUTH_AUTHORITY_CONF;
+        return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
     }
 
     public String getTopicToTableMapping() {
@@ -342,6 +364,10 @@ public class KustoSinkConfig extends AbstractConfig {
     public long getBackOffTime() {
         return this.getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF);
     }
+
+  public String getAvroCodec() {
+    return getString(AVRO_CODEC_CONFIG);
+  }
 
     public static void main(String[] args) {
       System.out.println(getConfig().toEnrichedRst());
