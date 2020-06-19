@@ -296,7 +296,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getKustoAuthAppid() {
-        return KUSTO_AUTH_APPID_CONF;
+        return this.getString(KUSTO_AUTH_APPID_CONF);
     }
 
     public String getAuthAppkey() {
@@ -304,7 +304,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getAuthAuthority() {
-        return KUSTO_AUTH_AUTHORITY_CONF;
+      return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
     }
 
     public String getTopicToTableMapping() {
