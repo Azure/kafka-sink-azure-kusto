@@ -77,7 +77,7 @@ public class E2ETest {
             settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
             KustoSinkConfig config= new KustoSinkConfig(settings);
 
-            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, COMMIT_IMMEDIATELY, config);
+            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config);
             writer.open();
 
             List<SinkRecord> records = new ArrayList<SinkRecord>();
@@ -131,7 +131,7 @@ public class E2ETest {
             settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(100));
             settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(300000));
             KustoSinkConfig config= new KustoSinkConfig(settings);
-            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, COMMIT_IMMEDIATELY, config);
+            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config);
             writer2.open();
             List<SinkRecord> records2 = new ArrayList<SinkRecord>();
 

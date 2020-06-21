@@ -69,7 +69,7 @@ public class TopicPartitionWriterTest {
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, COMMIT_IMMEDIATELY, config);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config);
 
         SourceFile descriptor = new SourceFile();
         descriptor.rawBytes = 1024;
@@ -110,7 +110,7 @@ public class TopicPartitionWriterTest {
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, COMMIT_IMMEDIATELY, config);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config);
 
         Assert.assertEquals(writer.getFilePath(null), Paths.get(basePath, "kafka_testTopic_11_0.csv.gz").toString());
     }
@@ -133,7 +133,7 @@ public class TopicPartitionWriterTest {
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, COMMIT_IMMEDIATELY, config);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config);
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
 
@@ -165,7 +165,7 @@ public class TopicPartitionWriterTest {
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, COMMIT_IMMEDIATELY, config);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config);
         writer.open();
         writer.close();
     }
@@ -215,7 +215,7 @@ public class TopicPartitionWriterTest {
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, COMMIT_IMMEDIATELY, config);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config);
 
 
         writer.open();
@@ -253,7 +253,7 @@ public class TopicPartitionWriterTest {
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, COMMIT_IMMEDIATELY, config);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<SinkRecord>();
@@ -307,7 +307,7 @@ public class TopicPartitionWriterTest {
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, COMMIT_IMMEDIATELY, config);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<SinkRecord>();

@@ -30,6 +30,7 @@ public class KustoSinkConnectorConfigTest {
     public void shouldAcceptValidConfig() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         config = new KustoSinkConfig(settings);
         assertNotNull(config);
     }
@@ -38,9 +39,9 @@ public class KustoSinkConnectorConfigTest {
     public void shouldHaveDefaultValues() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         config = new KustoSinkConfig(settings);
         assertNotNull(config.getKustoUrl());
-        assertNull(config.getTopicToTableMapping());
         assertNotNull(config.getFlushSizeBytes());
         assertNotNull(config.getFlushInterval());
         assertFalse(config.isDlqEnabled());
@@ -58,7 +59,7 @@ public class KustoSinkConnectorConfigTest {
     public void shouldFailWhenErrorToleranceIncorrectlyConfigured() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         settings.put(KustoSinkConfig.KUSTO_BEHAVIOR_ON_ERROR_CONF, "DummyValue");
         config = new KustoSinkConfig(settings);
     }
@@ -66,13 +67,14 @@ public class KustoSinkConnectorConfigTest {
     @Test
     public void verifyDlqSettings() {
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         settings.put(KustoSinkConfig.KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF, "localhost:8081,localhost:8082");
-        //settings.put(KustoSinkConfig.CONNECTOR_NAME_CONF, "KustoConnectorTest");
+        settings.put(KustoSinkConfig.KUSTO_DLQ_TOPIC_NAME_CONF, "dlq-error-topic");
         config = new KustoSinkConfig(settings);
         
         assertTrue(config.isDlqEnabled());
         assertEquals(Arrays.asList("localhost:8081", "localhost:8082"), config.getDlqBootstrapServers());
-        //assertEquals("KustoConnectorTest-error", config.getDlqTopicName());
+        assertEquals("dlq-error-topic", config.getDlqTopicName());
     }    
 
 }

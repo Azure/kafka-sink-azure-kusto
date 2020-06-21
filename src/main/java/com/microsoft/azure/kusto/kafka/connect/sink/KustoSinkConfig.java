@@ -6,6 +6,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
+import org.apache.kafka.common.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.util.Strings;
@@ -129,6 +130,11 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public KustoSinkConfig(Map<String, String> parsedConfig) {
         this(getConfig(), parsedConfig);
+        
+        if (Strings.isNullOrEmpty(getTopicToTableMapping())) {
+            throw new ConfigException("Missing 'kusto.tables.topics.mapping' configuration, "
+                + "please configure it to appropriate value.");
+        }
     }
 
     public static ConfigDef getConfig() {
@@ -147,7 +153,7 @@ public class KustoSinkConfig extends AbstractConfig {
         defineConnectionConfigs(connectionGroupName, connectionGroupOrder, result);
         defineWriteConfigs(writeGroupName, writeGroupOrder, result);
         defineErrorHandlingAndRetriesConfgis(errorAndRetriesGroupName, errorAndRetriesGroupOrder, result);
-        
+
         return result;
     }
 
@@ -215,7 +221,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_TABLES_MAPPING_CONF,
                 Type.STRING,
-                ConfigDef.NO_DEFAULT_VALUE,
+                "",
                 Importance.HIGH,
                 KUSTO_TABLES_MAPPING_DOC,
                 writeGroupName,
@@ -225,7 +231,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_TABLES_MAPPING_CONF_DEPRECATED,
                 Type.STRING,
-                ConfigDef.NO_DEFAULT_VALUE,
+                "",
                 Importance.HIGH,
                 KUSTO_TABLES_MAPPING_DOC + DEPRECATED_CONFIG_DOC,
                 writeGroupName,
