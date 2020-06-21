@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -43,11 +44,22 @@ public class JsonRecordWriterProvider implements RecordWriterProvider<KustoSinkC
         long size =0;
         @Override
         public void write(SinkRecord record) {
+          log.info("Opening record writer for: {}", filename);
           log.trace("Sink record: {}", record);
           try {
             Object value = record.value();
-            writer.writeObject(value);
-            writer.writeRaw(LINE_SEPARATOR);
+            if (value instanceof Struct) {
+              byte[] rawJson = converter.fromConnectData(
+                  record.topic(),
+                  record.valueSchema(),
+                  value
+              );
+              out.write(rawJson);
+              out.write(LINE_SEPARATOR_BYTES);
+            } else {
+              writer.writeObject(value);
+              writer.writeRaw(LINE_SEPARATOR);
+            }
             size+= (value.toString().getBytes().length + LINE_SEPARATOR.getBytes().length);
           } catch (IOException e) {
             throw new ConnectException(e);

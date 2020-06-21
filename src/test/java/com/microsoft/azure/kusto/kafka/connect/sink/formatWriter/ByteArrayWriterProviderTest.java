@@ -61,3 +61,4 @@ public class ByteArrayWriterProviderTest {
     return props;
   }
 }
+

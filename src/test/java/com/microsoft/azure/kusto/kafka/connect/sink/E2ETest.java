@@ -24,16 +24,17 @@ import java.util.logging.Logger;
 
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
-    private String appId = System.getProperty("appId","xxx");
-    private String appKey = System.getProperty("appKey","xxx");
-    private String authority = System.getProperty("authority","xxxx");
-    private String cluster = System.getProperty("cluster","xxxx");
-    private String database = System.getProperty("database","xxxx");
+    private String appId = System.getProperty("appId","e299f8c0-4965-4b1f-9b55-a56dd4b8f6c4");
+    private String appKey = System.getProperty("appKey",".1t-fP8o~a0b8X7-o0.wCr6.0aPBR7~k9L");
+    private String authority = System.getProperty("authority","7f66d0ea-6137-4e37-a835-4530eba9b3ee");
+    private String cluster = System.getProperty("cluster","azureconnector.centralus");
+    private String database = System.getProperty("database","anmol");
     private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
     private Logger log = Logger.getLogger(this.getClass().getName());
 
     @Test
+    @Ignore
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "csv";
         Map<String, String> properties = getProperties();
@@ -90,7 +91,6 @@ public class E2ETest {
     }
 
     @Test
-//    @Ignore
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "avro";
         Map<String, String> properties = getProperties();

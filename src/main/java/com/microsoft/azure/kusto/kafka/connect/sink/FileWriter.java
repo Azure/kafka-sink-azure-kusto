@@ -1,6 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Function;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
@@ -54,6 +55,7 @@ public class FileWriter implements Closeable {
     private RecordWriter recordWriter;
     private File file;
     private KustoSinkConfig config;
+    private final IngestionProperties ingestionProps;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -69,7 +71,8 @@ public class FileWriter implements Closeable {
                       long flushInterval,
                       boolean shouldCompressData,
                       ReentrantReadWriteLock reentrantLock,
-                      KustoSinkConfig config) {
+                      KustoSinkConfig config,
+                      IngestionProperties ingestionProps) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
@@ -82,6 +85,7 @@ public class FileWriter implements Closeable {
 
         // If we failed on flush we want to throw the error from the put() flow.
         flushError = null;
+        this.ingestionProps = ingestionProps;
 
     }
 
@@ -110,7 +114,7 @@ public class FileWriter implements Closeable {
         currentFile = fileProps;
 
         outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
-        recordWriter = recordWriterProvider.getRecordWriter(config,currentFile.path,outputStream);
+        recordWriter = recordWriterProvider.getRecordWriter(config, currentFile.path, outputStream);
     }
 
     void rotate(@Nullable Long offset) throws IOException {
@@ -243,7 +247,11 @@ public class FileWriter implements Closeable {
             recordWriterProvider = new JsonRecordWriterProvider();
         }
         else if (record.valueSchema().type() == Schema.Type.STRUCT) {
-            recordWriterProvider = new AvroRecordWriterProvider();
+            if (ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.json.toString())) {
+                recordWriterProvider = new JsonRecordWriterProvider();
+            } else {
+                recordWriterProvider = new AvroRecordWriterProvider();
+            }
         }
         else if (record.valueSchema().type() == Schema.Type.STRING){
             recordWriterProvider = new StringRecordWriterProvider();

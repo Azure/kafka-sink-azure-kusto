@@ -92,3 +92,4 @@ public class AvroRecordWriterTest {
     return props;
   }
 }
+

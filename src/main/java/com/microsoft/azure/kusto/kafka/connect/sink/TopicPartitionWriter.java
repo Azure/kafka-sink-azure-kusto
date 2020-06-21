@@ -109,7 +109,7 @@ class TopicPartitionWriter {
             try {
                 reentrantReadWriteLock.readLock().lock();
                 this.currentOffset = record.kafkaOffset();
-                fileWriter.writeData(record,record.kafkaOffset());
+                fileWriter.writeData(record, record.kafkaOffset());
             } catch (ConnectException ex) {
                 if (commitImmediately) {
                     throw ex;
@@ -136,7 +136,8 @@ class TopicPartitionWriter {
                 flushInterval,
                 shouldCompressData,
                 reentrantReadWriteLock,
-                config);
+                config,
+            ingestionProps);
     }
 
     void close() {

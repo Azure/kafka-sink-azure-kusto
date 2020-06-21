@@ -1,14 +1,11 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.data.Client;
-import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.source.CompressionType;
-import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;

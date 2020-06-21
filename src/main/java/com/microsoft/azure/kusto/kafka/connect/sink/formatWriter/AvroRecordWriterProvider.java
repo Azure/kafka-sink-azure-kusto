@@ -5,7 +5,6 @@ import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import io.confluent.connect.avro.AvroData;
 import io.confluent.kafka.serializers.NonRecordContainer;
-import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.kafka.connect.data.Schema;
@@ -37,7 +36,6 @@ public class AvroRecordWriterProvider implements RecordWriterProvider<KustoSinkC
             log.info("Opening record writer for: {}", filename);
             org.apache.avro.Schema avroSchema = avroData.fromConnectSchema(schema);
             writer.setFlushOnEveryBlock(true);
-            writer.setCodec(CodecFactory.fromString(conf.getAvroCodec()));
             writer.create(avroSchema, out);
           } catch (IOException e) {
             throw new ConnectException(e);
