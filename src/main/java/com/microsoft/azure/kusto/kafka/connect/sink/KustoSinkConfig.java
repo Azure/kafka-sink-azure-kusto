@@ -1,13 +1,13 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.util.Strings;
 
 import java.util.Arrays;
@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
+  
+    private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
 
     enum BehaviorOnError {
         FAIL, LOG, IGNORE;
@@ -32,8 +34,6 @@ public class KustoSinkConfig extends AbstractConfig {
         }
     }
 
-    static final String CONNECTOR_NAME_CONF = "name";
-    
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL_CONF = "kusto.url";
     private static final String KUSTO_URL_DOC = "Kusto ingestion service URI.";
@@ -64,7 +64,7 @@ public class KustoSinkConfig extends AbstractConfig {
         + "'topic1:table1;topic2:table2;').";
     private static final String KUSTO_TABLES_MAPPING_DISPLAY = "Kusto Table Topics Mapping";
     
-    static final String KUSTO_SINK_TEMP_DIR_CONF = "kusto.sink.tempdir";
+    static final String KUSTO_SINK_TEMP_DIR_CONF = "tempdir.path";
     private static final String KUSTO_SINK_TEMP_DIR_DOC = "Temp dir that will be used by kusto sink to buffer records. "
         + "defaults to system temp dir.";
     private static final String KUSTO_SINK_TEMP_DIR_DISPLAY = "Temporary Directory";
@@ -77,13 +77,9 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DOC = "Kusto sink max staleness in milliseconds (per topic+partition combo).";
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY = "Maximum Flush Interval";
     
-    static final String KUSTO_COMMIT_IMMEDIATLY_CONF = "kusto.sink.commit";
-    private static final String KUSTO_COMMIT_IMMEDIATLY_DOC = "Whether kafka call to commit offsets will flush and commit the last offsets or only the ingested ones\"";
-    private static final String KUSTO_COMMIT_IMMEDIATLY_DISPLAY = "kusto.sink.commit";
-    
     static final String KUSTO_BEHAVIOR_ON_ERROR_CONF = "behavior.on.error";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DOC = "Behavior on error setting for "
-        + "ingestion of records in KustoDB. "
+        + "ingestion of records into KustoDB. "
         + "Must be configured to one of the following:\n"
         
         + "``fail``\n"
@@ -95,34 +91,27 @@ public class KustoSinkConfig extends AbstractConfig {
         + "when error occurs while processing records or ingesting records in KustoDB.\n"
         
         + "``log``\n"
-        + "    Logs the error message when an error occurs "
-        + "while processing records or ingesting records in KustoDB, available in connect logs and "
-        + "continues to process subsequent records. "
-        + "Also, if dlq is enabled i.e. 'dlq.bootstrap.servers' is set to appropriate value, "
-        + "the Connector will send the failed records to Kafka, "
-        + "making them availble in 'dlq.topic.name' topic.";
+        + "    Logs the error message continues to process subsequent records when an error occurs "
+        + "while processing records or ingesting records in KustoDB, available in connect logs.";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DISPLAY = "Behavior On Error";
     
     static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "dlq.bootstrap.servers";
-    private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this to Kafka broker's address(es) "
-        + "to which the Connector should write failed records to.";
+    private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this list to Kafka broker's address(es) "
+        + "to which the Connector should write failed records to. "
+        + "This list should be in the form host-1:port-1,host-2:port-2,…host-n:port-n. ";
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY = "Dead-Letter Queue Bootstrap Servers";
     
     static final String KUSTO_DLQ_TOPIC_NAME_CONF = "dlq.topic.name";
     private static final String KUSTO_DLQ_TOPIC_NAME_DOC = "Set this to Kafka topic's name "
-        + "to which the failed records are to be sinked. "
-        + "By default, the Connector will write failed records to {$connector-name}-error. "
-        + "The Connector will create the topic if not already present with replication factor as 1. "
-        + "To configure this to a desirable value, create topic from CLI prior to running the Connector.";
-    private static final String KUSTO_DLQ_TOPIC_NAME_DEFAULT = "${connector}-error";
+        + "to which the failed records are to be sinked.";
     private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Dead-Letter Queue Topic Name";
     
-    static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "max.retry.time.ms";
+    static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DOC = "Maximum time upto which the Connector "
         + "should retry writing records to KustoDB in case of failures.";
     private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DISPLAY = "Maximum Retry Time";
     
-    static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "retry.backoff.time.ms";
+    static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
         + "the Connector makes to ingest records into KustoDB.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Retry BackOff Time";
@@ -176,7 +165,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_BEHAVIOR_ON_ERROR_DOC,
                 errorAndRetriesGroupName,
                 errorAndRetriesGroupOrder++,
-                Width.MEDIUM,
+                Width.LONG,
                 KUSTO_BEHAVIOR_ON_ERROR_DISPLAY)
             .define(
                 KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF,
@@ -191,7 +180,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_DLQ_TOPIC_NAME_CONF,
                 Type.STRING,
-                KUSTO_DLQ_TOPIC_NAME_DEFAULT,
+                "",
                 Importance.LOW,
                 KUSTO_DLQ_TOPIC_NAME_DOC,
                 errorAndRetriesGroupName,
@@ -226,7 +215,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_TABLES_MAPPING_CONF,
                 Type.STRING,
-                null,
+                ConfigDef.NO_DEFAULT_VALUE,
                 Importance.HIGH,
                 KUSTO_TABLES_MAPPING_DOC,
                 writeGroupName,
@@ -236,7 +225,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_TABLES_MAPPING_CONF_DEPRECATED,
                 Type.STRING,
-                null,
+                ConfigDef.NO_DEFAULT_VALUE,
                 Importance.HIGH,
                 KUSTO_TABLES_MAPPING_DOC + DEPRECATED_CONFIG_DOC,
                 writeGroupName,
@@ -246,7 +235,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_SINK_TEMP_DIR_CONF,
                 Type.STRING,
-                System.getProperty("java.io.tempdir"),
+                System.getProperty("java.io.tmpdir"),
                 Importance.LOW,
                 KUSTO_SINK_TEMP_DIR_DOC,
                 writeGroupName,
@@ -296,17 +285,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 writeGroupName,
                 writeGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY)
-            .define(
-                KUSTO_COMMIT_IMMEDIATLY_CONF,
-                Type.BOOLEAN,
-                false,
-                Importance.LOW,
-                KUSTO_COMMIT_IMMEDIATLY_DOC,
-                writeGroupName,
-                writeGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_COMMIT_IMMEDIATLY_DISPLAY);
+                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY);
     }
 
     private static void defineConnectionConfigs(final String connectionGroupName,
@@ -335,7 +314,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_PASSWORD_CONF,
                 Type.PASSWORD,
-                "",
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_PASSWORD_DOC,
                 connectionGroupName,
@@ -345,7 +324,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_APPKEY_CONF,
                 Type.PASSWORD,
-                "",
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_APPKEY_DOC,
                 connectionGroupName,
@@ -354,8 +333,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_APPKEY_DISPLAY)
             .define(
                 KUSTO_AUTH_APPID_CONF,
-                Type.PASSWORD,
-                "",
+                Type.STRING,
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_APPID_DOC,
                 connectionGroupName,
@@ -364,8 +343,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_APPID_DISPLAY)
             .define(
                 KUSTO_AUTH_AUTHORITY_CONF,
-                Type.PASSWORD,
-                "",
+                Type.STRING,
+                null,
                 Importance.HIGH,
                 KUSTO_AUTH_AUTHORITY_DOC,
                 connectionGroupName,
@@ -387,7 +366,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
   
     public String getAuthAppid() {
-        return this.getPassword(KUSTO_AUTH_APPID_CONF).value();
+        return this.getString(KUSTO_AUTH_APPID_CONF);
     }
   
     public String getAuthAppkey() {
@@ -395,7 +374,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
   
     public String getAuthAuthority() {
-        return this.getPassword(KUSTO_AUTH_AUTHORITY_CONF).value();
+        return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
     }
   
     public String getTopicToTableMapping() {
@@ -423,17 +402,21 @@ public class KustoSinkConfig extends AbstractConfig {
             : getLong(KUSTO_SINK_FLUSH_INTERVAL_MS_CONF);
     }
     
-    public boolean getKustoCommitImmediatly() {
-        return this.getBoolean(KUSTO_COMMIT_IMMEDIATLY_CONF);
-    }
-    
     public BehaviorOnError getBehaviorOnError() {
         return BehaviorOnError.valueOf(
             getString(KUSTO_BEHAVIOR_ON_ERROR_CONF).toUpperCase());
     }
     
     public boolean isDlqEnabled() {
-        return !getDlqBootstrapServers().isEmpty();
+        if (!getDlqBootstrapServers().isEmpty() && !Strings.isNullOrEmpty(getDlqTopicName())) {
+            return true;
+        } else if (getDlqBootstrapServers().isEmpty() && Strings.isNullOrEmpty(getDlqTopicName())) {
+            return false;
+        } else {
+            log.warn("DLQ is disabled, configure both `dlq.bootstrap.servers` and `dlq.topic.name` "
+                + "configurations to enable writing failed records to dlq topic.");
+            return false;
+        }
     }
     
     public List<String> getDlqBootstrapServers() {
@@ -441,12 +424,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
     
     public String getDlqTopicName() {
-        String connectorName = getString(CONNECTOR_NAME_CONF);
-        String dlqTopicName = getString(KUSTO_DLQ_TOPIC_NAME_CONF);
-        dlqTopicName = (dlqTopicName.contains("${connector}"))
-            ? dlqTopicName.replace("${connector}", connectorName)
-            : dlqTopicName;
-        return dlqTopicName;
+        return getString(KUSTO_DLQ_TOPIC_NAME_CONF);
     }
     
     public long getMaxRetryAttempts() {
@@ -463,4 +441,3 @@ public class KustoSinkConfig extends AbstractConfig {
     }
   
 }
-

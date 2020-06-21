@@ -1,6 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Function;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.Nullable;
@@ -44,6 +46,7 @@ public class FileWriter implements Closeable {
     // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
     private FileDescriptor currentFileDescriptor;
     private String flushError;
+    private BehaviorOnError behaviorOnError;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -51,6 +54,7 @@ public class FileWriter implements Closeable {
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
      * @param getFilePath    - Allow external resolving of file name.
      * @param shouldCompressData - Should the FileWriter compress the incoming data
+     * @param behaviorOnError 
      */
     public FileWriter(String basePath,
                       long fileThreshold,
@@ -58,13 +62,15 @@ public class FileWriter implements Closeable {
                       Function<Long, String> getFilePath,
                       long flushInterval,
                       boolean shouldCompressData,
-                      ReentrantReadWriteLock reentrantLock) {
+                      ReentrantReadWriteLock reentrantLock, 
+                      BehaviorOnError behaviorOnError) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
         this.shouldCompressData = shouldCompressData;
+        this.behaviorOnError = behaviorOnError;
 
         // This is a fair lock so that we flush close to the time intervals
         this.reentrantReadWriteLock = reentrantLock;
@@ -140,7 +146,11 @@ public class FileWriter implements Closeable {
             } else {
                 outputStream.flush();
             }
-            onRollCallback.accept(currentFile);
+            try {
+                onRollCallback.accept(currentFile);
+              } catch (ConnectException e) {
+                handleErrors("Failed to write records to KustoDB.");
+            }
             if (delete){
                 dumpFile();
             }
@@ -148,7 +158,17 @@ public class FileWriter implements Closeable {
             outputStream.close();
         }
     }
-
+    
+    private void handleErrors(String message) {
+        if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
+            throw new ConnectException(message);
+        } else if (KustoSinkConfig.BehaviorOnError.LOG == behaviorOnError) {
+            log.error("{}", message);
+        } else {
+            log.debug("{}", message);
+        }
+    }
+    
     private void dumpFile() throws IOException {
         outputStream.close();
         currentFileDescriptor = null;
