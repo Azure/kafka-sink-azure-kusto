@@ -74,7 +74,7 @@ public class KustoSinkConnectorConfigTest {
     }
     
     @Test(expected = ConfigException.class)
-    public void shouldFailWhenErrorToleranceIncorrectlyConfigured() {
+    public void shouldFailWhenBehaviorOnErrorIsIllConfigured() {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
