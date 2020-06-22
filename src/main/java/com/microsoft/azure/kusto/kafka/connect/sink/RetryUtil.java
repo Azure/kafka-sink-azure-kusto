@@ -2,6 +2,10 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This util can be used to calculate exponential backoff time for retries.
+ *
+ */
 public class RetryUtil {
 
   /**

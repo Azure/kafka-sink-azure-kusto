@@ -84,6 +84,15 @@ class TopicPartitionWriter {
     public void handleRollFile(SourceFile fileDescriptor) {
       FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
+      /*
+       * Since retries can be for a longer duration the Kafka Consumer may leave the group. 
+       * This will result in a new Consumer reading records from the last committed offset 
+       * leading to duplication of records in KustoDB. Also, if the error persists, it might also
+       * result in duplicate records being written into DLQ topic.
+       * Recommendation is to set the following worker configuration as `connector.client.config.override.policy=All`
+       * and set the `consumer.override.max.poll.interval.ms` config to a high enough value to 
+       * avoid consumer leaving the group while the Connector is retrying.
+       */
       for (int retryAttempts = 0; true; retryAttempts++) {
           try {
               client.ingestFromFile(fileSourceInfo, ingestionProps);
@@ -92,7 +101,7 @@ class TopicPartitionWriter {
               return;
           } catch (IngestionServiceException | IngestionClientException exception) {
               // TODO : improve handling of specific transient exceptions once the client supports them.
-              //retrying transient exceptions
+              // retrying transient exceptions
               backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
           }
       }
@@ -192,10 +201,6 @@ class TopicPartitionWriter {
   
                 fileWriter.write(value, record);
             } catch (KafkaException ex) {
-                /*
-                 * Just handling the exception with an error message 
-                 * to avoid polluting the logs with duplicate trace.
-                 */
                 throw ex;
             } catch (IOException ex) {
                 handleErrors(ex, "Failed to write records into file for ingestion.");

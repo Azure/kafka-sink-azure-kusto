@@ -58,9 +58,9 @@ key.converter=org.apache.kafka.connect.storage.StringConverter
 value.converter=org.apache.kafka.connect.storage.StringConverter 
 
 tasks.max=1 
-topics=test-topic 
+topics=testing1,testing2'
 
-kusto.tables.topics.mapping=[{'topic': 'testing1','db': 'daniel', 'table': 'KafkaTest','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'daniel', 'table': 'KafkaTest','format': 'csv', 'mapping':'CsvMapping', 'eventDataCompression':'gz'},] 
+kusto.tables.topics.mapping=[{'topic': 'testing1','db': 'daniel', 'table': 'KafkaTest','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'daniel', 'table': 'KafkaTest','format': 'csv', 'mapping':'CsvMapping', 'eventDataCompression':'gz'}] 
 
 kusto.url=https://ingest-mycluster.kusto.windows.net/ 
 

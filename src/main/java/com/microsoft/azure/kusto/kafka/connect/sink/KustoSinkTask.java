@@ -89,7 +89,7 @@ public class KustoSinkTask extends SinkTask {
             }
 
 
-            throw new ConnectException("Failed to initialize KustoIngestClient, please " +
+            throw new ConfigException("Failed to initialize KustoIngestClient, please " +
                     "provide valid credentials. Either Kusto username and password or " +
                     "Kusto appId, appKey, and authority should be configured.");
         } catch (Exception e) {
@@ -125,7 +125,7 @@ public class KustoSinkTask extends SinkTask {
                         config.getAuthPassword()
                 ));
             }
-            throw new ConnectException("Failed to initialize KustoEngineClient, please " +
+            throw new ConfigException("Failed to initialize KustoEngineClient, please " +
                     "provide valid credentials. Either Kusto username and password or " +
                     "Kusto appId, appKey, and authority should be configured.");
         } catch (Exception e) {
@@ -314,6 +314,7 @@ public class KustoSinkTask extends SinkTask {
         config = new KustoSinkConfig(props);
         String url = config.getKustoUrl();
       
+        // TODO : revisit the implementation
         // validateTableMappings(config);
         
         topicsToIngestionProps = getTopicsToIngestionProps(config);

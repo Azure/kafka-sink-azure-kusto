@@ -88,11 +88,11 @@ public class KustoSinkConfig extends AbstractConfig {
         + "while processing records or ingesting records in KustoDB.\n"
         
         + "``ignore``\n"
-        + "    Continues to process next set of records. "
+        + "    Continues to process next set of records "
         + "when error occurs while processing records or ingesting records in KustoDB.\n"
         
         + "``log``\n"
-        + "    Logs the error message continues to process subsequent records when an error occurs "
+        + "    Logs the error message and continues to process subsequent records when an error occurs "
         + "while processing records or ingesting records in KustoDB, available in connect logs.";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DISPLAY = "Behavior On Error";
     
@@ -110,12 +110,12 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DOC = "Maximum time upto which the Connector "
         + "should retry writing records to KustoDB in case of failures.";
-    private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DISPLAY = "Maximum Retry Time";
+    private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DISPLAY = "Errors Maximum Retry Time";
     
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
         + "the Connector makes to ingest records into KustoDB.";
-    private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Retry BackOff Time";
+    private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
     
     // Deprecated configs
     static final String KUSTO_TABLES_MAPPING_CONF_DEPRECATED = "kusto.tables.topics_mapping";
@@ -147,7 +147,6 @@ public class KustoSinkConfig extends AbstractConfig {
         int writeGroupOrder = 0;
         int errorAndRetriesGroupOrder = 0;
         
-        //TODO: Add display name, validators, recommenders to configs.
         ConfigDef result = new ConfigDef();
         
         defineConnectionConfigs(connectionGroupName, connectionGroupOrder, result);

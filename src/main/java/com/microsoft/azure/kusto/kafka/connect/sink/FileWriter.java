@@ -53,8 +53,8 @@ public class FileWriter implements Closeable {
      * @param fileThreshold  - Max size, uncompressed bytes.
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
      * @param getFilePath    - Allow external resolving of file name.
-     * @param shouldCompressData - Should the FileWriter compress the incoming data
-     * @param behaviorOnError 
+     * @param shouldCompressData - Should the FileWriter compress the incoming data.
+     * @param behaviorOnError - Either log, fail or ignore errors based on the mode.
      */
     public FileWriter(String basePath,
                       long fileThreshold,
@@ -149,6 +149,13 @@ public class FileWriter implements Closeable {
             try {
                 onRollCallback.accept(currentFile);
               } catch (ConnectException e) {
+                /*
+                 * Swallow the exception and continue to process subsequent records 
+                 * when behavior.on.error is not set to fail mode.
+                 * 
+                 * Also, throwing/logging the exception with just a message to 
+                 * avoid polluting logs with duplicate trace.
+                 */
                 handleErrors("Failed to write records to KustoDB.");
             }
             if (delete){
