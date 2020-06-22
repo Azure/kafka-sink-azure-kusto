@@ -75,13 +75,13 @@ kusto.sink.tempdir=/var/tmp/
 flush.size.bytes=1000
 flush.interval.ms=300000
 
-error.tolerance=NONE
+behavior.on.error=FAIL
 
 dlq.bootstrap.servers=localhost:9092
 dlq.topic.name=test-topic-error
 
-max.retry.time.ms=60000
-retry.backoff.time.ms=5000
+errors.retry.max.time.ms=60000
+errors.retry.backoff.time.ms=5000
 ````
 
 Aggregation in the sink is done using files, these are sent to kusto if the aggregated file has reached the flush_size 
