@@ -46,8 +46,9 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://.kusto.windows.net");
 
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
@@ -69,8 +70,9 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
         props.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, System.getProperty("java.io.tmpdir"));
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
@@ -98,8 +100,9 @@ public class KustoSinkTaskTest {
         props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
         props.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, System.getProperty("java.io.tmpdir"));
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
@@ -126,8 +129,9 @@ public class KustoSinkTaskTest {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
         props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv', 'eventDataCompression':'gz'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_USERNAME_CONF, "test@test.com");
-        props.put(KustoSinkConfig.KUSTO_AUTH_PASSWORD_CONF, "123456!");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
 
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);

@@ -31,6 +31,9 @@ public class KustoSinkConnectorConfigTest {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         config = new KustoSinkConfig(settings);
         assertNotNull(config);
     }
@@ -40,6 +43,9 @@ public class KustoSinkConnectorConfigTest {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         config = new KustoSinkConfig(settings);
         assertNotNull(config.getKustoUrl());
         assertNotNull(config.getFlushSizeBytes());
@@ -52,6 +58,18 @@ public class KustoSinkConnectorConfigTest {
     public void shouldThrowExceptionWhenKustoURLNotGiven() {
         // Adding required Configuration with no default value.
         settings.remove(KustoSinkConfig.KUSTO_URL_CONF);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+        config = new KustoSinkConfig(settings);
+    }
+    
+    @Test(expected = ConfigException.class)
+    public void shouldThrowExceptionWhenAppIdNotGiven() {
+        // Adding required Configuration with no default value.
+        settings.remove(KustoSinkConfig.KUSTO_URL_CONF);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         config = new KustoSinkConfig(settings);
     }
     
@@ -60,6 +78,9 @@ public class KustoSinkConnectorConfigTest {
         // Adding required Configuration with no default value.
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         settings.put(KustoSinkConfig.KUSTO_BEHAVIOR_ON_ERROR_CONF, "DummyValue");
         config = new KustoSinkConfig(settings);
     }
@@ -68,6 +89,9 @@ public class KustoSinkConnectorConfigTest {
     public void verifyDlqSettings() {
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         settings.put(KustoSinkConfig.KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF, "localhost:8081,localhost:8082");
         settings.put(KustoSinkConfig.KUSTO_DLQ_TOPIC_NAME_CONF, "dlq-error-topic");
         config = new KustoSinkConfig(settings);

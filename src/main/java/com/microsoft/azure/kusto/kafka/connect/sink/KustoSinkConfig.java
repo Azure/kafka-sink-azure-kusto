@@ -38,16 +38,8 @@ public class KustoSinkConfig extends AbstractConfig {
     // TODO: this might need to be per kusto cluster...
     static final String KUSTO_URL_CONF = "kusto.url";
     private static final String KUSTO_URL_DOC = "Kusto ingestion service URI.";
-    private static final String KUSTO_URL_DISPLAY = "Kusto cluster URI";
+    private static final String KUSTO_URL_DISPLAY = "Kusto cluster ingestion URI";
 
-    static final String KUSTO_AUTH_USERNAME_CONF = "kusto.auth.username";
-    private static final String KUSTO_AUTH_USERNAME_DOC = "Kusto username for authentication, also configure kusto.auth.password.";
-    private static final String KUSTO_AUTH_USERNAME_DISPLAY = "Kusto Auth Username";
-    
-    static final String KUSTO_AUTH_PASSWORD_CONF = "kusto.auth.password";
-    private static final String KUSTO_AUTH_PASSWORD_DOC = "Kusto password for the configured username.";
-    private static final String KUSTO_AUTH_PASSWORD_DISPLAY = "Kusto Auth Password";
-    
     static final String KUSTO_AUTH_APPID_CONF = "aad.auth.appid";
     private static final String KUSTO_AUTH_APPID_DOC = "Application Id for Azure Active Directory authentication.";
     private static final String KUSTO_AUTH_APPID_DISPLAY = "Kusto Auth AppID";
@@ -307,29 +299,9 @@ public class KustoSinkConfig extends AbstractConfig {
                 Width.MEDIUM,
                 KUSTO_URL_DISPLAY)
             .define(
-                KUSTO_AUTH_USERNAME_CONF,
-                Type.STRING,
-                null,
-                Importance.HIGH,
-                KUSTO_AUTH_USERNAME_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_AUTH_USERNAME_DISPLAY)
-            .define(
-                KUSTO_AUTH_PASSWORD_CONF,
-                Type.PASSWORD,
-                null,
-                Importance.HIGH,
-                KUSTO_AUTH_PASSWORD_DOC,
-                connectionGroupName,
-                connectionGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_AUTH_PASSWORD_DISPLAY)
-            .define(
                 KUSTO_AUTH_APPKEY_CONF,
                 Type.PASSWORD,
-                null,
+                ConfigDef.NO_DEFAULT_VALUE,
                 Importance.HIGH,
                 KUSTO_AUTH_APPKEY_DOC,
                 connectionGroupName,
@@ -339,7 +311,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_APPID_CONF,
                 Type.STRING,
-                null,
+                ConfigDef.NO_DEFAULT_VALUE,
                 Importance.HIGH,
                 KUSTO_AUTH_APPID_DOC,
                 connectionGroupName,
@@ -349,7 +321,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_AUTH_AUTHORITY_CONF,
                 Type.STRING,
-                null,
+                ConfigDef.NO_DEFAULT_VALUE,
                 Importance.HIGH,
                 KUSTO_AUTH_AUTHORITY_DOC,
                 connectionGroupName,
@@ -362,14 +334,6 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getString(KUSTO_URL_CONF);
     }
 
-    public String getAuthUsername() {
-        return this.getString(KUSTO_AUTH_USERNAME_CONF);
-    }
-
-    public String getAuthPassword() {
-        return this.getPassword(KUSTO_AUTH_PASSWORD_CONF).value();
-    }
-  
     public String getAuthAppid() {
         return this.getString(KUSTO_AUTH_APPID_CONF);
     }

@@ -76,19 +76,6 @@ public class KustoSinkTask extends SinkTask {
                 return IngestClientFactory.createClient(kcsb);
             }
 
-            if (config.getAuthUsername() != null) {
-                if (Strings.isNullOrEmpty(config.getAuthPassword())) {
-                    throw new ConfigException("Kusto authentication missing Password.");
-                }
-
-                return IngestClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
-                        config.getKustoUrl(),
-                        config.getAuthUsername(),
-                        config.getAuthPassword()
-                ));
-            }
-
-
             throw new ConfigException("Failed to initialize KustoIngestClient, please " +
                     "provide valid credentials. Either Kusto username and password or " +
                     "Kusto appId, appKey, and authority should be configured.");
@@ -115,16 +102,6 @@ public class KustoSinkTask extends SinkTask {
                 return ClientFactory.createClient(kcsb);
             }
 
-            if (config.getAuthUsername() != null) {
-                if (Strings.isNullOrEmpty(config.getAuthPassword())) {
-                    throw new ConfigException("Kusto authentication missing Password.");
-                }
-                return ClientFactory.createClient(ConnectionStringBuilder.createWithAadUserCredentials(
-                        engineClientURL,
-                        config.getAuthUsername(),
-                        config.getAuthPassword()
-                ));
-            }
             throw new ConfigException("Failed to initialize KustoEngineClient, please " +
                     "provide valid credentials. Either Kusto username and password or " +
                     "Kusto appId, appKey, and authority should be configured.");
@@ -249,12 +226,7 @@ public class KustoSinkTask extends SinkTask {
         String table = mapping.getString("table");
         try {
 
-            String authenticateWith;
-            if (config.getAuthAppid() != null) {
-                authenticateWith = "aadapp=" + config.getAuthAppid();
-            } else {
-                authenticateWith = "aaduser=" + config.getAuthUsername();
-            }
+            String authenticateWith = "aadapp=" + config.getAuthAppid();
             KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, authenticateWith, database, table));
             boolean hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
             if (hasAccess) {
