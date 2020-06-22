@@ -45,18 +45,7 @@ public class StringRecordWriterProviderTest {
 
   protected Map<String, String> getProperties() {
     Map<String, String> props = new HashMap<>();
-    props.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
-    props.put("bootstrap.servers", "localhost:9092");
-    props.put("topics", "kafka1");
-    props.put("tasks.max", "1");
     props.put("kusto.url", "xxx");
-    props.put("kusto.auth.authority", "xxx");
-    props.put("kusto.auth.appid", "xxx");
-    props.put("kusto.auth.appkey", "xxx");
-    props.put("kusto.sink.tempdir", "/home/hasher/microsoft/kafka-sink-azure-kusto/src/test/resources/testE2E/csv");
-    props.put("value.converter.schemas.enable", "false");
-    props.put("key.converter.schemas.enable", "false");
-    props.put("kusto.sink.flush_size", "10000");
     props.put("kusto.tables.topics.mapping", "[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
     return props;
   }

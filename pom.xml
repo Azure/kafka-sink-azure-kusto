@@ -69,7 +69,6 @@
     </developers>
     <properties>
         <kafka.version>1.0.0</kafka.version>
-        <kafka.scala.version>2.12</kafka.scala.version>
         <json.version>20090211</json.version>
         <commonio.version>2.6</commonio.version>
         <kusto-sdk.version>2.1.0</kusto-sdk.version>
@@ -119,7 +118,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <version>4.7</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -146,24 +145,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>connect-runtime</artifactId>
-            <version>${kafka.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>connect-runtime</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>kafka-connect-avro-converter</artifactId>
             <version>5.2.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.parquet</groupId>
-            <artifactId>parquet-avro</artifactId>
-            <version>1.8.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>

@@ -11,10 +11,23 @@ import org.junit.Before;
 import org.junit.Test;
 import org.testng.Assert;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Objects;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.AbstractMap;
+
+
+
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -138,7 +151,7 @@ public class FileWriterTest {
         FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock(), config, ingestionProps);
 
         String msg = "Message";
-        SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg.getBytes(), 10);
+        SinkRecord record = new SinkRecord("topic", 1, null, null, null, msg, 10);
         fileWriter.writeData(record, null);
         Thread.sleep(1000);
 
@@ -156,7 +169,7 @@ public class FileWriterTest {
         FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, false, new ReentrantReadWriteLock(), config, ingestionProps);
 
         String msg2 = "Second Message";
-        SinkRecord record1 = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg2.getBytes(), 10);
+        SinkRecord record1 = new SinkRecord("topic", 1, null, null, null, msg2, 10);
         fileWriter2.writeData(record1, null);
         Thread.sleep(1010);
 
@@ -301,18 +314,7 @@ public class FileWriterTest {
 
     protected Map<String, String> getProperties() {
         Map<String, String> props = new HashMap<>();
-        props.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
-        props.put("bootstrap.servers","localhost:9092");
-        props.put("topics","kafka1");
-        props.put("tasks.max","1");
         props.put("kusto.url","xxx");
-        props.put("kusto.auth.authority","xxx");
-        props.put("kusto.auth.appid","xxx");
-        props.put("kusto.auth.appkey","xxx");
-        props.put("kusto.sink.tempdir","/home/hasher/microsoft/kafka-sink-azure-kusto/src/test/resources/testE2E/csv");
-        props.put("value.converter.schemas.enable","false");
-        props.put("key.converter.schemas.enable","false");
-        props.put("kusto.sink.flush_size", "10000");
         props.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
         return props;
     }

@@ -246,17 +246,17 @@ public class FileWriter implements Closeable {
         if (record.value() instanceof Map) {
             recordWriterProvider = new JsonRecordWriterProvider();
         }
-        else if (record.valueSchema().type() == Schema.Type.STRUCT) {
+        else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
             if (ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.json.toString())) {
                 recordWriterProvider = new JsonRecordWriterProvider();
             } else {
                 recordWriterProvider = new AvroRecordWriterProvider();
             }
         }
-        else if (record.valueSchema().type() == Schema.Type.STRING){
+        else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)){
             recordWriterProvider = new StringRecordWriterProvider();
         }
-        else if (record.valueSchema().type() == Schema.Type.BYTES){
+        else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.BYTES)){
             recordWriterProvider = new ByteRecordWriterProvider();
         }
     }
