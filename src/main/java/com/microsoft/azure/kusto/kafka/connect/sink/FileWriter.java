@@ -129,7 +129,6 @@ public class FileWriter implements Closeable {
                 GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
                 gzip.finish();
             } else {
-                recordWriter.commit();
                 outputStream.flush();
             }
             String err = onRollCallback.apply(currentFile);
@@ -249,8 +248,12 @@ public class FileWriter implements Closeable {
         else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
             if (ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.json.toString())) {
                 recordWriterProvider = new JsonRecordWriterProvider();
-            } else {
+            } else if(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())) {
                 recordWriterProvider = new AvroRecordWriterProvider();
+            } else {
+                throw new ConnectException(String.format("Invalid Kusto table mapping, Kafka records of type "
+                   + "Avro and JSON-with-schema can only be ingested to Kusto table having Avro or JSON mapping. "
+                   + "Currently, it is of type %s.", ingestionProps.getDataFormat()));
             }
         }
         else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)){
