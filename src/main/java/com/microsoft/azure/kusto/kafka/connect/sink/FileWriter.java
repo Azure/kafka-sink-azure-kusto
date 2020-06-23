@@ -251,7 +251,9 @@ public class FileWriter implements Closeable {
             } else if(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())) {
                 recordWriterProvider = new AvroRecordWriterProvider();
             } else {
-                throw new ConnectException("Invalid data format for struct schema.");
+                throw new ConnectException(String.format("Invalid Kusto table mapping, Kafka records of type "
+                   + "Avro and JSON-with-schema can only be ingested to Kusto table having Avro or JSON mapping. "
+                   + "Currently, it is of type %s.", ingestionProps.getDataFormat()));
             }
         }
         else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)){
