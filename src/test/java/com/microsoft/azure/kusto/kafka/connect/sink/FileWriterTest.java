@@ -1,18 +1,33 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Function;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.testng.Assert;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.io.File;
+import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Objects;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.AbstractMap;
+
+
+
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -20,14 +35,18 @@ import java.util.zip.GZIPOutputStream;
 
 public class FileWriterTest {
     private File currentDirectory;
+    private KustoSinkConfig config;
+    IngestionProperties ingestionProps;
 
     @Before
     public final void before() {
+        config = new KustoSinkConfig(getProperties());
         currentDirectory = new File(Paths.get(
                 System.getProperty("java.io.tmpdir"),
                 FileWriter.class.getSimpleName(),
                 String.valueOf(Instant.now().toEpochMilli())
         ).toString());
+        ingestionProps = new IngestionProperties("db", "table");
     }
 
     @After
@@ -56,8 +75,10 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName = (Long l) -> FILE_PATH;
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock());
-
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock(), config, ingestionProps);
+        String msg = "Line number 1: This is a message from the other size";
+        SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg.getBytes(), 10);
+        fileWriter.initializeRecordWriter(record);
         fileWriter.openFile(null);
 
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
@@ -86,11 +107,12 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString() + "csv.gz";
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock(), config, ingestionProps);
 
         for (int i = 0; i < 9; i++) {
             String msg = String.format("Line number %d : This is a message from the other size", i);
-            fileWriter.write(msg.getBytes(StandardCharsets.UTF_8), null);
+            SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg.getBytes(), 10);
+            fileWriter.writeData(record,null);
         }
 
         Assert.assertEquals(files.size(), 4);
@@ -104,7 +126,7 @@ public class FileWriterTest {
 
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
-        Assert.assertEquals(sortedFiles, Arrays.asList((long) 106, (long) 106, (long) 106, (long) 106, (long) 53));
+        Assert.assertEquals(sortedFiles, Arrays.asList((long) 108, (long) 108, (long) 108, (long) 108, (long) 54));
 
         // make sure folder is clear once done
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
@@ -126,10 +148,11 @@ public class FileWriterTest {
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + "csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock(), config, ingestionProps);
 
         String msg = "Message";
-        fileWriter.write(msg.getBytes(StandardCharsets.UTF_8), null);
+        SinkRecord record = new SinkRecord("topic", 1, null, null, null, msg, 10);
+        fileWriter.writeData(record, null);
         Thread.sleep(1000);
 
         Assert.assertEquals(files.size(), 0);
@@ -143,18 +166,18 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName2 = (Long l) -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed
-        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, false, new ReentrantReadWriteLock(), config, ingestionProps);
 
         String msg2 = "Second Message";
-
-        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), null);
+        SinkRecord record1 = new SinkRecord("topic", 1, null, null, null, msg2, 10);
+        fileWriter2.writeData(record1, null);
         Thread.sleep(1010);
 
         Assert.assertEquals(files.size(), 2);
 
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
-        Assert.assertEquals(sortedFiles, Arrays.asList((long) 14, (long) 7));
+        Assert.assertEquals(sortedFiles, Arrays.asList((long) 15, (long) 8));
 
         // make sure folder is clear once done
         fileWriter2.close();
@@ -191,17 +214,18 @@ public class FileWriterTest {
             }
             return Paths.get(path, Long.toString(offset)).toString();
         };
-        FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, false, reentrantReadWriteLock);
+        FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, false, reentrantReadWriteLock, config, ingestionProps);
         String msg2 = "Second Message";
         reentrantReadWriteLock.readLock().lock();
         long recordOffset = 1;
-        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), recordOffset);
+        SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg2.getBytes(), recordOffset);
+        fileWriter2.writeData(record, recordOffset);
         offsets.currentOffset = recordOffset;
 
         // Wake the flush by interval in the middle of the writing
         Thread.sleep(510);
         recordOffset = 2;
-        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), recordOffset);
+        fileWriter2.writeData(record, recordOffset);
         offsets.currentOffset = recordOffset;
         reentrantReadWriteLock.readLock().unlock();
 
@@ -210,7 +234,7 @@ public class FileWriterTest {
         reentrantReadWriteLock.readLock().lock();
         recordOffset = 3;
         offsets.currentOffset = recordOffset;
-        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), recordOffset);
+        fileWriter2.writeData(record, recordOffset);
         reentrantReadWriteLock.readLock().unlock();
 
         Thread.sleep(510);
@@ -219,7 +243,7 @@ public class FileWriterTest {
         Assert.assertEquals(files.size(), 2);
 
         // Make sure that the first file is from offset 1 till 2 and second is from 3 till 3
-        Assert.assertEquals(files.stream().map(Map.Entry::getValue).toArray(Long[]::new), new Long[]{28L, 14L});
+        Assert.assertEquals(files.stream().map(Map.Entry::getValue).toArray(Long[]::new), new Long[]{30L, 15L});
         Assert.assertEquals(files.stream().map((s)->s.getKey().substring(path.length() + 1)).toArray(String[]::new), new String[]{"1", "3"});
         Assert.assertEquals(committedOffsets, new ArrayList<Long>(){{add(2L);add(3L);}});
 
@@ -248,11 +272,12 @@ public class FileWriterTest {
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, false, new ReentrantReadWriteLock(), config, ingestionProps);
 
         gzipOutputStream.write(msg.getBytes());
         gzipOutputStream.finish();
-        fileWriter.write(byteArrayOutputStream.toByteArray(), null);
+        SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, byteArrayOutputStream.toByteArray(), 10);
+        fileWriter.writeData(record, null);
 
         fileWriter.close();
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
@@ -285,5 +310,12 @@ public class FileWriterTest {
             }
             return null;
         };
+    }
+
+    protected Map<String, String> getProperties() {
+        Map<String, String> props = new HashMap<>();
+        props.put("kusto.url","xxx");
+        props.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
+        return props;
     }
 }

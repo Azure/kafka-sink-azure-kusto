@@ -107,7 +107,6 @@ public class KustoSinkConfig extends AbstractConfig {
         + "the Connector makes to ingest records into KustoDB.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Retry BackOff Time";
 
-
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
     }
@@ -296,7 +295,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getKustoAuthAppid() {
-        return KUSTO_AUTH_APPID_CONF;
+        return this.getString(KUSTO_AUTH_APPID_CONF);
     }
 
     public String getAuthAppkey() {
@@ -304,7 +303,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getAuthAuthority() {
-        return KUSTO_AUTH_AUTHORITY_CONF;
+        return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
     }
 
     public String getTopicToTableMapping() {
