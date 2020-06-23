@@ -120,12 +120,10 @@ public class KustoSinkConfig extends AbstractConfig {
       final String connectionGroupName = "Connection";
       final String writeGroupName = "Writes";
       final String errorAndRetriesGroupName = "Error Handling and Retries";
-      final String formatGroupName = "formatter";
 
       int connectionGroupOrder = 0;
       int writeGroupOrder = 0;
       int errorAndRetriesGroupOrder = 0;
-      int formatGroupNameOrder =0;
 
       //TODO: Add display name, validators, recommenders to configs.
         return new ConfigDef()

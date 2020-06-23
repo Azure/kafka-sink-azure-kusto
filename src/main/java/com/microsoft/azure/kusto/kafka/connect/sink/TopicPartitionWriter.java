@@ -49,7 +49,7 @@ class TopicPartitionWriter {
         this.eventDataCompression = ingestionProps.eventDataCompression;
         this.currentRetries = defaultRetriesCount;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
-        this.config=config;
+        this.config = config;
     }
 
     String handleRollFile(SourceFile fileDescriptor) {
@@ -137,7 +137,7 @@ class TopicPartitionWriter {
                 shouldCompressData,
                 reentrantReadWriteLock,
                 config,
-            ingestionProps);
+                ingestionProps);
     }
 
     void close() {
