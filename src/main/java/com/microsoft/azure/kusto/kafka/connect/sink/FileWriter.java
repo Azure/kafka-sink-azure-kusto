@@ -129,7 +129,6 @@ public class FileWriter implements Closeable {
                 GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
                 gzip.finish();
             } else {
-                recordWriter.commit();
                 outputStream.flush();
             }
             String err = onRollCallback.apply(currentFile);
@@ -249,8 +248,10 @@ public class FileWriter implements Closeable {
         else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
             if (ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.json.toString())) {
                 recordWriterProvider = new JsonRecordWriterProvider();
-            } else {
+            } else if(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())) {
                 recordWriterProvider = new AvroRecordWriterProvider();
+            } else {
+                throw new ConnectException("Invalid data format for struct schema.");
             }
         }
         else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)){

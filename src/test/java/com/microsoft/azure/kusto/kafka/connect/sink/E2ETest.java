@@ -98,7 +98,7 @@ public class E2ETest {
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "avro";
         Map<String, String> properties = getProperties();
-        properties.put("kusto.tables.topics.mapping","[{'topic': 'testPartition2','db': '"+ database + "', 'table': '"+ table +"','format': 'avro', 'mapping':'avri'}]");
+        properties.put("kusto.tables.topics.mapping","[{'topic': 'testPartition2','db': '"+ database + "', 'table': '"+ table +"','format': 'avro', 'mapping':'avroMapping'}]");
         KustoSinkConfig config = new KustoSinkConfig(properties);
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
         Client engineClient = ClientFactory.createClient(engineCsb);
@@ -109,7 +109,7 @@ public class E2ETest {
             if (tableBaseName.startsWith(testPrefix)) {
                 engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
             }
-            engineClient.execute(database, String.format(".create table ['%s'] ingestion avro mapping 'avri' " +
+            engineClient.execute(database, String.format(".create table ['%s'] ingestion avro mapping 'avroMapping' " +
                     "'[" +
                     "{\"column\": \"ColA\", \"Properties\":{\"Field\":\"XText\"}}," +
                     "{\"column\": \"ColB\", \"Properties\":{\"Field\":\"RowNumber\"}}" +
@@ -120,7 +120,7 @@ public class E2ETest {
             TopicIngestionProperties props2 = new TopicIngestionProperties();
             props2.ingestionProperties = ingestionProperties;
             props2.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
-            props2.ingestionProperties.setIngestionMapping("avri", IngestionMapping.IngestionMappingKind.Avro);
+            props2.ingestionProperties.setIngestionMapping("avroMapping", IngestionMapping.IngestionMappingKind.Avro);
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
             TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, Paths.get(basePath, "avro").toString(), 10, 300000, config);
             writer2.open();
