@@ -101,7 +101,7 @@ public class TopicPartitionWriterTest {
         KustoSinkConfig config= new KustoSinkConfig(settings);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config);
 
-        Assert.assertEquals(writer.getFilePath(null), Paths.get(basePath, "kafka_testTopic_11_0.csv.gz").toString());
+        Assert.assertEquals(writer.getFilePath(null), Paths.get(config.getTempDirPath(), "kafka_testTopic_11_0.csv.gz").toString());
     }
 
     @Test
@@ -127,7 +127,7 @@ public class TopicPartitionWriterTest {
             writer.writeRecord(record);
         }
 
-        Assert.assertEquals(writer.getFilePath(null), Paths.get(basePath, "kafka_testTopic_11_5.csv.gz").toString());
+        Assert.assertEquals(writer.getFilePath(null), Paths.get(config.getTempDirPath(), "kafka_testTopic_11_5.csv.gz").toString());
     }
 
     @Test
@@ -199,7 +199,7 @@ public class TopicPartitionWriterTest {
             writer.writeRecord(record);
         }
 
-        Assert.assertEquals(writer.fileWriter.currentFile.path, Paths.get(basePath, String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DATA_FORMAT.csv.name())).toString());
+        Assert.assertEquals(writer.fileWriter.currentFile.path, Paths.get(config.getTempDirPath(), String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DATA_FORMAT.csv.name())).toString());
         writer.close();
     }
 
@@ -236,7 +236,7 @@ public class TopicPartitionWriterTest {
         Assert.assertEquals(writer.currentOffset, 16);
 
         String currentFileName = writer.fileWriter.currentFile.path;
-        Assert.assertEquals(currentFileName, Paths.get(basePath, String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 15, IngestionProperties.DATA_FORMAT.csv.name())).toString());
+        Assert.assertEquals(currentFileName, Paths.get(config.getTempDirPath(), String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 15, IngestionProperties.DATA_FORMAT.csv.name())).toString());
 
         // Read
         writer.fileWriter.finishFile(false);
@@ -279,7 +279,7 @@ public class TopicPartitionWriterTest {
         Assert.assertEquals(writer.currentOffset, 10);
 
         String currentFileName = writer.fileWriter.currentFile.path;
-        Assert.assertEquals(currentFileName, Paths.get(basePath, String.format("kafka_%s_%d_%d.%s", tp.topic(), tp.partition(), 10, IngestionProperties.DATA_FORMAT.avro.name())).toString());
+        Assert.assertEquals(currentFileName, Paths.get(config.getTempDirPath(), String.format("kafka_%s_%d_%d.%s", tp.topic(), tp.partition(), 10, IngestionProperties.DATA_FORMAT.avro.name())).toString());
         writer.close();
     }
 
