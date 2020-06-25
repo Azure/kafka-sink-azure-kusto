@@ -123,14 +123,15 @@ public class KustoSinkConfig extends AbstractConfig {
 
     private String createAndReturnTempDirPath() {
         String systemTempDirPath = getString(KUSTO_SINK_TEMP_DIR_CONF);
-        String tempDir = systemTempDirPath + "-" + UUID.randomUUID().toString();
-        Path path = Paths.get(tempDir);
+        String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
+        Path path = Paths.get(systemTempDirPath,tempDir);
+
         try {
             Files.createDirectories(path);
         } catch (IOException e) {
             throw new ConfigException("Failed to create temp directory="+tempDir, e);
         }
-        return tempDir;
+        return path.toString();
     }
 
     public KustoSinkConfig(Map<String, String> parsedConfig) {
