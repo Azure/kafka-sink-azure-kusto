@@ -124,7 +124,7 @@ public class KustoSinkConfig extends AbstractConfig {
     private String createAndReturnTempDirPath() {
         String systemTempDirPath = getString(KUSTO_SINK_TEMP_DIR_CONF);
         String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
-        Path path = Paths.get(systemTempDirPath,tempDir);
+        Path path = Paths.get(systemTempDirPath, tempDir);
 
         try {
             Files.createDirectories(path);
