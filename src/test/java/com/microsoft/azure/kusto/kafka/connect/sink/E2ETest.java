@@ -68,11 +68,9 @@ public class E2ETest {
             props.ingestionProperties = ingestionProperties;
             props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
             props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.Csv);
-            Map<String, String> settings = new HashMap<>();
-            settings.put(KustoSinkConfig.KUSTO_URL_CONF, String.format("https://ingest-%s.kusto.windows.net", cluster));
-            settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, Paths.get(basePath, "csv").toString());
-            settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
-            settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
+            String KustoUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
+            String basepath = Paths.get(basePath, "csv").toString();
+            Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "mappy", fileThreshold, flushInterval);
             KustoSinkConfig config= new KustoSinkConfig(settings);
 
             TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config);
@@ -123,11 +121,12 @@ public class E2ETest {
             props2.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
             props2.ingestionProperties.setIngestionMapping("avri", IngestionMapping.IngestionMappingKind.Avro);
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
-            Map<String, String> settings = new HashMap<>();
-            settings.put(KustoSinkConfig.KUSTO_URL_CONF, String.format("https://ingest-%s.kusto.windows.net", cluster));
-            settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, Paths.get(basePath, "avro").toString());
-            settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(100));
-            settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(300000));
+
+            String KustoUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
+            String basepath = Paths.get(basePath, "avro").toString();
+            long fileThreshold = 100;
+            long flushInterval = 300000;
+            Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "avri", fileThreshold, flushInterval);
             KustoSinkConfig config= new KustoSinkConfig(settings);
             TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config);
             writer2.open();
@@ -172,5 +171,19 @@ public class E2ETest {
         }
         Assertions.assertEquals(rowCount, expectedNumberOfRows);
         this.log.info("Succesfully ingested " + expectedNumberOfRows + " records.");
+    }
+
+    private Map<String, String> getKustoConfigs(String clusterUrl, String basePath,String tableMapping, long fileThreshold,
+                                                long flushInterval) {
+        Map<String, String> settings = new HashMap<>();
+        settings.put(KustoSinkConfig.KUSTO_URL_CONF, clusterUrl);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, tableMapping);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, appId);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, appKey);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, authority);
+        settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+        settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
+        settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
+        return settings;
     }
 }
