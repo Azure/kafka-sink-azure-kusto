@@ -11,9 +11,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.util.Strings;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
@@ -109,24 +114,12 @@ public class KustoSinkConfig extends AbstractConfig {
         + "the Connector makes to ingest records into Kusto table.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
     
-    // Deprecated configs
-    static final String KUSTO_TABLES_MAPPING_CONF_DEPRECATED = "kusto.tables.topics_mapping";
-    static final String KUSTO_SINK_FLUSH_SIZE_BYTES_CONF_DEPRECATED = "kusto.sink.flush_size";
-    static final String KUSTO_SINK_FLUSH_INTERVAL_MS_CONF_DEPRECATED = "kusto.sink.flush_interval_ms";
-    
-    private static final String DEPRECATED_CONFIG_DOC = "This configuration has been deprecated.";
-
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
     }
 
     public KustoSinkConfig(Map<String, String> parsedConfig) {
         this(getConfig(), parsedConfig);
-        
-        if (Strings.isNullOrEmpty(getTopicToTableMapping())) {
-            throw new ConfigException("Missing 'kusto.tables.topics.mapping' configuration, "
-                + "please configure it to appropriate value.");
-        }
     }
 
     public static ConfigDef getConfig() {
@@ -214,19 +207,9 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_TABLES_MAPPING_CONF,
                 Type.STRING,
-                "",
+                ConfigDef.NO_DEFAULT_VALUE,
                 Importance.HIGH,
                 KUSTO_TABLES_MAPPING_DOC,
-                writeGroupName,
-                writeGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_TABLES_MAPPING_DISPLAY)
-            .define(
-                KUSTO_TABLES_MAPPING_CONF_DEPRECATED,
-                Type.STRING,
-                "",
-                Importance.HIGH,
-                KUSTO_TABLES_MAPPING_DOC + DEPRECATED_CONFIG_DOC,
                 writeGroupName,
                 writeGroupOrder++,
                 Width.MEDIUM,
@@ -253,34 +236,12 @@ public class KustoSinkConfig extends AbstractConfig {
                 Width.MEDIUM,
                 KUSTO_SINK_FLUSH_SIZE_BYTES_DISPLAY)
             .define(
-                KUSTO_SINK_FLUSH_SIZE_BYTES_CONF_DEPRECATED,
-                Type.LONG,
-                FileUtils.ONE_MB,
-                ConfigDef.Range.atLeast(100),
-                Importance.MEDIUM,
-                KUSTO_SINK_FLUSH_SIZE_BYTES_DOC + DEPRECATED_CONFIG_DOC,
-                writeGroupName,
-                writeGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_SINK_FLUSH_SIZE_BYTES_DISPLAY)
-            .define(
                 KUSTO_SINK_FLUSH_INTERVAL_MS_CONF,
                 Type.LONG,
                 TimeUnit.SECONDS.toMillis(300),
                 ConfigDef.Range.atLeast(100),
                 Importance.HIGH,
                 KUSTO_SINK_FLUSH_INTERVAL_MS_DOC,
-                writeGroupName,
-                writeGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY)
-            .define(
-                KUSTO_SINK_FLUSH_INTERVAL_MS_CONF_DEPRECATED,
-                Type.LONG,
-                TimeUnit.SECONDS.toMillis(300),
-                ConfigDef.Range.atLeast(100),
-                Importance.HIGH,
-                KUSTO_SINK_FLUSH_INTERVAL_MS_DOC + DEPRECATED_CONFIG_DOC,
                 writeGroupName,
                 writeGroupOrder++,
                 Width.MEDIUM,
@@ -351,28 +312,27 @@ public class KustoSinkConfig extends AbstractConfig {
     }
   
     public String getTopicToTableMapping() {
-        // If the deprecated config is not set to default
-        return (!Strings.isNullOrEmpty(getString(KUSTO_TABLES_MAPPING_CONF))) 
-            ? getString(KUSTO_TABLES_MAPPING_CONF) 
-            : getString(KUSTO_TABLES_MAPPING_CONF_DEPRECATED);
+        return getString(KUSTO_TABLES_MAPPING_CONF);
     }
 
     public String getTempDirPath() {
-        return this.getString(KUSTO_SINK_TEMP_DIR_CONF);
+        String systemTempDirPath = getString(KUSTO_SINK_TEMP_DIR_CONF);
+        String tempDirPath = systemTempDirPath + UUID.randomUUID().toString();
+        Path path = Paths.get(tempDirPath);
+        try {
+            Files.createDirectories(path);
+        } catch (IOException e) {
+            throw new ConfigException("Failed to create temp directory="+tempDirPath);
+        }
+        return tempDirPath;
     }
 
     public long getFlushSizeBytes() {
-        // If the deprecated config is not set to default
-        return (getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF_DEPRECATED) != FileUtils.ONE_MB)
-            ? getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF_DEPRECATED)
-            : getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF);
+        return getLong(KUSTO_SINK_FLUSH_SIZE_BYTES_CONF);
     }
 
     public long getFlushInterval() {
-        // If the deprecated config is not set to default
-        return (getLong(KUSTO_SINK_FLUSH_INTERVAL_MS_CONF_DEPRECATED) != TimeUnit.SECONDS.toMillis(300))
-            ? getLong(KUSTO_SINK_FLUSH_INTERVAL_MS_CONF_DEPRECATED)
-            : getLong(KUSTO_SINK_FLUSH_INTERVAL_MS_CONF);
+        return getLong(KUSTO_SINK_FLUSH_INTERVAL_MS_CONF);
     }
     
     public BehaviorOnError getBehaviorOnError() {
