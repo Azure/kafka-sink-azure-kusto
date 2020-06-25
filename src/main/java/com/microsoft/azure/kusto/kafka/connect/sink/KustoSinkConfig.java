@@ -24,8 +24,8 @@ public class KustoSinkConfig extends AbstractConfig {
         FAIL, LOG, IGNORE;
     
         /**
-         * Gets names of available error tolerance mode.
-         * @return array of available tolerance mode names
+         * Gets names of available behavior on error mode.
+         * @return array of available behavior on error mode names
          */
         public static String[] getNames() {
             return Arrays
