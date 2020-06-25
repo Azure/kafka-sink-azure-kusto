@@ -36,8 +36,6 @@ public class E2ETest {
     private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
     private Logger log = Logger.getLogger(this.getClass().getName());
-    private static final Boolean COMMIT_IMMEDIATELY = true;
-
 
     @Test
     @Ignore

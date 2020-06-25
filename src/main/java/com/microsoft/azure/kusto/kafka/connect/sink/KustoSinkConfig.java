@@ -72,20 +72,20 @@ public class KustoSinkConfig extends AbstractConfig {
     
     static final String KUSTO_BEHAVIOR_ON_ERROR_CONF = "behavior.on.error";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DOC = "Behavior on error setting for "
-        + "ingestion of records into KustoDB. "
+        + "ingestion of records into Kusto table. "
         + "Must be configured to one of the following:\n"
         
         + "``fail``\n"
         + "    Stops the connector when an error occurs "
-        + "while processing records or ingesting records in KustoDB.\n"
+        + "while processing records or ingesting records in Kusto table.\n"
         
         + "``ignore``\n"
         + "    Continues to process next set of records "
-        + "when error occurs while processing records or ingesting records in KustoDB.\n"
+        + "when error occurs while processing records or ingesting records in Kusto table.\n"
         
         + "``log``\n"
         + "    Logs the error message and continues to process subsequent records when an error occurs "
-        + "while processing records or ingesting records in KustoDB, available in connect logs.";
+        + "while processing records or ingesting records in Kusto table, available in connect logs.";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DISPLAY = "Behavior On Error";
     
     static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "dlq.bootstrap.servers";
@@ -95,18 +95,18 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY = "Dead-Letter Queue Bootstrap Servers";
     
     static final String KUSTO_DLQ_TOPIC_NAME_CONF = "dlq.topic.name";
-    private static final String KUSTO_DLQ_TOPIC_NAME_DOC = "Set this to Kafka topic's name "
+    private static final String KUSTO_DLQ_TOPIC_NAME_DOC = "Set this to the Kafka topic's name "
         + "to which the failed records are to be sinked.";
     private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Dead-Letter Queue Topic Name";
     
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DOC = "Maximum time upto which the Connector "
-        + "should retry writing records to KustoDB in case of failures.";
+        + "should retry writing records to Kusto table in case of failures.";
     private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DISPLAY = "Errors Maximum Retry Time";
     
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
-        + "the Connector makes to ingest records into KustoDB.";
+        + "the Connector makes to ingest records into Kusto table.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
     
     // Deprecated configs
@@ -135,21 +135,20 @@ public class KustoSinkConfig extends AbstractConfig {
         final String writeGroupName = "Writes";
         final String errorAndRetriesGroupName = "Error Handling and Retries";
         
-        int connectionGroupOrder = 0;
-        int writeGroupOrder = 0;
-        int errorAndRetriesGroupOrder = 0;
-        
         ConfigDef result = new ConfigDef();
         
-        defineConnectionConfigs(connectionGroupName, connectionGroupOrder, result);
-        defineWriteConfigs(writeGroupName, writeGroupOrder, result);
-        defineErrorHandlingAndRetriesConfgis(errorAndRetriesGroupName, errorAndRetriesGroupOrder, result);
+        defineConnectionConfigs(connectionGroupName, result);
+        defineWriteConfigs(writeGroupName, result);
+        defineErrorHandlingAndRetriesConfgis(errorAndRetriesGroupName, result);
 
         return result;
     }
 
     private static void defineErrorHandlingAndRetriesConfgis(final String errorAndRetriesGroupName,
-        int errorAndRetriesGroupOrder, ConfigDef result) {
+        ConfigDef result) {
+      
+        int errorAndRetriesGroupOrder = 0;
+        
         result
             .define(
                 KUSTO_BEHAVIOR_ON_ERROR_CONF,
@@ -198,6 +197,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF,
                 Type.LONG,
                 TimeUnit.SECONDS.toMillis(10),
+                ConfigDef.Range.atLeast(1),
                 Importance.LOW,
                 KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC,
                 errorAndRetriesGroupName,
@@ -206,8 +206,10 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY); 
     }
 
-    private static void defineWriteConfigs(final String writeGroupName, int writeGroupOrder,
-        ConfigDef result) {
+    private static void defineWriteConfigs(final String writeGroupName, ConfigDef result) {
+      
+        int writeGroupOrder = 0;
+        
         result
             .define(
                 KUSTO_TABLES_MAPPING_CONF,
@@ -285,8 +287,10 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY);
     }
 
-    private static void defineConnectionConfigs(final String connectionGroupName,
-        int connectionGroupOrder, ConfigDef result) {
+    private static void defineConnectionConfigs(final String connectionGroupName, ConfigDef result) {
+      
+        int connectionGroupOrder = 0;
+        
         result
             .define(
                 KUSTO_URL_CONF,

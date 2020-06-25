@@ -286,8 +286,7 @@ public class KustoSinkTask extends SinkTask {
         config = new KustoSinkConfig(props);
         String url = config.getKustoUrl();
       
-        // TODO : revisit the implementation
-        // validateTableMappings(config);
+        validateTableMappings(config);
         
         topicsToIngestionProps = getTopicsToIngestionProps(config);
         

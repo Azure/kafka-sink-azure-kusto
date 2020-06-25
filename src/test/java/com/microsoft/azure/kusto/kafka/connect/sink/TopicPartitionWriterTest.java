@@ -31,7 +31,6 @@ public class TopicPartitionWriterTest {
     // TODO: should probably find a better way to mock internal class (FileWriter)...
     private File currentDirectory;
     private static final String KUSTO_CLUSTER_URL = "https://ingest-cluster.kusto.windows.net";
-    private static final Boolean COMMIT_IMMEDIATELY = true;
 
     @Before
     public final void before() {
@@ -63,11 +62,7 @@ public class TopicPartitionWriterTest {
         IngestionProperties ingestionProperties = new IngestionProperties(db, table);
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = ingestionProperties;
-        Map<String, String> settings = new HashMap<>();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
-        settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
-        settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
-        settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
+        Map<String, String> settings = getKustoConfigs(basePath, fileThreshold, flushInterval);
         KustoSinkConfig config= new KustoSinkConfig(settings);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config);
 
@@ -91,6 +86,20 @@ public class TopicPartitionWriterTest {
         Assert.assertEquals(fileSourceInfoArgument.getValue().getRawSizeInBytes(), 1024);
     }
 
+    private Map<String, String> getKustoConfigs(String basePath, long fileThreshold,
+        long flushInterval) {
+      Map<String, String> settings = new HashMap<>();
+      settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
+      settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+      settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+      settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+      settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+      settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+      settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
+      settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
+      return settings;
+    }
+
     @Test
     public void testGetFilename() {
         TopicPartition tp = new TopicPartition("testTopic", 11);
@@ -107,6 +116,10 @@ public class TopicPartitionWriterTest {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
@@ -130,6 +143,10 @@ public class TopicPartitionWriterTest {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
@@ -162,6 +179,10 @@ public class TopicPartitionWriterTest {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
@@ -212,6 +233,10 @@ public class TopicPartitionWriterTest {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
@@ -250,6 +275,10 @@ public class TopicPartitionWriterTest {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
@@ -304,6 +333,10 @@ public class TopicPartitionWriterTest {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         KustoSinkConfig config= new KustoSinkConfig(settings);
