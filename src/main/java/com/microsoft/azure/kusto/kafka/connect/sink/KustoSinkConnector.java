@@ -1,5 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.connector.Task;
@@ -7,6 +8,7 @@ import org.apache.kafka.connect.sink.SinkConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,7 +48,7 @@ public class KustoSinkConnector extends SinkConnector {
         } catch (IOException e) {
             throw new ConfigException("Failed to create temp directory=" + tempDir, e);
         }
-        tempDirPath = path.toString();
+        this.tempDirPath = path.toString();
    }
     
     @Override
@@ -68,6 +70,11 @@ public class KustoSinkConnector extends SinkConnector {
     @Override
     public void stop() {
         log.info("Shutting down KustoSinkConnector");
+        try {
+            FileUtils.deleteDirectory(new File(tempDirPath));
+        } catch (IOException e) {
+            log.error("Unable to delete temporary connector folder {}", config.getTempDirPath());
+        }
     }
     
     @Override

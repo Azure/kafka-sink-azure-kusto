@@ -275,11 +275,8 @@ public class KustoSinkTask extends SinkTask {
                 writers.get(tp).close();
                 writers.remove(tp);
                 assignment.remove(tp);
-                FileUtils.deleteDirectory(new File(config.getTempDirPath()));
             } catch (ConnectException e) {
                 log.error("Error closing writer for {}. Error: {}", tp, e);
-            } catch (IOException e) {
-                log.error("Unable to delete temporary connector folder {}", config.getTempDirPath());
             }
         }
     }
