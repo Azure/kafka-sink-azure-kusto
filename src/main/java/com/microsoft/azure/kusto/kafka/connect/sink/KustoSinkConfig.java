@@ -6,19 +6,13 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
-import org.apache.kafka.common.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.util.Strings;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
@@ -114,24 +108,8 @@ public class KustoSinkConfig extends AbstractConfig {
         + "the Connector makes to ingest records into Kusto table.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
     
-    private final String tempDirPath;
-    
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
-        tempDirPath = createAndReturnTempDirPath();
-    }
-
-    private String createAndReturnTempDirPath() {
-        String systemTempDirPath = getString(KUSTO_SINK_TEMP_DIR_CONF);
-        String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
-        Path path = Paths.get(systemTempDirPath, tempDir);
-
-        try {
-            Files.createDirectories(path);
-        } catch (IOException e) {
-            throw new ConfigException("Failed to create temp directory="+tempDir, e);
-        }
-        return path.toString();
     }
 
     public KustoSinkConfig(Map<String, String> parsedConfig) {
@@ -140,22 +118,18 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public static ConfigDef getConfig() {
       
-        final String connectionGroupName = "Connection";
-        final String writeGroupName = "Writes";
-        final String errorAndRetriesGroupName = "Error Handling and Retries";
-        
         ConfigDef result = new ConfigDef();
         
-        defineConnectionConfigs(connectionGroupName, result);
-        defineWriteConfigs(writeGroupName, result);
-        defineErrorHandlingAndRetriesConfgis(errorAndRetriesGroupName, result);
+        defineConnectionConfigs(result);
+        defineWriteConfigs(result);
+        defineErrorHandlingAndRetriesConfgis(result);
 
         return result;
     }
 
-    private static void defineErrorHandlingAndRetriesConfgis(final String errorAndRetriesGroupName,
-        ConfigDef result) {
+    private static void defineErrorHandlingAndRetriesConfgis(ConfigDef result) {
       
+        final String errorAndRetriesGroupName = "Error Handling and Retries";
         int errorAndRetriesGroupOrder = 0;
         
         result
@@ -215,8 +189,9 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY); 
     }
 
-    private static void defineWriteConfigs(final String writeGroupName, ConfigDef result) {
+    private static void defineWriteConfigs(ConfigDef result) {
       
+        final String writeGroupName = "Writes";
         int writeGroupOrder = 0;
         
         result
@@ -264,8 +239,9 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY);
     }
 
-    private static void defineConnectionConfigs(final String connectionGroupName, ConfigDef result) {
+    private static void defineConnectionConfigs(ConfigDef result) {
       
+        final String connectionGroupName = "Connection";
         int connectionGroupOrder = 0;
         
         result
@@ -332,7 +308,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getTempDirPath() {
-        return tempDirPath;
+        return getString(KUSTO_SINK_TEMP_DIR_CONF);
     }
 
     public long getFlushSizeBytes() {
