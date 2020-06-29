@@ -263,8 +263,8 @@ public class FileWriter implements Closeable {
     }
 
     private boolean shouldWriteAvroAsBytes(SinkRecord record) {
-        return ((record.valueSchema().type() == Schema.Type.BYTES) &&
-            (ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())));
+        return (record.valueSchema().type() == Schema.Type.BYTES) &&
+            (ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString()));
     }
 
     public void initializeRecordWriter(SinkRecord record) {
