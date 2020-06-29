@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import org.apache.kafka.connect.errors.DataException;
@@ -12,11 +11,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
-public class ByteRecordWriterProvider implements RecordWriterProvider<KustoSinkConfig> {
+public class ByteRecordWriterProvider implements RecordWriterProvider {
   private static final Logger log = LoggerFactory.getLogger(ByteRecordWriterProvider.class);
 
   @Override
-  public RecordWriter getRecordWriter(KustoSinkConfig conf, String filename, OutputStream out) {
+  public RecordWriter getRecordWriter(String filename, OutputStream out) {
     return new RecordWriter() {
       long size =0;
 

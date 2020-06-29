@@ -56,8 +56,6 @@ public class FileWriter implements Closeable {
     private String flushError;
     private RecordWriterProvider recordWriterProvider;
     private RecordWriter recordWriter;
-    private KustoSinkConfig config;
-    private File file;
     private final IngestionProperties ingestionProps;
     private BehaviorOnError behaviorOnError;
 
@@ -76,7 +74,6 @@ public class FileWriter implements Closeable {
                       long flushInterval,
                       boolean shouldCompressData,
                       ReentrantReadWriteLock reentrantLock,
-                      KustoSinkConfig config,
                       IngestionProperties ingestionProps,
                       BehaviorOnError behaviorOnError) {
         this.getFilePath = getFilePath;
@@ -85,7 +82,6 @@ public class FileWriter implements Closeable {
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
         this.shouldCompressData = shouldCompressData;
-        this.config = config;
         this.behaviorOnError = behaviorOnError;
 
         // This is a fair lock so that we flush close to the time intervals
@@ -110,7 +106,7 @@ public class FileWriter implements Closeable {
         }
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
-        file = new File(filePath);
+        File file = new File(filePath);
 
         file.createNewFile();
         FileOutputStream fos = new FileOutputStream(file);
@@ -122,7 +118,7 @@ public class FileWriter implements Closeable {
         currentFile = fileProps;
 
         outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
-        recordWriter = recordWriterProvider.getRecordWriter(config, currentFile.path, outputStream);
+        recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, outputStream);
     }
 
     void rotate(@Nullable Long offset) throws IOException {

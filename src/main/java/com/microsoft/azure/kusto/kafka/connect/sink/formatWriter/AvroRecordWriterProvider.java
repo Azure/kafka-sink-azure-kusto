@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import io.confluent.connect.avro.AvroData;
@@ -17,12 +16,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 
-public class AvroRecordWriterProvider implements RecordWriterProvider<KustoSinkConfig> {
+public class AvroRecordWriterProvider implements RecordWriterProvider {
   private static final Logger log = LoggerFactory.getLogger(AvroRecordWriterProvider.class);
   private final AvroData avroData = new AvroData(50);
 
   @Override
-  public RecordWriter getRecordWriter(KustoSinkConfig conf, String filename, OutputStream out) {
+  public RecordWriter getRecordWriter(String filename, OutputStream out) {
     return new RecordWriter() {
       final DataFileWriter<Object> writer = new DataFileWriter<>(new GenericDatumWriter<>());
       Schema schema;

@@ -55,10 +55,9 @@ class TopicPartitionWriter {
     private final String dlqTopicName;
     private final Producer<byte[], byte[]> kafkaProducer;
     private final BehaviorOnError behaviorOnError;
-    private final KustoSinkConfig config;
 
-    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, 
-        KustoSinkConfig config) 
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
+        KustoSinkConfig config)
     {
         this.tp = tp;
         this.client = client;
@@ -69,7 +68,6 @@ class TopicPartitionWriter {
         this.currentOffset = 0;
         this.eventDataCompression = ingestionProps.eventDataCompression;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
-        this.config = config;
         this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
         this.behaviorOnError = config.getBehaviorOnError();
@@ -118,6 +116,7 @@ class TopicPartitionWriter {
     }
 
     private void backOffForRemainingAttempts(int retryAttempts, Exception e, SourceFile fileDescriptor) {
+
         if (retryAttempts < maxRetryAttempts) {
             // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
             // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
@@ -134,8 +133,8 @@ class TopicPartitionWriter {
             }
         } else {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-              log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
-              fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             }
             throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
         }
@@ -219,7 +218,6 @@ class TopicPartitionWriter {
                 flushInterval,
                 shouldCompressData,
                 reentrantReadWriteLock,
-                config,
                 ingestionProps,
                 behaviorOnError);
     }
