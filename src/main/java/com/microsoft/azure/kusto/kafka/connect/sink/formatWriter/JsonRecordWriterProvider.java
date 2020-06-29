@@ -22,6 +22,8 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
   private static final String LINE_SEPARATOR = System.lineSeparator();
   private static final byte[] LINE_SEPARATOR_BYTES
       = LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8);
+  private static final long LINE_SEPARATOR_BYTES_LENGTH
+      = LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8).length;
 
   private final ObjectMapper mapper =  new ObjectMapper();
   private final JsonConverter converter = new JsonConverter();
@@ -36,7 +38,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
   @Override
   public RecordWriter getRecordWriter(final String filename, OutputStream out) {
     try {
-      log.info("Opening record writer for: {}", filename);
+      log.debug("Opening record writer for: {}", filename);
       return new RecordWriter() {
         final JsonGenerator writer = mapper.getFactory()
             .createGenerator(out)
@@ -59,7 +61,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
               writer.writeObject(value);
               writer.writeRaw(LINE_SEPARATOR);
             }
-            size+= (value.toString().getBytes().length + LINE_SEPARATOR.getBytes().length);
+            size+= (value.toString().getBytes().length + LINE_SEPARATOR_BYTES_LENGTH);
           } catch (IOException e) {
             throw new ConnectException(e);
           }

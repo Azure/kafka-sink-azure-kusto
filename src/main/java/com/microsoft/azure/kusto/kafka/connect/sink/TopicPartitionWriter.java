@@ -239,6 +239,6 @@ class TopicPartitionWriter {
     }
 
     static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
-        return !(eventDataCompression != null);
+        return (eventDataCompression == null);
     }
 }

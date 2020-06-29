@@ -32,7 +32,7 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
         if (schema == null) {
           schema = record.valueSchema();
           try {
-            log.info("Opening record writer for: {}", filename);
+            log.debug("Opening record writer for: {}", filename);
             org.apache.avro.Schema avroSchema = avroData.fromConnectSchema(schema);
             writer.setFlushOnEveryBlock(true);
             writer.create(avroSchema, out);
