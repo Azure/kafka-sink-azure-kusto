@@ -69,10 +69,10 @@ public class KustoSinkTask extends SinkTask {
                 }
 
                 ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                    config.getKustoUrl(),
-                    config.getAuthAppid(),
-                    config.getAuthAppkey(),
-                    config.getAuthAuthority()
+                        config.getKustoUrl(),
+                        config.getAuthAppid(),
+                        config.getAuthAppkey(),
+                        config.getAuthAuthority()
                 );
                 kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
 
@@ -80,8 +80,8 @@ public class KustoSinkTask extends SinkTask {
             }
 
             throw new ConfigException("Failed to initialize KustoIngestClient, please " +
-                "provide valid credentials. Either Kusto username and password or " +
-                "Kusto appId, appKey, and authority should be configured.");
+                    "provide valid credentials. Either Kusto username and password or " +
+                    "Kusto appId, appKey, and authority should be configured.");
         } catch (Exception e) {
             throw new ConnectException("Failed to initialize KustoIngestClient", e);
         }
@@ -95,10 +95,10 @@ public class KustoSinkTask extends SinkTask {
                     throw new ConfigException("Kusto authentication missing App Key.");
                 }
                 ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                            engineClientURL,
-                            config.getAuthAppid(),
-                            config.getAuthAppkey(),
-                            config.getAuthAuthority()
+                        engineClientURL,
+                        config.getAuthAppid(),
+                        config.getAuthAppkey(),
+                        config.getAuthAuthority()
                 );
                 kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
 
@@ -106,8 +106,8 @@ public class KustoSinkTask extends SinkTask {
             }
 
             throw new ConfigException("Failed to initialize KustoEngineClient, please " +
-                        "provide valid credentials. Either Kusto username and password or " +
-                        "Kusto appId, appKey, and authority should be configured.");
+                    "provide valid credentials. Either Kusto username and password or " +
+                    "Kusto appId, appKey, and authority should be configured.");
         } catch (Exception e) {
             throw new ConnectException("Failed to initialize KustoEngineClient", e);
         }

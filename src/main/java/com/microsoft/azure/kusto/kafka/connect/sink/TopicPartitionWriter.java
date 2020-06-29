@@ -124,20 +124,20 @@ class TopicPartitionWriter {
             long sleepTimeMs = retryBackOffTime;
             log.error("Failed to ingest records into KustoDB, backing off and retrying ingesting records after {} milliseconds.", sleepTimeMs);
             try {
-              TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
+                TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
             } catch (InterruptedException interruptedErr) {
-              if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
-                fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
-              }
-              throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
+                if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
+                    log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                    fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+                }
+                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
             }
         } else {
-          if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
+            if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
               log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
               fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
-          }
-          throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
+            }
+            throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
         }
     }
     

@@ -260,8 +260,6 @@ public class FileWriter implements Closeable {
         currentFile.rawBytes = recordWriter.getDataSize();
         currentFile.zippedBytes += countingStream.numBytes;
         currentFile.numRecords++;
-        currentFile.zippedBytes = countingStream.numBytes;
-        currentFile.numRecords++;
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold) {
             rotate(record.kafkaOffset());
             resetFlushTimer(true);
@@ -289,7 +287,7 @@ public class FileWriter implements Closeable {
         else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.BYTES)){
             recordWriterProvider = new ByteRecordWriterProvider();
         } else {
-            throw new ConnectException(String.format("Invalid Kafka record format, connector does not support %s format",record.valueSchema().type()));
+            throw new ConnectException(String.format("Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ",record.valueSchema().type()));
         }
     }
 
