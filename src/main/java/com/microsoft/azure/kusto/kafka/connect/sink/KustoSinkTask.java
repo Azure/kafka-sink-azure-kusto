@@ -95,10 +95,10 @@ public class KustoSinkTask extends SinkTask {
                     throw new ConfigException("Kusto authentication missing App Key.");
                 }
                 ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        engineClientURL,
-                        config.getAuthAppid(),
-                        config.getAuthAppkey(),
-                        config.getAuthAuthority()
+                            engineClientURL,
+                            config.getAuthAppid(),
+                            config.getAuthAppkey(),
+                            config.getAuthAuthority()
                 );
                 kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
 
@@ -106,8 +106,8 @@ public class KustoSinkTask extends SinkTask {
             }
 
             throw new ConfigException("Failed to initialize KustoEngineClient, please " +
-                    "provide valid credentials. Either Kusto username and password or " +
-                    "Kusto appId, appKey, and authority should be configured.");
+                        "provide valid credentials. Either Kusto username and password or " +
+                        "Kusto appId, appKey, and authority should be configured.");
         } catch (Exception e) {
             throw new ConnectException("Failed to initialize KustoEngineClient", e);
         }
@@ -258,6 +258,7 @@ public class KustoSinkTask extends SinkTask {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
                 TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, config);
+
                 writer.open();
                 writers.put(tp, writer);
             }
@@ -277,8 +278,9 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
-
+    @Override
     public void start(Map<String, String> props) {
+
         config = new KustoSinkConfig(props);
         String url = config.getKustoUrl();
       

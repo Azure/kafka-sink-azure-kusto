@@ -102,40 +102,40 @@ class TopicPartitionWriter {
          * avoid consumer leaving the group while the Connector is retrying.
          */
         for (int retryAttempts = 0; true; retryAttempts++) {
-          try {
-            client.ingestFromFile(fileSourceInfo, ingestionProps);
-            log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
-            this.lastCommittedOffset = currentOffset;
-            return;
-          } catch (IngestionServiceException exception) {
-            // TODO : improve handling of specific transient exceptions once the client supports them.
-            // retrying transient exceptions
-            backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
-          } catch (IngestionClientException exception) {
-            throw new ConnectException(exception);
-          }
+            try {
+                client.ingestFromFile(fileSourceInfo, ingestionProps);
+                log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
+                this.lastCommittedOffset = currentOffset;
+                return;
+            } catch (IngestionServiceException exception) {
+                // TODO : improve handling of specific transient exceptions once the client supports them.
+                // retrying transient exceptions
+                backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
+            } catch (IngestionClientException exception) {
+                throw new ConnectException(exception);
+            }
         }
     }
 
     private void backOffForRemainingAttempts(int retryAttempts, Exception e, SourceFile fileDescriptor) {
         if (retryAttempts < maxRetryAttempts) {
-          // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
-          // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
-          long sleepTimeMs = retryBackOffTime;
-          log.error("Failed to ingest records into KustoDB, backing off and retrying ingesting records after {} milliseconds.", sleepTimeMs);
-          try {
-            TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
-          } catch (InterruptedException interruptedErr) {
-            if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-              log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
-              fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+            // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
+            // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
+            long sleepTimeMs = retryBackOffTime;
+            log.error("Failed to ingest records into KustoDB, backing off and retrying ingesting records after {} milliseconds.", sleepTimeMs);
+            try {
+              TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
+            } catch (InterruptedException interruptedErr) {
+              if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
+                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+              }
+              throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
             }
-            throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
-          }
         } else {
           if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-            log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
-            fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+              log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+              fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
           }
           throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
         }
