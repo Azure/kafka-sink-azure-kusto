@@ -37,6 +37,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider<KustoSinkC
   @Override
   public RecordWriter getRecordWriter(final KustoSinkConfig conf, final String filename, OutputStream out) {
     try {
+      log.info("Opening record writer for: {}", filename);
       return new RecordWriter() {
         final JsonGenerator writer = mapper.getFactory()
             .createGenerator(out)
@@ -44,7 +45,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider<KustoSinkC
         long size =0;
         @Override
         public void write(SinkRecord record) {
-          log.info("Opening record writer for: {}", filename);
           log.trace("Sink record: {}", record);
           try {
             Object value = record.value();

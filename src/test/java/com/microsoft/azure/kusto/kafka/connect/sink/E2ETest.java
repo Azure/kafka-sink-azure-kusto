@@ -19,20 +19,20 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
-    private String appId = System.getProperty("appId","xxx");
-    private String appKey = System.getProperty("appKey","xxx");
-    private String authority = System.getProperty("authority","xxxx");
-    private String cluster = System.getProperty("cluster","xxxx");
-    private String database = System.getProperty("database","xxxx");
+    private String appId = System.getProperty("appId");
+    private String appKey = System.getProperty("appKey");
+    private String authority = System.getProperty("authority");
+    private String cluster = System.getProperty("cluster");
+    private String database = System.getProperty("database");
     private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
     private Logger log = Logger.getLogger(this.getClass().getName());
@@ -41,10 +41,7 @@ public class E2ETest {
     @Ignore
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "csv";
-        Map<String, String> properties = getProperties();
-        properties.put("kusto.tables.topics.mapping","[{'topic': 'testPartition','db': '"+ database + "', 'table': '"+ table +"','format': 'csv', 'mapping':'mappy'}]");
-        KustoSinkConfig config = new KustoSinkConfig(properties);
-        ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
+        ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net/", cluster), appId, appKey, authority);
         Client engineClient = ClientFactory.createClient(engineCsb);
 
         if (tableBaseName.startsWith(testPrefix)) {
@@ -65,14 +62,17 @@ public class E2ETest {
             String[] messages = new String[]{"stringy message,1", "another,2"};
 
             // Expect to finish file after writing forth message cause of fileThreshold
-            long fileThreshold = messages[0].length() + 1;
-            long flushInterval = 0;
+            long fileThreshold = 100;
+            long flushInterval = 100;
             TopicIngestionProperties props = new TopicIngestionProperties();
             props.ingestionProperties = ingestionProperties;
             props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
             props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.Csv);
-
-            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, Paths.get(basePath, "csv").toString(), fileThreshold, flushInterval,config);
+            String KustoUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
+            String basepath = Paths.get(basePath, "csv").toString();
+            Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "mappy", fileThreshold, flushInterval);
+            KustoSinkConfig config= new KustoSinkConfig(settings);
+            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config);
             writer.open();
 
             List<SinkRecord> records = new ArrayList<SinkRecord>();
@@ -95,16 +95,14 @@ public class E2ETest {
     }
 
     @Test
+    @Ignore
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "avro";
-        Map<String, String> properties = getProperties();
-        properties.put("kusto.tables.topics.mapping","[{'topic': 'testPartition2','db': '"+ database + "', 'table': '"+ table +"','format': 'avro', 'mapping':'avroMapping'}]");
-        KustoSinkConfig config = new KustoSinkConfig(properties);
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
         Client engineClient = ClientFactory.createClient(engineCsb);
         try {
 
-            ConnectionStringBuilder csb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://ingest-%s.kusto.windows.net", cluster), appId, appKey, authority);
+            ConnectionStringBuilder csb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://ingest-%s.kusto.windows.net/", cluster), appId, appKey, authority);
             IngestClient ingestClient = IngestClientFactory.createClient(csb);
             if (tableBaseName.startsWith(testPrefix)) {
                 engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
@@ -122,7 +120,13 @@ public class E2ETest {
             props2.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
             props2.ingestionProperties.setIngestionMapping("avroMapping", IngestionMapping.IngestionMappingKind.Avro);
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
-            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, Paths.get(basePath, "avro").toString(), 10, 300000, config);
+            String KustoUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
+            String basepath = Paths.get(basePath, "avro").toString();
+            long fileThreshold = 100;
+            long flushInterval = 300000;
+            Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "avri", fileThreshold, flushInterval);
+            KustoSinkConfig config= new KustoSinkConfig(settings);
+            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config);
             writer2.open();
             List<SinkRecord> records2 = new ArrayList<SinkRecord>();
 
@@ -167,19 +171,17 @@ public class E2ETest {
         this.log.info("Succesfully ingested " + expectedNumberOfRows + " records.");
     }
 
-    protected static Map<String, String> getProperties() {
-        Map<String, String> props = new HashMap<>();
-        props.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
-        props.put("topics","mytopic");
-        props.put("tasks.max","1");
-        props.put("kusto.tables.topics_mapping","[{'topic': 'mytopic','db': 'TestConnectorDB', 'table': 'SanchayTable','format': 'json', 'mapping':'SanchayMapping'}]");
-        props.put("kusto.url","");
-        props.put("kusto.auth.authority","");
-        props.put("kusto.auth.appid","");
-        props.put("kusto.auth.appkey","");
-        props.put("kusto.sink.tempdir","/var/tmp/");
-        props.put("value.converter.schemas.enable","false");
-        props.put("key.converter.schemas.enable","false");
-        return props;
+    private Map<String, String> getKustoConfigs(String clusterUrl, String basePath,String tableMapping, long fileThreshold,
+                                                long flushInterval) {
+        Map<String, String> settings = new HashMap<>();
+        settings.put(KustoSinkConfig.KUSTO_URL_CONF, clusterUrl);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, tableMapping);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, appId);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, appKey);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, authority);
+        settings.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, basePath);
+        settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_SIZE_BYTES_CONF, String.valueOf(fileThreshold));
+        settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
+        return settings;
     }
 }

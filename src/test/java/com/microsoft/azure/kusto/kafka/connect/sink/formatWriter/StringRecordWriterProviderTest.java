@@ -45,8 +45,11 @@ public class StringRecordWriterProviderTest {
 
   protected Map<String, String> getProperties() {
     Map<String, String> props = new HashMap<>();
-    props.put("kusto.url", "xxx");
-    props.put("kusto.tables.topics.mapping", "[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
+    props.put("kusto.url","xxx");
+    props.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
+    props.put("aad.auth.appid","xxx");
+    props.put("aad.auth.appkey","xxx");
+    props.put( "aad.auth.authority","xxx");
     return props;
   }
 }
