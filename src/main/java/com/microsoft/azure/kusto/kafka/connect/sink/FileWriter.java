@@ -256,10 +256,15 @@ public class FileWriter implements Closeable {
         currentFile.rawBytes = recordWriter.getDataSize();
         currentFile.zippedBytes += countingStream.numBytes;
         currentFile.numRecords++;
-        if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold) {
+        if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes(record)) {
             rotate(record.kafkaOffset());
             resetFlushTimer(true);
         }
+    }
+
+    private boolean shouldWriteAvroAsBytes(SinkRecord record) {
+        return ((record.valueSchema().type() == Schema.Type.BYTES) &&
+            (ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())));
     }
 
     public void initializeRecordWriter(SinkRecord record) {
