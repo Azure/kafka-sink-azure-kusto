@@ -90,55 +90,55 @@ class TopicPartitionWriter {
     }
 
     public void handleRollFile(SourceFile fileDescriptor) {
-      FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
+        FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
-      /*
-       * Since retries can be for a longer duration the Kafka Consumer may leave the group.
-       * This will result in a new Consumer reading records from the last committed offset
-       * leading to duplication of records in KustoDB. Also, if the error persists, it might also
-       * result in duplicate records being written into DLQ topic.
-       * Recommendation is to set the following worker configuration as `connector.client.config.override.policy=All`
-       * and set the `consumer.override.max.poll.interval.ms` config to a high enough value to
-       * avoid consumer leaving the group while the Connector is retrying.
-       */
-      for (int retryAttempts = 0; true; retryAttempts++) {
-        try {
-          client.ingestFromFile(fileSourceInfo, ingestionProps);
-          log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
-          this.lastCommittedOffset = currentOffset;
-          return;
-        } catch (IngestionServiceException exception) {
-          // TODO : improve handling of specific transient exceptions once the client supports them.
-          // retrying transient exceptions
-          backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
-        } catch (IngestionClientException exception) {
-          throw new ConnectException(exception);
+        /*
+         * Since retries can be for a longer duration the Kafka Consumer may leave the group.
+         * This will result in a new Consumer reading records from the last committed offset
+         * leading to duplication of records in KustoDB. Also, if the error persists, it might also
+         * result in duplicate records being written into DLQ topic.
+         * Recommendation is to set the following worker configuration as `connector.client.config.override.policy=All`
+         * and set the `consumer.override.max.poll.interval.ms` config to a high enough value to
+         * avoid consumer leaving the group while the Connector is retrying.
+         */
+        for (int retryAttempts = 0; true; retryAttempts++) {
+          try {
+            client.ingestFromFile(fileSourceInfo, ingestionProps);
+            log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
+            this.lastCommittedOffset = currentOffset;
+            return;
+          } catch (IngestionServiceException exception) {
+            // TODO : improve handling of specific transient exceptions once the client supports them.
+            // retrying transient exceptions
+            backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
+          } catch (IngestionClientException exception) {
+            throw new ConnectException(exception);
+          }
         }
-      }
     }
 
     private void backOffForRemainingAttempts(int retryAttempts, Exception e, SourceFile fileDescriptor) {
-      if (retryAttempts < maxRetryAttempts) {
-        // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
-        // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
-        long sleepTimeMs = retryBackOffTime;
-        log.error("Failed to ingest records into KustoDB, backing off and retrying ingesting records after {} milliseconds.", sleepTimeMs);
-        try {
-          TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
-        } catch (InterruptedException interruptedErr) {
+        if (retryAttempts < maxRetryAttempts) {
+          // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
+          // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
+          long sleepTimeMs = retryBackOffTime;
+          log.error("Failed to ingest records into KustoDB, backing off and retrying ingesting records after {} milliseconds.", sleepTimeMs);
+          try {
+            TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
+          } catch (InterruptedException interruptedErr) {
+            if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
+              log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+              fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+            }
+            throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
+          }
+        } else {
           if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
             log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
             fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
           }
-          throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
+          throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
         }
-      } else {
-        if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-          log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
-          fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
-        }
-        throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
-      }
     }
     
     public void sendFailedRecordToDlq(SinkRecord record) {

@@ -295,10 +295,6 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getString(KUSTO_AUTH_APPID_CONF);
     }
 
-    public String getKustoAuthAppid() {
-        return this.getString(KUSTO_AUTH_APPID_CONF);
-    }
-
     public String getAuthAppkey() {
         return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
     }
