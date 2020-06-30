@@ -6,6 +6,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
+import org.apache.kafka.common.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.util.Strings;
@@ -330,9 +331,7 @@ public class KustoSinkConfig extends AbstractConfig {
         } else if (getDlqBootstrapServers().isEmpty() && Strings.isNullOrEmpty(getDlqTopicName())) {
             return false;
         } else {
-            log.warn("DLQ is disabled, configure both `dlq.bootstrap.servers` and `dlq.topic.name` "
-                + "configurations to enable writing failed records to dlq topic.");
-            return false;
+            throw new ConfigException("To enable DLQ configuration please configure both `dlq.bootstrap.servers` and `dlq.topic.name` configurations ");
         }
     }
     
