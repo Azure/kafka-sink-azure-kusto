@@ -10,9 +10,12 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
@@ -27,6 +30,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Properties;
+
 import java.util.logging.Logger;
 
 public class E2ETest {
@@ -39,6 +44,20 @@ public class E2ETest {
     private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
     private Logger log = Logger.getLogger(this.getClass().getName());
+    private boolean isDlqEnabled;
+    private String dlqTopicName;
+    private Producer<byte[], byte[]> kafkaProducer;
+
+    @Before
+    public void setUp(){
+      Properties properties = new Properties();
+      properties.put("bootstrap.servers", "localhost:9000");
+      properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+      properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+      kafkaProducer = new KafkaProducer<>(properties);
+      isDlqEnabled = false;
+      dlqTopicName = null;
+    }
 
     @Test
     @Ignore
@@ -75,7 +94,7 @@ public class E2ETest {
             String basepath = Paths.get(basePath, "csv").toString();
             Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "mappy", fileThreshold, flushInterval);
             KustoSinkConfig config= new KustoSinkConfig(settings);
-            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config);
+            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer.open();
 
             List<SinkRecord> records = new ArrayList<SinkRecord>();
@@ -129,7 +148,7 @@ public class E2ETest {
             long flushInterval = 300000;
             Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "avri", fileThreshold, flushInterval);
             KustoSinkConfig config= new KustoSinkConfig(settings);
-            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config);
+            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer2.open();
             List<SinkRecord> records2 = new ArrayList<SinkRecord>();
 

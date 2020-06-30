@@ -13,6 +13,8 @@ import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -34,6 +36,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Properties;
+
 
 /**
  * Kusto sink uses file system to buffer records.
@@ -55,6 +59,9 @@ public class KustoSinkTask extends SinkTask {
     private long maxFileSize;
     private long flushInterval;
     private String tempDir;
+    private boolean isDlqEnabled;
+    private String dlqTopicName;
+    private Producer<byte[], byte[]> kafkaProducer;
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
@@ -268,8 +275,7 @@ public class KustoSinkTask extends SinkTask {
             if (ingestionProps == null) {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, config);
-
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, config, isDlqEnabled, dlqTopicName, kafkaProducer);
                 writer.open();
                 writers.put(tp, writer);
             }
@@ -296,6 +302,26 @@ public class KustoSinkTask extends SinkTask {
         String url = config.getKustoUrl();
       
         validateTableMappings(config);
+        if (config.isDlqEnabled()) {
+            isDlqEnabled = true;
+            dlqTopicName = config.getDlqTopicName();
+            Properties properties = new Properties();
+            System.out.println("bootstarap");
+
+            properties.put("bootstrap.servers", config.getDlqBootstrapServers());
+            properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+            properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+            try {
+                kafkaProducer = new KafkaProducer<>(properties);
+            } catch (Exception e) {
+                throw new ConnectException("Failed to initialize producer for dlq", e);
+            }
+
+        } else {
+            kafkaProducer = null;
+            isDlqEnabled = false;
+            dlqTopicName = null;
+        }
         
         topicsToIngestionProps = getTopicsToIngestionProps(config);
         

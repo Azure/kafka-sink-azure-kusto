@@ -57,7 +57,7 @@ class TopicPartitionWriter {
     private final BehaviorOnError behaviorOnError;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-        KustoSinkConfig config)
+        KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> kafkaProducer)
     {
         this.tp = tp;
         this.client = client;
@@ -71,20 +71,10 @@ class TopicPartitionWriter {
         this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
         this.behaviorOnError = config.getBehaviorOnError();
-        
-        if (config.isDlqEnabled()) {
-            isDlqEnabled = true;
-            dlqTopicName = config.getDlqTopicName();
-            Properties properties = new Properties();
-            properties.put("bootstrap.servers", config.getDlqBootstrapServers());
-            properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-            properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-            kafkaProducer = new KafkaProducer<>(properties);
-        } else {
-            kafkaProducer = null;
-            isDlqEnabled = false;
-            dlqTopicName = null;
-        }
+        this.isDlqEnabled = isDlqEnabled;
+        this.dlqTopicName = dlqTopicName;
+        this.kafkaProducer = kafkaProducer;
+
     }
 
     public void handleRollFile(SourceFile fileDescriptor) {

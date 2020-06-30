@@ -49,6 +49,7 @@ public class FileWriterTest {
                 String.valueOf(Instant.now().toEpochMilli())
         ).toString());
         ingestionProps = new IngestionProperties("db", "table");
+        ingestionProps.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
     }
 
     @After
