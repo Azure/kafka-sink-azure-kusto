@@ -234,15 +234,16 @@ public class KustoSinkTask extends SinkTask {
             if(!tableExists)
             {
                 accessErrorList.add(String.format("Given Kusto table = %s is not found in database = %s", table, database));
-            }
-            String authenticateWith = "aadapp=" + config.getAuthAppid();
-            KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, authenticateWith, database, table));
-            boolean hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
-            if (hasAccess) {
-                log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
-            } else  {
-                accessErrorList.add(String.format("User does not have appropriate permissions " +
+            } else {
+                String authenticateWith = "aadapp=" + config.getAuthAppid();
+                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, authenticateWith, database, table));
+                boolean hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
+                if (hasAccess) {
+                    log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
+                } else  {
+                    accessErrorList.add(String.format("User does not have appropriate permissions " +
                         "to sink data into the Kusto database %s", database));
+                }
             }
         } catch (DataClientException e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
