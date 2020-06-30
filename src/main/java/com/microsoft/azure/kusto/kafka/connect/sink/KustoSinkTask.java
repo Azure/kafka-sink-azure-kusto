@@ -223,8 +223,18 @@ public class KustoSinkTask extends SinkTask {
         
         String database = mapping.getString("db");
         String table = mapping.getString("table");
+        boolean tableExists = false;
         try {
-
+            KustoOperationResult findTable = engineClient.execute(database,".show tables");
+            for (ArrayList<Object> row:findTable.getPrimaryResults().getData()) {
+                if(row.get(0).toString().equals(table)){
+                    tableExists=true;
+                }
+            }
+            if(!tableExists)
+            {
+                accessErrorList.add(String.format("Given Kusto table = %s is not found in database = %s", table, database));
+            }
             String authenticateWith = "aadapp=" + config.getAuthAppid();
             KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, authenticateWith, database, table));
             boolean hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
@@ -346,7 +356,6 @@ public class KustoSinkTask extends SinkTask {
     ) {
         Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>();
         for (TopicPartition tp : assignment) {
-
             Long offset = writers.get(tp).lastCommittedOffset;
 
             if (offset != null) {
