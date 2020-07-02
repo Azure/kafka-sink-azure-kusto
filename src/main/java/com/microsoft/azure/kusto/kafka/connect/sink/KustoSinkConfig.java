@@ -349,6 +349,9 @@ public class KustoSinkConfig extends AbstractConfig {
         Map<String, Object> dlqconfigs = originalsWithPrefix(DLQ_PROPS_PREFIX);
         Properties props = new Properties();
         props.putAll(dlqconfigs);
+        props.put("bootstrap.servers", getDlqBootstrapServers());
+        props.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
         return props;
     }
     

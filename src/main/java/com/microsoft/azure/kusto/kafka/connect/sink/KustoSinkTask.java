@@ -48,6 +48,8 @@ public class KustoSinkTask extends SinkTask {
     
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     
+    static final String FETCH_TABLE_QUERY = "%s|count";
+    static final String FETCH_TABLE_MAPPING_QUERY = ".show table %s ingestion %s mapping '%s'";
     static final String FETCH_PRINCIPAL_ROLES_QUERY = ".show principal access with (principal = '%s', accesstype='ingest',database='%s',table='%s')";
     static final int INGESTION_ALLOWED_INDEX = 3;
     
@@ -235,7 +237,7 @@ public class KustoSinkTask extends SinkTask {
         boolean hasAccess = false;
         try {
             try {
-                KustoOperationResult rs = engineClient.execute(database, String.format("%s|count", table));
+                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table));
                 if ((int) rs.getPrimaryResults().getData().get(0).get(0) >= 0) {
                     hasAccess = true;
                 }
@@ -246,7 +248,7 @@ public class KustoSinkTask extends SinkTask {
             }
             if(hasAccess) {
                 try {
-                    KustoOperationResult rp = engineClient.execute(database, String.format(".show table %s ingestion %s mapping '%s'", table, format, mappingName));
+                    KustoOperationResult rp = engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_QUERY, table, format, mappingName));
                     if (rp.getPrimaryResults().getData().get(0).get(0).toString().equals(mappingName)) {
                         hasAccess = true;
                     }
@@ -323,12 +325,8 @@ public class KustoSinkTask extends SinkTask {
         if (config.isDlqEnabled()) {
             isDlqEnabled = true;
             dlqTopicName = config.getDlqTopicName();
-            Properties properties = new Properties();
-            System.out.println("bootstarap");
-
-            properties.put("bootstrap.servers", config.getDlqBootstrapServers());
-            properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-            properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+            Properties properties = config.getDlqProps();
+            log.info("Initializing DLQ producer with the following properties: {}", properties.keySet());
             try {
                 kafkaProducer = new KafkaProducer<>(properties);
             } catch (Exception e) {

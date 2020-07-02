@@ -112,8 +112,8 @@ public class KustoSinkConnectorConfigTest {
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
         settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
 
-        settings.put("dlq.kafka.security.protocol", "SASL_PLAINTEXT");
-        settings.put("dlq.kafka.sasl.mechanism", "PLAIN");
+        settings.put("dlq.security.protocol", "SASL_PLAINTEXT");
+        settings.put("dlq.sasl.mechanism", "PLAIN");
 
         config = new KustoSinkConfig(settings);
 
@@ -121,8 +121,8 @@ public class KustoSinkConnectorConfigTest {
 
         Properties dlqProps = config.getDlqProps();
 
-        assertEquals("SASL_PLAINTEXT", dlqProps.get("kafka.security.protocol"));
-        assertEquals("PLAIN", dlqProps.get("kafka.sasl.mechanism"));
+        assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
+        assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
     }
 
 }
