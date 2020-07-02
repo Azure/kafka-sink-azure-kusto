@@ -9,6 +9,7 @@ import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnEr
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -100,6 +101,28 @@ public class KustoSinkConnectorConfigTest {
         assertTrue(config.isDlqEnabled());
         assertEquals(Arrays.asList("localhost:8081", "localhost:8082"), config.getDlqBootstrapServers());
         assertEquals("dlq-error-topic", config.getDlqTopicName());
-    }    
+    }
+
+    @Test
+    public void shouldProcessDlqConfigsWithPrefix() {
+        // Adding required Configuration with no default value.
+        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+
+        settings.put("dlq.kafka.security.protocol", "SASL_PLAINTEXT");
+        settings.put("dlq.kafka.sasl.mechanism", "PLAIN");
+
+        config = new KustoSinkConfig(settings);
+
+        assertNotNull(config);
+
+        Properties dlqProps = config.getDlqProps();
+
+        assertEquals("SASL_PLAINTEXT", dlqProps.get("kafka.security.protocol"));
+        assertEquals("PLAIN", dlqProps.get("kafka.sasl.mechanism"));
+    }
 
 }

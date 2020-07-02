@@ -14,11 +14,13 @@ import org.testng.util.Strings;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
   
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
+    private static final String DLQ_PROPS_PREFIX = "dlq.";
 
     enum BehaviorOnError {
         FAIL, LOG, IGNORE;
@@ -341,6 +343,13 @@ public class KustoSinkConfig extends AbstractConfig {
     
     public String getDlqTopicName() {
         return getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+    }
+
+    public Properties getDlqProps() {
+        Map<String, Object> dlqconfigs = originalsWithPrefix(DLQ_PROPS_PREFIX);
+        Properties props = new Properties();
+        props.putAll(dlqconfigs);
+        return props;
     }
     
     public long getMaxRetryAttempts() {
