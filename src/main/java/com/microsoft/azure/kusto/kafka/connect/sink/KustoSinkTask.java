@@ -230,34 +230,51 @@ public class KustoSinkTask extends SinkTask {
         
         String database = mapping.getString("db");
         String table = mapping.getString("table");
-        boolean tableExists = false;
+        String format = mapping.optString("format");
+        String mappingName = mapping.optString("mapping");
+        boolean hasAccess = false;
         try {
-            KustoOperationResult findTable = engineClient.execute(database,".show tables");
-            for (ArrayList<Object> row:findTable.getPrimaryResults().getData()) {
-                if(row.get(0).toString().equals(table)){
-                    tableExists=true;
+            try {
+                KustoOperationResult rs = engineClient.execute(database, String.format("%s|count", table));
+                if ((int) rs.getPrimaryResults().getData().get(0).get(0) >= 0) {
+                    hasAccess = true;
+                }
+
+            } catch (DataServiceException e) {
+                hasAccess = false;
+                databaseTableErrorList.add(String.format("Database:%s Table:%s | table not found", database, table));
+            }
+            if(hasAccess) {
+                try {
+                    KustoOperationResult rp = engineClient.execute(database, String.format(".show table %s ingestion %s mapping '%s'", table, format, mappingName));
+                    if (rp.getPrimaryResults().getData().get(0).get(0).toString().equals(mappingName)) {
+                        hasAccess = true;
+                    }
+                } catch (DataServiceException e) {
+                    hasAccess = false;
+                    databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found", database, table, format, mappingName));
+
                 }
             }
-            if(!tableExists)
-            {
-                accessErrorList.add(String.format("Given Kusto table = %s is not found in database = %s", table, database));
-            } else {
-                String authenticateWith = "aadapp=" + config.getAuthAppid();
-                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, authenticateWith, database, table));
-                boolean hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
-                if (hasAccess) {
-                    log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
-                } else  {
-                    accessErrorList.add(String.format("User does not have appropriate permissions " +
-                        "to sink data into the Kusto database %s", database));
+            if(hasAccess) {
+                try {
+                    String authenticateWith = "aadapp=" + config.getAuthAppid();
+                    KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_PRINCIPAL_ROLES_QUERY, authenticateWith, database, table));
+                    hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
+                    if (hasAccess) {
+                        log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
+                    } else {
+                        accessErrorList.add(String.format("User does not have appropriate permissions " +
+                                "to sink data into the Kusto database %s", database));
+                    }
+                } catch (DataServiceException e) {
+                    // Logging the error so that the trace is not lost.
+                    log.error("{}", e);
+                    databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
                 }
             }
         } catch (DataClientException e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
-        } catch (DataServiceException e) {
-            // Logging the error so that the trace is not lost.
-            log.error("{}", e);
-            databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
         }
     }
 
@@ -273,7 +290,8 @@ public class KustoSinkTask extends SinkTask {
             TopicIngestionProperties ingestionProps = getIngestionProps(tp.topic());
             log.debug(String.format("Open Kusto topic: '%s' with partition: '%s'", tp.topic(), tp.partition()));
             if (ingestionProps == null) {
-                throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped for the topic: %s. please check your configuration.", tp.topic()));
+                throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped " +
+                        "for the topic: %s. please check your configuration.", tp.topic()));
             } else {
                 TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, config, isDlqEnabled, dlqTopicName, kafkaProducer);
                 writer.open();
@@ -362,7 +380,8 @@ public class KustoSinkTask extends SinkTask {
             TopicPartitionWriter writer = writers.get(tp);
 
             if (writer == null) {
-                NotFoundException e = new NotFoundException(String.format("Received a record without a mapped writer for topic:partition(%s:%d), dropping record.", tp.topic(), tp.partition()));
+                NotFoundException e = new NotFoundException(String.format("Received a record without " +
+                        "a mapped writer for topic:partition(%s:%d), dropping record.", tp.topic(), tp.partition()));
                 log.error("Error putting records: ", e);
                 throw e;
             }
@@ -383,6 +402,10 @@ public class KustoSinkTask extends SinkTask {
     ) {
         Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>();
         for (TopicPartition tp : assignment) {
+            if(writers.get(tp) == null) {
+                throw new ConnectException("Topic Partition not configured properly. " +
+                        "verify your `topics` and `kusto.tables.topics.mapping` configurations");
+            }
             Long offset = writers.get(tp).lastCommittedOffset;
 
             if (offset != null) {
