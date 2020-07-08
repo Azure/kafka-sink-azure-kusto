@@ -2,12 +2,20 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
+import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
-import org.apache.commons.lang3.exception.ExceptionUtils;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -16,72 +24,136 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 class TopicPartitionWriter {
-    private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
+  
+    private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
+    
     private final CompressionType eventDataCompression;
     private final TopicPartition tp;
     private final IngestClient client;
     private final IngestionProperties ingestionProps;
     private final String basePath;
     private final long flushInterval;
-    private boolean commitImmediately;
     private final long fileThreshold;
     FileWriter fileWriter;
     long currentOffset;
     Long lastCommittedOffset;
-    private int defaultRetriesCount = 2;
-    private int currentRetries;
     private ReentrantReadWriteLock reentrantReadWriteLock;
+    private final long maxRetryAttempts;
+    private final long retryBackOffTime;
+    private final boolean isDlqEnabled;
+    private final String dlqTopicName;
+    private final Producer<byte[], byte[]> kafkaProducer;
+    private final BehaviorOnError behaviorOnError;
 
-    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, String basePath,
-                         long fileThreshold, long flushInterval) {
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, 
+        KustoSinkConfig config) 
+    {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps.ingestionProperties;
-        this.fileThreshold = fileThreshold;
-        this.basePath = basePath;
-        this.flushInterval = flushInterval;
+        this.fileThreshold = config.getFlushSizeBytes();
+        this.basePath = config.getTempDirPath();
+        this.flushInterval = config.getFlushInterval();
         this.currentOffset = 0;
         this.eventDataCompression = ingestionProps.eventDataCompression;
-        this.currentRetries = defaultRetriesCount;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
+        this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
+        this.retryBackOffTime = config.getRetryBackOffTimeMs();
+        this.behaviorOnError = config.getBehaviorOnError();
+        
+        if (config.isDlqEnabled()) {
+            isDlqEnabled = true;
+            dlqTopicName = config.getDlqTopicName();
+            Properties properties = new Properties();
+            properties.put("bootstrap.servers", config.getDlqBootstrapServers());
+            properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+            properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+            kafkaProducer = new KafkaProducer<>(properties);
+        } else {
+            kafkaProducer = null;
+            isDlqEnabled = false;
+            dlqTopicName = null;
+        }
     }
 
-    String handleRollFile(SourceFile fileDescriptor) {
+    public void handleRollFile(SourceFile fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
-        new ArrayList<>();
-        try {
-            client.ingestFromFile(fileSourceInfo, ingestionProps);
-
-            log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
-            this.lastCommittedOffset = currentOffset;
-            currentRetries = defaultRetriesCount;
-        } catch (Exception e) {
-            log.error("Ingestion Failed for file : "+ fileDescriptor.file.getName() + ", message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e));
-            if (commitImmediately) {
-                if (currentRetries > 0) {
-                    try {
-                        // Default time for commit is 5 seconds timeout.
-                        Thread.sleep(1500);
-                    } catch (InterruptedException e1) {
-                        log.error("Couldn't sleep !");
-                    }
-                    log.error("Ingestion Failed for file : " + fileDescriptor.file.getName() + ", defaultRetriesCount left '" + defaultRetriesCount + "'. message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e));
-                    currentRetries--;
-                    return handleRollFile(fileDescriptor);
-                } else {
-                  currentRetries = defaultRetriesCount;
-
-                  // Returning string will make the caller throw
-                  return "Ingestion Failed for file : " + fileDescriptor.file.getName() + ", defaultRetriesCount left '" + defaultRetriesCount + "'. message: " + e.getMessage() + "\nException  : " + ExceptionUtils.getStackTrace(e);
-                }
+  
+        /*
+         * Since retries can be for a longer duration the Kafka Consumer may leave the group. 
+         * This will result in a new Consumer reading records from the last committed offset 
+         * leading to duplication of records in KustoDB. Also, if the error persists, it might also
+         * result in duplicate records being written into DLQ topic.
+         * Recommendation is to set the following worker configuration as `connector.client.config.override.policy=All`
+         * and set the `consumer.override.max.poll.interval.ms` config to a high enough value to 
+         * avoid consumer leaving the group while the Connector is retrying.
+         */
+        for (int retryAttempts = 0; true; retryAttempts++) {
+            try {
+                client.ingestFromFile(fileSourceInfo, ingestionProps);
+                log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
+                this.lastCommittedOffset = currentOffset;
+                return;
+            } catch (IngestionServiceException exception) {
+                // TODO : improve handling of specific transient exceptions once the client supports them.
+                // retrying transient exceptions
+                backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
+            } catch (IngestionClientException exception) {
+                throw new ConnectException(exception);
             }
         }
+    }
 
-        return null;
+    private void backOffForRemainingAttempts(int retryAttempts, Exception e, SourceFile fileDescriptor) {
+      
+        if (retryAttempts < maxRetryAttempts) {
+            // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
+            // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
+            long sleepTimeMs = retryBackOffTime;
+            log.error("Failed to ingest records into KustoDB, backing off and retrying ingesting records after {} milliseconds.", sleepTimeMs);
+            try {
+                TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
+            } catch (InterruptedException interruptedErr) {
+                if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
+                    log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                    fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+                }
+                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
+            }
+        } else {
+            if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
+                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
+            }
+            throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
+        }
+    }
+    
+    public void sendFailedRecordToDlq(SinkRecord record) {
+        byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
+            + "topic=%s, partition=%s, offset=%s.", 
+            record.topic(), 
+            record.kafkaPartition(), 
+            record.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
+        byte[] recordValue = record.value().toString().getBytes(StandardCharsets.UTF_8);
+        ProducerRecord<byte[], byte[]> dlqRecord = new ProducerRecord<>(dlqTopicName, recordKey, recordValue);
+        try {
+            kafkaProducer.send(dlqRecord, (recordMetadata, exception) -> {
+                  if (exception != null) {
+                      throw new KafkaException(
+                          String.format("Failed to write records to DLQ topic=%s.", dlqTopicName), 
+                          exception);
+                  }
+              });
+        } catch (IllegalStateException e) {
+            log.error("Failed to write records to DLQ topic, "
+                + "kafka producer has already been closed. Exception={}", e);
+        }
     }
 
     String getFilePath(@Nullable Long offset) {
@@ -103,7 +175,7 @@ class TopicPartitionWriter {
 
     void writeRecord(SinkRecord record) throws ConnectException {
         byte[] value = null;
-
+  
         // TODO: should probably refactor this code out into a value transformer
         if (record.valueSchema() == null || record.valueSchema().type() == Schema.Type.STRING) {
             value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
@@ -111,13 +183,16 @@ class TopicPartitionWriter {
             byte[] valueBytes = (byte[]) record.value();
             byte[] separator = "\n".getBytes(StandardCharsets.UTF_8);
             byte[] valueWithSeparator = new byte[valueBytes.length + separator.length];
-
+  
             System.arraycopy(valueBytes, 0, valueWithSeparator, 0, valueBytes.length);
             System.arraycopy(separator, 0, valueWithSeparator, valueBytes.length, separator.length);
-
+  
             value = valueWithSeparator;
         } else {
-            log.error(String.format("Unexpected value type, skipping record %s", record));
+          sendFailedRecordToDlq(record);
+          String errorMessage = String.format("KustoSinkConnect can only process records having value type as String or ByteArray. "
+              + "Failed to process record with coordinates, topic=%s, partition=%s, offset=%s", record.topic(), record.kafkaPartition(), record.kafkaOffset());
+          handleErrors(new DataException(errorMessage), "Unexpected type of kafka record's value");
         }
         if (value == null) {
             this.currentOffset = record.kafkaOffset();
@@ -125,19 +200,23 @@ class TopicPartitionWriter {
             try {
                 reentrantReadWriteLock.readLock().lock();
                 this.currentOffset = record.kafkaOffset();
-
-                fileWriter.write(value, record.kafkaOffset());
-            } catch (ConnectException ex) {
-                if (commitImmediately) {
-                    throw ex;
-                }
+  
+                fileWriter.write(value, record);
             } catch (IOException ex) {
-                if (commitImmediately) {
-                    throw new ConnectException("Got an IOExcption while writing to file with message:" + ex.getMessage());
-                }
+                handleErrors(ex, "Failed to write records into file for ingestion.");
             } finally {
                 reentrantReadWriteLock.readLock().unlock();
             }
+        }
+    }
+
+    private void handleErrors(Exception ex, String message) {
+        if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
+            throw new ConnectException(message, ex);
+        } else if (KustoSinkConfig.BehaviorOnError.IGNORE == behaviorOnError) {
+            log.error(String.format("%s, Exception=%s", message, ex));
+        } else {
+            log.debug(String.format("%s, Exception=%s", message, ex));
         }
     }
 
@@ -152,7 +231,8 @@ class TopicPartitionWriter {
                 this::getFilePath,
                 !shouldCompressData ? 0 : flushInterval,
                 shouldCompressData,
-                reentrantReadWriteLock);
+                reentrantReadWriteLock,
+                behaviorOnError);
     }
 
     void close() {
@@ -160,7 +240,14 @@ class TopicPartitionWriter {
             fileWriter.rollback();
             // fileWriter.close(); TODO ?
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Failed to rollback with exception={}", e);
+        }
+        try {
+            if (kafkaProducer != null) {
+                kafkaProducer.close();
+            }
+        } catch (Exception e) {
+            log.error("Failed to close kafka producer={}", e);
         }
     }
 

@@ -50,21 +50,37 @@ Go to `http://localhost:3030/kafka-connect-ui/#/cluster/fast-data-dev/` and usin
 example configuration:
 
 ```config
+
 name=KustoSinkConnector 
 connector.class=com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector 
+
 key.converter=org.apache.kafka.connect.storage.StringConverter 
 value.converter=org.apache.kafka.connect.storage.StringConverter 
+
 tasks.max=1 
-topics=testing1 
-kusto.tables.topics_mapping=[{'topic': 'testing1','db': 'daniel', 'table': 'KafkaTest','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'daniel', 'table': 'KafkaTest','format': 'csv', 'mapping':'CsvMapping', 'eventDataCompression':'gz'},] 
-kusto.auth.authority=XXX 
+topics=testing1,testing2
+
+kusto.tables.topics.mapping=[{'topic': 'testing1','db': 'test_db', 'table': 'test_table_1','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'test_db', 'table': 'test_table_2','format': 'csv', 'mapping':'CsvMapping', 'eventDataCompression':'gz'}] 
+
 kusto.url=https://ingest-mycluster.kusto.windows.net/ 
-kusto.auth.appid=XXX 
-kusto.auth.appkey=XXX 
+
+aad.auth.appid
+aad.auth.appkey
+aad.auth.authority
+
 kusto.sink.tempdir=/var/tmp/ 
-kusto.sink.flush_size=1000
-kusto.sink.flush_interval_ms=300000 
-```
+flush.size.bytes=1000
+flush.interval.ms=300000
+
+behavior.on.error=FAIL
+
+dlq.bootstrap.servers=localhost:9092
+dlq.topic.name=test-topic-error
+
+errors.retry.max.time.ms=60000
+errors.retry.backoff.time.ms=5000
+````
+
 Aggregation in the sink is done using files, these are sent to kusto if the aggregated file has reached the flush_size 
 (size is in bytes) or if the flush_interval_ms interval has passed. 
 For the confluent parameters please refer here https://docs.confluent.io/2.0.0/connect/userguide.html#configuring-connectors

@@ -1,8 +1,12 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Function;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,6 +18,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -42,7 +47,6 @@ public class FileWriterTest {
     @Test
     public void testOpen() throws IOException {
         String path = Paths.get(currentDirectory.getPath(), "testWriterOpen").toString();
-
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
         Assert.assertTrue(mkdirs);
@@ -52,11 +56,11 @@ public class FileWriterTest {
         final String FILE_PATH = Paths.get(path, "ABC").toString();
         final int MAX_FILE_SIZE = 128;
 
-        Function<SourceFile, String> trackFiles = (SourceFile f) -> null;
+        Consumer<SourceFile> trackFiles = (SourceFile f) -> {};
 
         Function<Long, String> generateFileName = (Long l) -> FILE_PATH;
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock(), BehaviorOnError.FAIL);
 
         fileWriter.openFile(null);
 
@@ -71,7 +75,7 @@ public class FileWriterTest {
     @Test
     public void testGzipFileWriter() throws IOException {
         String path = Paths.get(currentDirectory.getPath(), "testGzipFileWriter").toString();
-
+        SinkRecord record = new SinkRecord("TestTopic", 1, null, null, null, "random message", 1);
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
         Assert.assertTrue(mkdirs);
@@ -82,15 +86,15 @@ public class FileWriterTest {
 
         final int MAX_FILE_SIZE = 100;
 
-        Function<SourceFile, String> trackFiles = (SourceFile f) -> { files.put(f.path, f.rawBytes); return null;};
+        Consumer<SourceFile> trackFiles = (SourceFile f) -> files.put(f.path, f.rawBytes);
 
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString() + "csv.gz";
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock(), BehaviorOnError.FAIL);
 
         for (int i = 0; i < 9; i++) {
             String msg = String.format("Line number %d : This is a message from the other size", i);
-            fileWriter.write(msg.getBytes(StandardCharsets.UTF_8), null);
+            fileWriter.write(msg.getBytes(StandardCharsets.UTF_8), record);
         }
 
         Assert.assertEquals(files.size(), 4);
@@ -121,15 +125,17 @@ public class FileWriterTest {
 
         final int MAX_FILE_SIZE = 128 * 2;
 
-        Function<SourceFile, String> trackFiles = (SourceFile f) -> {files.put(f.path, f.rawBytes);return null;};
+        Consumer<SourceFile> trackFiles = (SourceFile f) -> files.put(f.path, f.rawBytes);
 
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + "csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, false, new ReentrantReadWriteLock(), BehaviorOnError.FAIL);
 
         String msg = "Message";
-        fileWriter.write(msg.getBytes(StandardCharsets.UTF_8), null);
+        SinkRecord record = new SinkRecord("TestTopic", 1, null, null, null, msg, 1);
+
+        fileWriter.write(msg.getBytes(StandardCharsets.UTF_8), record);
         Thread.sleep(1000);
 
         Assert.assertEquals(files.size(), 0);
@@ -143,11 +149,12 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName2 = (Long l) -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed
-        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, false, new ReentrantReadWriteLock(), BehaviorOnError.FAIL);
 
         String msg2 = "Second Message";
+        SinkRecord record2 = new SinkRecord("TestTopic", 1, null, null, null, msg2, 1);
 
-        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), null);
+        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), record2);
         Thread.sleep(1010);
 
         Assert.assertEquals(files.size(), 2);
@@ -161,7 +168,8 @@ public class FileWriterTest {
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
     }
 
-    public @Test void offsetCheckByInterval() throws InterruptedException, IOException {
+    @Test
+    public void offsetCheckByInterval() throws InterruptedException, IOException {
         // This test will check that lastCommitOffset is set to the right value, when ingests are done by flush interval.
         // There will be a write operation followed by a flush which will track files and sleep.
         // While it sleeps there will be another write attempt which should wait on the lock and another flush later.
@@ -175,10 +183,10 @@ public class FileWriterTest {
             private long currentOffset = 0;
         }
         final Offsets offsets = new Offsets();
-        Function<SourceFile, String> trackFiles = (SourceFile f) -> {
+        Consumer<SourceFile> trackFiles = (SourceFile f) -> {
             committedOffsets.add(offsets.currentOffset);
             files.add(new AbstractMap.SimpleEntry<>(f.path, f.rawBytes));
-            return null;
+            //return null;
         };
 
         String path = Paths.get(currentDirectory.getPath(), "offsetCheckByInterval").toString();
@@ -191,17 +199,21 @@ public class FileWriterTest {
             }
             return Paths.get(path, Long.toString(offset)).toString();
         };
-        FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, false, reentrantReadWriteLock);
+        FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, false, reentrantReadWriteLock, BehaviorOnError.FAIL);
         String msg2 = "Second Message";
         reentrantReadWriteLock.readLock().lock();
         long recordOffset = 1;
-        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), recordOffset);
+        SinkRecord record = new SinkRecord("TestTopic", 1, null, null, null, msg2, recordOffset);
+
+        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), record);
         offsets.currentOffset = recordOffset;
 
         // Wake the flush by interval in the middle of the writing
         Thread.sleep(510);
         recordOffset = 2;
-        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), recordOffset);
+        SinkRecord record2 = new SinkRecord("TestTopic", 1, null, null, null, msg2, recordOffset);
+
+        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), record2);
         offsets.currentOffset = recordOffset;
         reentrantReadWriteLock.readLock().unlock();
 
@@ -209,8 +221,10 @@ public class FileWriterTest {
         Thread.sleep(10);
         reentrantReadWriteLock.readLock().lock();
         recordOffset = 3;
+        SinkRecord record3 = new SinkRecord("TestTopic", 1, null, null, null, msg2, recordOffset);
+
         offsets.currentOffset = recordOffset;
-        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), recordOffset);
+        fileWriter2.write(msg2.getBytes(StandardCharsets.UTF_8), record3);
         reentrantReadWriteLock.readLock().unlock();
 
         Thread.sleep(510);
@@ -231,6 +245,7 @@ public class FileWriterTest {
     @Test
     public void testFileWriterCompressed() throws IOException {
         String path = Paths.get(currentDirectory.getPath(), "testGzipFileWriter2").toString();
+        SinkRecord record = new SinkRecord("TestTopic", 1, null, null, null, "random message", 1);
 
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
@@ -243,22 +258,22 @@ public class FileWriterTest {
         GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
         String msg = "Message";
 
-        Function<SourceFile, String> trackFiles = getAssertFileConsumer(msg);
+        Consumer<SourceFile> trackFiles = getAssertFileConsumer(msg);
 
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, false, new ReentrantReadWriteLock());
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, false, new ReentrantReadWriteLock(), BehaviorOnError.FAIL);
 
         gzipOutputStream.write(msg.getBytes());
         gzipOutputStream.finish();
-        fileWriter.write(byteArrayOutputStream.toByteArray(), null);
+        fileWriter.write(byteArrayOutputStream.toByteArray(), record);
 
         fileWriter.close();
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
     }
 
-    static Function<SourceFile, String> getAssertFileConsumer(String msg) {
+    static Function<SourceFile, String> getAssertFileConsumerFunction(String msg) {
         return (SourceFile f) -> {
             try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
                 byte[] bytes = IOUtils.toByteArray(fileInputStream);
@@ -284,6 +299,34 @@ public class FileWriterTest {
                 Assert.fail(e.getMessage());
             }
             return null;
+        };
+    }
+
+    static Consumer<SourceFile> getAssertFileConsumer(String msg) {
+        return (SourceFile f) -> {
+            try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
+                byte[] bytes = IOUtils.toByteArray(fileInputStream);
+                try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
+                     GZIPInputStream gzipper = new GZIPInputStream(bin)) {
+
+                    byte[] buffer = new byte[1024];
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+                    int len;
+                    while ((len = gzipper.read(buffer)) > 0) {
+                        out.write(buffer, 0, len);
+                    }
+
+                    gzipper.close();
+                    out.close();
+                    String s = new String(out.toByteArray());
+
+                    Assert.assertEquals(s, msg);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                Assert.fail(e.getMessage());
+            }
         };
     }
 }
