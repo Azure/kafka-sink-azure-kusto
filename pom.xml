@@ -8,7 +8,7 @@
     <groupId>com.microsoft.azure</groupId>
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
-    <version>0.3.5</version>
+    <version>1.0.0</version>
     <build>
         <plugins>
             <plugin>
@@ -160,6 +160,10 @@
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
+        </repository>
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
         </repository>
     </repositories>
 </project>
