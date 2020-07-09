@@ -10,9 +10,7 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,8 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class AvroRecordWriterTest {
 
   @Test
-  public void AvroDataWrite() {
-    try {
+  public void AvroDataWrite() throws IOException {
       List<SinkRecord> records = new ArrayList<SinkRecord>();
       final Schema schema = SchemaBuilder.struct()
           .field("text", SchemaBuilder.string().build())
@@ -47,9 +44,6 @@ public class AvroRecordWriterTest {
       validate(file.getPath());
       assertEquals(rd.getDataSize(),290);
       file.delete();
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
   }
 
   public void validate(String path) {

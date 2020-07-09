@@ -11,6 +11,7 @@ import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWrite
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -122,12 +123,12 @@ public class FileWriter implements Closeable {
         recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, outputStream);
     }
 
-    void rotate(@Nullable Long offset) throws IOException {
+    void rotate(@Nullable Long offset) throws IOException, DataException {
         finishFile(true);
         openFile(offset);
     }
 
-    void finishFile(Boolean delete) throws IOException {
+    void finishFile(Boolean delete) throws IOException, DataException {
         if(isDirty()){
             recordWriter.commit();
             if(shouldCompressData){
@@ -185,7 +186,7 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public void close() throws IOException {
+    public void close() throws IOException, DataException {
         if (timer!= null) {
             timer.cancel();
             timer.purge();
@@ -240,7 +241,7 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public synchronized void writeData(SinkRecord record) throws IOException {
+    public synchronized void writeData(SinkRecord record) throws IOException, DataException {
         if (flushError != null) {
             throw new ConnectException(flushError);
         }
@@ -274,7 +275,7 @@ public class FileWriter implements Closeable {
                 recordWriterProvider = new AvroRecordWriterProvider();
             } else {
                 throw new ConnectException(String.format("Invalid Kusto table mapping, Kafka records of type "
-                   + "Avro and JSON-with-schema can only be ingested to Kusto table having Avro or JSON mapping. "
+                   + "Avro and JSON can only be ingested to Kusto table having Avro or JSON mapping. "
                    + "Currently, it is of type %s.", ingestionProps.getDataFormat()));
             }
         }

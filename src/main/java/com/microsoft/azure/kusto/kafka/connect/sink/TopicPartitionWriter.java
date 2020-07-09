@@ -177,7 +177,7 @@ class TopicPartitionWriter {
           reentrantReadWriteLock.readLock().lock();
           this.currentOffset = record.kafkaOffset();
           fileWriter.writeData(record);
-        } catch (IOException ex) {
+        } catch (IOException | DataException ex) {
           handleErrors(ex, "Failed to write records into file for ingestion.");
         } finally {
           reentrantReadWriteLock.readLock().unlock();

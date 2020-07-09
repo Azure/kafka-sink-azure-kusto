@@ -6,6 +6,7 @@ import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
@@ -72,7 +73,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
           try {
             writer.flush();
           } catch (IOException e) {
-            throw new ConnectException(e);
+            throw new DataException(e);
           }
         }
 
@@ -87,12 +88,12 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
             writer.close();
             out.close();
           } catch (IOException e) {
-            throw new ConnectException(e);
+            throw new DataException(e);
           }
         }
       };
     } catch (IOException e) {
-      throw new ConnectException(e);
+      throw new DataException(e);
     }
   }
 }
