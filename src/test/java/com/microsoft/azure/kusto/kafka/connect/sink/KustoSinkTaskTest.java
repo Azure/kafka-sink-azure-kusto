@@ -29,9 +29,9 @@ public class KustoSinkTaskTest {
     @Before
     public final void before() {
         currentDirectory = new File(Paths.get(
-            System.getProperty("java.io.tmpdir"),
-            FileWriter.class.getName(),
-            String.valueOf(Instant.now().toEpochMilli())
+                System.getProperty("java.io.tmpdir"),
+                FileWriter.class.getName(),
+                String.valueOf(Instant.now().toEpochMilli())
         ).toString());
     }
 
