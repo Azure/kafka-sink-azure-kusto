@@ -10,7 +10,10 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.Test;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,8 +49,7 @@ public class AvroRecordWriterTest {
       file.delete();
   }
 
-  public void validate(String path) {
-    try {
+  public void validate(String path) throws IOException {
       GenericDatumReader datum = new GenericDatumReader();
       File file = new File(path);
       DataFileReader reader = new DataFileReader(file, datum);
@@ -59,9 +61,6 @@ public class AvroRecordWriterTest {
         i++;
       }
       reader.close();
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
   }
 }
 
