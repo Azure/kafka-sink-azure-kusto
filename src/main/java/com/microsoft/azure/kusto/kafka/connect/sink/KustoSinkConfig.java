@@ -6,6 +6,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
+import org.apache.kafka.common.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.util.Strings;
@@ -13,11 +14,13 @@ import org.testng.util.Strings;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
   
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
+    private static final String DLQ_PROPS_PREFIX = "dlq.";
 
     enum BehaviorOnError {
         FAIL, LOG, IGNORE;
@@ -107,7 +110,7 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
         + "the Connector makes to ingest records into Kusto table.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
-    
+
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
     }
@@ -294,7 +297,7 @@ public class KustoSinkConfig extends AbstractConfig {
     public String getAuthAppid() {
         return this.getString(KUSTO_AUTH_APPID_CONF);
     }
-  
+
     public String getAuthAppkey() {
         return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
     }
@@ -330,9 +333,7 @@ public class KustoSinkConfig extends AbstractConfig {
         } else if (getDlqBootstrapServers().isEmpty() && Strings.isNullOrEmpty(getDlqTopicName())) {
             return false;
         } else {
-            log.warn("DLQ is disabled, configure both `dlq.bootstrap.servers` and `dlq.topic.name` "
-                + "configurations to enable writing failed records to dlq topic.");
-            return false;
+            throw new ConfigException("To enable DLQ configuration please configure both `dlq.bootstrap.servers` and `dlq.topic.name` configurations ");
         }
     }
     
@@ -342,6 +343,16 @@ public class KustoSinkConfig extends AbstractConfig {
     
     public String getDlqTopicName() {
         return getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+    }
+
+    public Properties getDlqProps() {
+        Map<String, Object> dlqconfigs = originalsWithPrefix(DLQ_PROPS_PREFIX);
+        Properties props = new Properties();
+        props.putAll(dlqconfigs);
+        props.put("bootstrap.servers", getDlqBootstrapServers());
+        props.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+        return props;
     }
     
     public long getMaxRetryAttempts() {

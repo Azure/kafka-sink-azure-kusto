@@ -8,6 +8,11 @@ import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -24,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -50,8 +56,8 @@ class TopicPartitionWriter {
     private final Producer<byte[], byte[]> kafkaProducer;
     private final BehaviorOnError behaviorOnError;
 
-    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps, 
-        KustoSinkConfig config) 
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
+        KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> kafkaProducer)
     {
         this.tp = tp;
         this.client = client;
@@ -65,32 +71,22 @@ class TopicPartitionWriter {
         this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
         this.behaviorOnError = config.getBehaviorOnError();
-        
-        if (config.isDlqEnabled()) {
-            isDlqEnabled = true;
-            dlqTopicName = config.getDlqTopicName();
-            Properties properties = new Properties();
-            properties.put("bootstrap.servers", config.getDlqBootstrapServers());
-            properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-            properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-            kafkaProducer = new KafkaProducer<>(properties);
-        } else {
-            kafkaProducer = null;
-            isDlqEnabled = false;
-            dlqTopicName = null;
-        }
+        this.isDlqEnabled = isDlqEnabled;
+        this.dlqTopicName = dlqTopicName;
+        this.kafkaProducer = kafkaProducer;
+
     }
 
     public void handleRollFile(SourceFile fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
-  
+
         /*
-         * Since retries can be for a longer duration the Kafka Consumer may leave the group. 
-         * This will result in a new Consumer reading records from the last committed offset 
+         * Since retries can be for a longer duration the Kafka Consumer may leave the group.
+         * This will result in a new Consumer reading records from the last committed offset
          * leading to duplication of records in KustoDB. Also, if the error persists, it might also
          * result in duplicate records being written into DLQ topic.
          * Recommendation is to set the following worker configuration as `connector.client.config.override.policy=All`
-         * and set the `consumer.override.max.poll.interval.ms` config to a high enough value to 
+         * and set the `consumer.override.max.poll.interval.ms` config to a high enough value to
          * avoid consumer leaving the group while the Connector is retrying.
          */
         for (int retryAttempts = 0; true; retryAttempts++) {
@@ -110,7 +106,7 @@ class TopicPartitionWriter {
     }
 
     private void backOffForRemainingAttempts(int retryAttempts, Exception e, SourceFile fileDescriptor) {
-      
+
         if (retryAttempts < maxRetryAttempts) {
             // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
             // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
@@ -174,41 +170,21 @@ class TopicPartitionWriter {
     }
 
     void writeRecord(SinkRecord record) throws ConnectException {
-        byte[] value = null;
-  
-        // TODO: should probably refactor this code out into a value transformer
-        if (record.valueSchema() == null || record.valueSchema().type() == Schema.Type.STRING) {
-            value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
-        } else if (record.valueSchema().type() == Schema.Type.BYTES) {
-            byte[] valueBytes = (byte[]) record.value();
-            byte[] separator = "\n".getBytes(StandardCharsets.UTF_8);
-            byte[] valueWithSeparator = new byte[valueBytes.length + separator.length];
-  
-            System.arraycopy(valueBytes, 0, valueWithSeparator, 0, valueBytes.length);
-            System.arraycopy(separator, 0, valueWithSeparator, valueBytes.length, separator.length);
-  
-            value = valueWithSeparator;
-        } else {
-          sendFailedRecordToDlq(record);
-          String errorMessage = String.format("KustoSinkConnect can only process records having value type as String or ByteArray. "
-              + "Failed to process record with coordinates, topic=%s, partition=%s, offset=%s", record.topic(), record.kafkaPartition(), record.kafkaOffset());
-          handleErrors(new DataException(errorMessage), "Unexpected type of kafka record's value");
+      if (record == null) {
+        this.currentOffset = record.kafkaOffset();
+      } else {
+        try {
+          reentrantReadWriteLock.readLock().lock();
+          this.currentOffset = record.kafkaOffset();
+          fileWriter.writeData(record);
+        } catch (IOException | DataException ex) {
+          handleErrors(ex, "Failed to write records into file for ingestion.");
+        } finally {
+          reentrantReadWriteLock.readLock().unlock();
         }
-        if (value == null) {
-            this.currentOffset = record.kafkaOffset();
-        } else {
-            try {
-                reentrantReadWriteLock.readLock().lock();
-                this.currentOffset = record.kafkaOffset();
-  
-                fileWriter.write(value, record);
-            } catch (IOException ex) {
-                handleErrors(ex, "Failed to write records into file for ingestion.");
-            } finally {
-                reentrantReadWriteLock.readLock().unlock();
-            }
-        }
+      }
     }
+
 
     private void handleErrors(Exception ex, String message) {
         if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
@@ -229,9 +205,10 @@ class TopicPartitionWriter {
                 fileThreshold,
                 this::handleRollFile,
                 this::getFilePath,
-                !shouldCompressData ? 0 : flushInterval,
+                flushInterval,
                 shouldCompressData,
                 reentrantReadWriteLock,
+                ingestionProps,
                 behaviorOnError);
     }
 
@@ -252,10 +229,6 @@ class TopicPartitionWriter {
     }
 
     static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
-        return !(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())
-                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.apacheavro.toString())
-                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.parquet.toString())
-                || ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.orc.toString())
-                || eventDataCompression != null);
+        return (eventDataCompression == null);
     }
 }

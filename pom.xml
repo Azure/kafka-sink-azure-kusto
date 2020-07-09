@@ -8,7 +8,7 @@
     <groupId>com.microsoft.azure</groupId>
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
-    <version>0.3.5</version>
+    <version>1.0.0</version>
     <build>
         <plugins>
             <plugin>
@@ -99,7 +99,11 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>connect-api</artifactId>
             <version>${kafka.version}</version>
-            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>connect-json</artifactId>
+            <version>${kafka.version}</version>
         </dependency>
         <dependency>
             <groupId>org.json</groupId>
@@ -140,11 +144,26 @@
             <version>1.9.5</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-connect-avro-converter</artifactId>
+            <version>5.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>connect-runtime</artifactId>
+            <version>5.3.0-ccs</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
     <repositories>
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
+        </repository>
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
         </repository>
     </repositories>
 </project>
