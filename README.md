@@ -112,9 +112,9 @@ KafkaTest | count
 
 
 #### Supported formats
-`csv`, `json`, `avro`, `apacheAvro`, `parquet`, `orc`, `tsv`, `scsv`, `sohsv`, `psv`, `txt`.
+`csv`, `json`, `avro`, `apacheAvro`, `tsv`, `scsv`, `sohsv`, `psv`, `txt`.
 
-> Note - `avro`, `apacheAvro`, `parquet` and `orc` files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
+> Note - `avro` and `apacheAvro`files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
 > 
 >Use `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter`
 

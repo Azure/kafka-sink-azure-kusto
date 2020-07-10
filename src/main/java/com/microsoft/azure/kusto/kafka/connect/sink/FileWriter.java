@@ -256,7 +256,6 @@ public class FileWriter implements Closeable {
         recordWriter.write(record);
         currentFile.records.add(record);
         currentFile.rawBytes = recordWriter.getDataSize();
-        currentFile.zippedBytes += countingStream.numBytes;
         currentFile.numRecords++;
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes) {
             rotate(record.kafkaOffset());
