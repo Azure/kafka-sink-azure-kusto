@@ -193,9 +193,13 @@ public class KustoSinkTask extends SinkTask {
             Client engineClient = createKustoEngineClient(config);
             if (config.getTopicToTableMapping() != null) {
                 JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
-                for (int i = 0; i < mappings.length(); i++) {
-                    JSONObject mapping = mappings.getJSONObject(i);
-                    validateTableAccess(engineClient, mapping, config, databaseTableErrorList, accessErrorList);
+                if(mappings.length()>0) {
+                    if(isIngestorRole(mappings.getJSONObject(0), engineClient)) {
+                        for (int i = 0; i < mappings.length(); i++) {
+                            JSONObject mapping = mappings.getJSONObject(i);
+                            validateTableAccess(engineClient, mapping, config, databaseTableErrorList, accessErrorList);
+                        }
+                    }
                 }
             }
             String tableAccessErrorMessage = "";
@@ -219,6 +223,20 @@ public class KustoSinkTask extends SinkTask {
         } catch (JSONException e) {
             throw new ConnectException("Failed to parse ``kusto.tables.topics.mapping`` configuration.", e);
         }
+    }
+
+    private static boolean isIngestorRole(JSONObject testMapping, Client engineClient) throws JSONException {
+        String database = testMapping.getString("db");
+        String table = testMapping.getString("table");
+        try {
+            KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table));
+        } catch(DataServiceException | DataClientException err){
+            if(err.getCause().getMessage().contains("Forbidden:")){
+                log.warn("User might have ingestor privileges, table validation will be skipped for all table mappings ");
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
