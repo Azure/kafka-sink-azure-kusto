@@ -232,8 +232,8 @@ public class KustoSinkTask extends SinkTask {
         
         String database = mapping.getString("db");
         String table = mapping.getString("table");
-        String format = mapping.optString("format");
-        String mappingName = mapping.optString("mapping");
+        String format = mapping.getString("format");
+        String mappingName = mapping.getString("mapping");
         boolean hasAccess = false;
         try {
             try {
@@ -243,7 +243,6 @@ public class KustoSinkTask extends SinkTask {
                 }
 
             } catch (DataServiceException e) {
-                hasAccess = false;
                 databaseTableErrorList.add(String.format("Database:%s Table:%s | table not found", database, table));
             }
             if(hasAccess) {
