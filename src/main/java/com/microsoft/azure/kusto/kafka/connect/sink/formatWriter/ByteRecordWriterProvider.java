@@ -23,11 +23,16 @@ public class ByteRecordWriterProvider implements RecordWriterProvider {
       public void write(SinkRecord record) throws IOException {
         byte[] value = null;
         byte[] valueBytes = (byte[]) record.value();
-        byte[] separator = "\n".getBytes(StandardCharsets.UTF_8);
-        byte[] valueWithSeparator = new byte[valueBytes.length + separator.length];
-        System.arraycopy(valueBytes, 0, valueWithSeparator, 0, valueBytes.length);
-        System.arraycopy(separator, 0, valueWithSeparator, valueBytes.length, separator.length);
-        value = valueWithSeparator;
+        if (filename.contains("avro")) {
+          value = new byte[valueBytes.length];
+          System.arraycopy(valueBytes, 0, value, 0, valueBytes.length);
+        } else {
+          byte[] separator = "\n".getBytes(StandardCharsets.UTF_8);
+          byte[] valueWithSeparator = new byte[valueBytes.length + separator.length];
+          System.arraycopy(valueBytes, 0, valueWithSeparator, 0, valueBytes.length);
+          System.arraycopy(separator, 0, valueWithSeparator, valueBytes.length, separator.length);
+          value = valueWithSeparator;
+        }
         out.write(value);
         size += value.length;
       }
