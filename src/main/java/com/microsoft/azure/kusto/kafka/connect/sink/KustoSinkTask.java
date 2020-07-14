@@ -193,7 +193,7 @@ public class KustoSinkTask extends SinkTask {
             Client engineClient = createKustoEngineClient(config);
             if (config.getTopicToTableMapping() != null) {
                 JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
-                if(mappings.length()>0) {
+                if(mappings.length() > 0) {
                     if(isIngestorRole(mappings.getJSONObject(0), engineClient)) {
                         for (int i = 0; i < mappings.length(); i++) {
                             JSONObject mapping = mappings.getJSONObject(i);
@@ -225,7 +225,7 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
-    private static boolean isIngestorRole(JSONObject testMapping, Client engineClient) throws JSONException {
+    private boolean isIngestorRole(JSONObject testMapping, Client engineClient) throws JSONException {
         String database = testMapping.getString("db");
         String table = testMapping.getString("table");
         try {

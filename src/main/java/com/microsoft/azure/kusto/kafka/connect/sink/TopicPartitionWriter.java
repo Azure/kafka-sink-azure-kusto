@@ -57,7 +57,7 @@ class TopicPartitionWriter {
     private final BehaviorOnError behaviorOnError;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-        KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> kafkaProducer)
+        KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer)
     {
         this.tp = tp;
         this.client = client;
@@ -73,7 +73,7 @@ class TopicPartitionWriter {
         this.behaviorOnError = config.getBehaviorOnError();
         this.isDlqEnabled = isDlqEnabled;
         this.dlqTopicName = dlqTopicName;
-        this.kafkaProducer = kafkaProducer;
+        this.kafkaProducer = dlqProducer;
 
     }
 
