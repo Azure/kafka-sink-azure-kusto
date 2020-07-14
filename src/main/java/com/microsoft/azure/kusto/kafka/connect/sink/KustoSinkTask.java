@@ -10,7 +10,6 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -137,8 +136,7 @@ public class KustoSinkTask extends SinkTask {
                 String table = mapping.getString("table");
   
                 String format = mapping.optString("format");
-                CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
-  
+
                 IngestionProperties props = new IngestionProperties(db, table);
   
                 if (format != null && !format.isEmpty()) {
@@ -171,7 +169,6 @@ public class KustoSinkTask extends SinkTask {
                     }
                 }
                 TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
-                topicIngestionProperties.eventDataCompression = compressionType;
                 topicIngestionProperties.ingestionProperties = props;
                 result.put(mapping.getString("topic"), topicIngestionProperties);
             }

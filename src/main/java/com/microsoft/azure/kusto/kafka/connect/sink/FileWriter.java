@@ -44,7 +44,6 @@ public class FileWriter implements Closeable {
     private Timer timer;
     private Consumer<SourceFile> onRollCallback;
     private final long flushInterval;
-    private final boolean shouldCompressData;
     private Function<Long, String> getFilePath;
     private OutputStream outputStream;
     private String basePath;
@@ -66,7 +65,6 @@ public class FileWriter implements Closeable {
      * @param fileThreshold  - Max size, uncompressed bytes.
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
      * @param getFilePath    - Allow external resolving of file name.
-     * @param shouldCompressData - Should the FileWriter compress the incoming data.
      * @param behaviorOnError - Either log, fail or ignore errors based on the mode.
      */
     public FileWriter(String basePath,
@@ -74,7 +72,6 @@ public class FileWriter implements Closeable {
                       Consumer<SourceFile> onRollCallback,
                       Function<Long, String> getFilePath,
                       long flushInterval,
-                      boolean shouldCompressData,
                       ReentrantReadWriteLock reentrantLock,
                       IngestionProperties ingestionProps,
                       BehaviorOnError behaviorOnError) {
@@ -83,7 +80,6 @@ public class FileWriter implements Closeable {
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
-        this.shouldCompressData = shouldCompressData;
         this.behaviorOnError = behaviorOnError;
 
         // This is a fair lock so that we flush close to the time intervals
@@ -118,8 +114,7 @@ public class FileWriter implements Closeable {
         countingStream = new CountingOutputStream(fos);
         fileProps.file = file;
         currentFile = fileProps;
-
-        outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
+        outputStream = new GZIPOutputStream(countingStream);
         recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, outputStream);
     }
 
@@ -131,12 +126,8 @@ public class FileWriter implements Closeable {
     void finishFile(Boolean delete) throws IOException, DataException {
         if(isDirty()){
             recordWriter.commit();
-            if(shouldCompressData){
-                GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
-                gzip.finish();
-            } else {
-                outputStream.flush();
-            }
+            GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
+            gzip.finish();
             try {
                 onRollCallback.accept(currentFile);
               } catch (ConnectException e) {

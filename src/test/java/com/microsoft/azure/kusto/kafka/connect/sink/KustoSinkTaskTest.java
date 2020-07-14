@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -128,7 +127,7 @@ public class KustoSinkTaskTest {
     public void getTable() {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv', 'eventDataCompression':'gz'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
+        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
         props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
         props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
         props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
@@ -146,7 +145,6 @@ public class KustoSinkTaskTest {
             Assert.assertEquals(kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName(), "table2");
             Assert.assertEquals(kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat(), "json");
             Assert.assertEquals(kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference(), "Mapping");
-            Assert.assertEquals(kustoSinkTaskSpy.getIngestionProps("topic1").eventDataCompression, CompressionType.gz);
             Assert.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
         }
     }

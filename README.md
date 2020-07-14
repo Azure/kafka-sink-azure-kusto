@@ -60,7 +60,7 @@ value.converter=org.apache.kafka.connect.storage.StringConverter
 tasks.max=1 
 topics=testing1,testing2
 
-kusto.tables.topics.mapping=[{'topic': 'testing1','db': 'test_db', 'table': 'test_table_1','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'test_db', 'table': 'test_table_2','format': 'csv', 'mapping':'CsvMapping', 'eventDataCompression':'gz'}] 
+kusto.tables.topics.mapping=[{'topic': 'testing1','db': 'test_db', 'table': 'test_table_1','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'test_db', 'table': 'test_table_2','format': 'csv', 'mapping':'CsvMapping'}] 
 
 kusto.url=https://ingest-mycluster.kusto.windows.net/ 
 
@@ -118,10 +118,6 @@ KafkaTest | count
 > 
 >Use `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter`
 
-
-#### Supported compressions
-Kusto Kafka connector can get compressed data, this can be specified in the topics_mapping in the configuration under 
-`eventDataCompression`, this can get all the compression types kusto accepts. Using this configuration, files don't get aggregated in the connector and are sent straight for ingestion.
 
 
 #### Avro example
