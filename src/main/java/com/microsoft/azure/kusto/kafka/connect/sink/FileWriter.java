@@ -286,7 +286,7 @@ public class FileWriter implements Closeable {
         private long numBytes = 0;
         private OutputStream outputStream;
 
-        public CountingOutputStream(OutputStream out) {
+        CountingOutputStream(OutputStream out) {
             super(out);
             this.outputStream = out;
         }
