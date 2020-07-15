@@ -2,6 +2,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.kafka.connect.sink.CountingOutputStream;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import org.apache.kafka.connect.data.Struct;
@@ -13,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,14 +37,13 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
   }
 
   @Override
-  public RecordWriter getRecordWriter(final String filename, OutputStream out) {
+  public RecordWriter getRecordWriter(final String filename, CountingOutputStream out) {
     try {
       log.debug("Opening record writer for: {}", filename);
       return new RecordWriter() {
         final JsonGenerator writer = mapper.getFactory()
             .createGenerator(out)
             .setRootValueSeparator(null);
-        long size =0;
         @Override
         public void write(SinkRecord record) {
           log.trace("Sink record: {}", record);
@@ -62,7 +61,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
               writer.writeObject(value);
               writer.writeRaw(LINE_SEPARATOR);
             }
-            size+= (value.toString().getBytes().length + LINE_SEPARATOR_BYTES_LENGTH);
           } catch (IOException e) {
             throw new ConnectException(e);
           }
@@ -75,11 +73,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
           } catch (IOException e) {
             throw new DataException(e);
           }
-        }
-
-        @Override
-        public long getDataSize() {
-          return size;
         }
 
         @Override

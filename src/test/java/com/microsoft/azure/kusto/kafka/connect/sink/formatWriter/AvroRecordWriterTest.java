@@ -1,5 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
+import com.microsoft.azure.kusto.kafka.connect.sink.CountingOutputStream;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericData;
@@ -13,7 +14,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,14 +38,13 @@ public class AvroRecordWriterTest {
       File file = new File("abc.avro");
       AvroRecordWriterProvider writer = new AvroRecordWriterProvider();
       FileOutputStream fos = new FileOutputStream(file);
-      OutputStream out=fos;
+      CountingOutputStream out = new CountingOutputStream(fos);
       RecordWriter rd = writer.getRecordWriter(file.getPath(),out);
       for(SinkRecord record : records){
         rd.write(record);
       }
       rd.commit();
       validate(file.getPath());
-      assertEquals(rd.getDataSize(),290);
       file.delete();
   }
 

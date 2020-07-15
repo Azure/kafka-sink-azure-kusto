@@ -21,7 +21,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Map;
@@ -114,13 +113,11 @@ public class FileWriter implements Closeable {
         FileOutputStream fos = new FileOutputStream(file);
         currentFileDescriptor = fos.getFD();
         fos.getChannel().truncate(0);
-
-        countingStream = new CountingOutputStream(fos);
         fileProps.file = file;
         currentFile = fileProps;
-
-        outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
-        recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, outputStream);
+        countingStream = new CountingOutputStream(shouldCompressData ? new GZIPOutputStream(fos) : fos);
+        outputStream = countingStream.getOutputStream();
+        recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, countingStream);
     }
 
     void rotate(@Nullable Long offset) throws IOException, DataException {
@@ -168,7 +165,7 @@ public class FileWriter implements Closeable {
     }
     
     private void dumpFile() throws IOException {
-        outputStream.close();
+        countingStream.close();
         currentFileDescriptor = null;
         boolean deleted = currentFile.file.delete();
         if (!deleted) {
@@ -178,8 +175,8 @@ public class FileWriter implements Closeable {
     }
 
     public void rollback() throws IOException {
-        if (outputStream != null) {
-            outputStream.close();
+        if (countingStream != null) {
+            countingStream.close();
             if (currentFile != null && currentFile.file != null) {
                 dumpFile();
             }
@@ -254,8 +251,9 @@ public class FileWriter implements Closeable {
             resetFlushTimer(true);
         }
         recordWriter.write(record);
+        recordWriter.commit();
         currentFile.records.add(record);
-        currentFile.rawBytes = recordWriter.getDataSize();
+        currentFile.rawBytes = countingStream.numBytes;
         currentFile.numRecords++;
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes) {
             rotate(record.kafkaOffset());
@@ -288,32 +286,6 @@ public class FileWriter implements Closeable {
             }
         } else {
             throw new ConnectException(String.format("Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ",record.valueSchema().type()));
-        }
-    }
-
-    private class CountingOutputStream extends FilterOutputStream {
-        private long numBytes = 0;
-
-        CountingOutputStream(OutputStream out) {
-            super(out);
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-            out.write(b);
-            this.numBytes++;
-        }
-
-        @Override
-        public void write(byte[] b) throws IOException {
-            out.write(b);
-            this.numBytes += b.length;
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            out.write(b, off, len);
-            this.numBytes += len;
         }
     }
 }

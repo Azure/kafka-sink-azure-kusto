@@ -1,5 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
+import com.microsoft.azure.kusto.kafka.connect.sink.CountingOutputStream;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.Test;
@@ -7,7 +8,6 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.FileOutputStream;
-import java.io.OutputStream;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
@@ -30,7 +30,7 @@ public class JsonRecordWriterProviderTest {
     File file = new File("abc.json");
     JsonRecordWriterProvider jsonWriter = new JsonRecordWriterProvider();
     FileOutputStream fos = new FileOutputStream(file);
-    OutputStream out=fos;
+    CountingOutputStream out = new CountingOutputStream(fos);
     RecordWriter rd = jsonWriter.getRecordWriter(file.getPath(), out);
     for(SinkRecord record : records){
       rd.write(record);
@@ -43,7 +43,6 @@ public class JsonRecordWriterProviderTest {
       assertEquals(st, String.format("{\"hello\":%s}", i));
       i++;
     }
-    assertEquals(rd.getDataSize(),100);
     file.delete();
   }
 }
