@@ -74,8 +74,8 @@ flush.interval.ms=300000
 
 behavior.on.error=FAIL
 
-dlq.bootstrap.servers=localhost:9092
-dlq.topic.name=test-topic-error
+misc.deadletterqueue.bootstrap.servers=localhost:9092
+misc.deadletterqueue.topic.name=test-topic-error
 
 errors.retry.max.time.ms=60000
 errors.retry.backoff.time.ms=5000

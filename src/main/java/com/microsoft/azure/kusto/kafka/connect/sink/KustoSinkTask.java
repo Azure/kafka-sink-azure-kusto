@@ -340,11 +340,11 @@ public class KustoSinkTask extends SinkTask {
             isDlqEnabled = true;
             dlqTopicName = config.getDlqTopicName();
             Properties properties = config.getDlqProps();
-            log.info("Initializing DLQ producer with the following properties: {}", properties.keySet());
+            log.info("Initializing miscellaneous dead-letter queue producer with the following properties: {}", properties.keySet());
             try {
                 kafkaProducer = new KafkaProducer<>(properties);
             } catch (Exception e) {
-                throw new ConnectException("Failed to initialize producer for dlq", e);
+                throw new ConnectException("Failed to initialize producer for miscellaneous dead-letter queue", e);
             }
 
         } else {

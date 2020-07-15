@@ -113,14 +113,14 @@ class TopicPartitionWriter {
                 TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
             } catch (InterruptedException interruptedErr) {
                 if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                    log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                    log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
                 throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
             }
         } else {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                 fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             }
             throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
@@ -139,12 +139,12 @@ class TopicPartitionWriter {
             kafkaProducer.send(dlqRecord, (recordMetadata, exception) -> {
                   if (exception != null) {
                       throw new KafkaException(
-                          String.format("Failed to write records to DLQ topic=%s.", dlqTopicName), 
+                          String.format("Failed to write records to miscellaneous dead-letter queue topic=%s.", dlqTopicName),
                           exception);
                   }
               });
         } catch (IllegalStateException e) {
-            log.error("Failed to write records to DLQ topic, "
+            log.error("Failed to write records to miscellaneous dead-letter queue topic, "
                 + "kafka producer has already been closed. Exception={}", e);
         }
     }
