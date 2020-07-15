@@ -17,12 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -288,5 +283,38 @@ public class FileWriter implements Closeable {
             throw new ConnectException(String.format("Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ",record.valueSchema().type()));
         }
     }
+
+    private class CountingOutputStream extends FilterOutputStream {
+        private long numBytes = 0;
+        private OutputStream outputStream;
+
+        public CountingOutputStream(OutputStream out) {
+            super(out);
+            this.outputStream = out;
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            out.write(b);
+            this.numBytes++;
+        }
+
+        @Override
+        public void write(byte[] b) throws IOException {
+            out.write(b);
+            this.numBytes += b.length;
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            out.write(b, off, len);
+            this.numBytes += len;
+        }
+
+        public OutputStream getOutputStream() {
+            return outputStream;
+        }
+    }
 }
+
 

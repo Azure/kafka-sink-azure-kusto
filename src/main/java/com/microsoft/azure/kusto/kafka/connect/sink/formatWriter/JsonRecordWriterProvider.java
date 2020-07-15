@@ -2,7 +2,6 @@ package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microsoft.azure.kusto.kafka.connect.sink.CountingOutputStream;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import org.apache.kafka.connect.data.Struct;
@@ -14,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,8 +23,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
   private static final String LINE_SEPARATOR = System.lineSeparator();
   private static final byte[] LINE_SEPARATOR_BYTES
       = LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8);
-  private static final long LINE_SEPARATOR_BYTES_LENGTH
-      = LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8).length;
 
   private final ObjectMapper mapper =  new ObjectMapper();
   private final JsonConverter converter = new JsonConverter();
@@ -37,7 +35,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
   }
 
   @Override
-  public RecordWriter getRecordWriter(final String filename, CountingOutputStream out) {
+  public RecordWriter getRecordWriter(final String filename, OutputStream out) {
     try {
       log.debug("Opening record writer for: {}", filename);
       return new RecordWriter() {

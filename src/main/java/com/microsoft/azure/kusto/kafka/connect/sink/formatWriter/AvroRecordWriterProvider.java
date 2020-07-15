@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.CountingOutputStream;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import io.confluent.connect.avro.AvroData;
@@ -22,7 +21,7 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
   private final AvroData avroData = new AvroData(50);
 
   @Override
-  public RecordWriter getRecordWriter(String filename, CountingOutputStream out) {
+  public RecordWriter getRecordWriter(String filename, OutputStream out) {
     return new RecordWriter() {
       final DataFileWriter<Object> writer = new DataFileWriter<>(new GenericDatumWriter<>());
       Schema schema;

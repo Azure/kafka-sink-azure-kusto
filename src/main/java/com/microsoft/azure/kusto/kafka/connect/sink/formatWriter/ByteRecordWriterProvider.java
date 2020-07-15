@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.CountingOutputStream;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import org.apache.kafka.connect.errors.DataException;
@@ -16,7 +15,7 @@ public class ByteRecordWriterProvider implements RecordWriterProvider {
   private static final Logger log = LoggerFactory.getLogger(ByteRecordWriterProvider.class);
 
   @Override
-  public RecordWriter getRecordWriter(String filename, CountingOutputStream out) {
+  public RecordWriter getRecordWriter(String filename, OutputStream out) {
     return new RecordWriter() {
 
       @Override

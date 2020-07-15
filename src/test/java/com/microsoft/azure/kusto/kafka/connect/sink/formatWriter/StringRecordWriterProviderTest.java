@@ -1,15 +1,11 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.CountingOutputStream;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.Test;
-import java.io.File;
-import java.io.IOException;
-import java.io.FileOutputStream;
-import java.io.BufferedReader;
-import java.io.FileReader;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +22,7 @@ public class StringRecordWriterProviderTest {
     File file = new File("abc.txt");
     StringRecordWriterProvider writer = new StringRecordWriterProvider();
     FileOutputStream fos = new FileOutputStream(file);
-    CountingOutputStream out = new CountingOutputStream(fos);
+    OutputStream out = fos;
     RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
     for(SinkRecord record : records){
       rd.write(record);

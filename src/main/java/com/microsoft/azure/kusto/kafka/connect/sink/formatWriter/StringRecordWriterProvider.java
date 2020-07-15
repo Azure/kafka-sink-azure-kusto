@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.CountingOutputStream;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import org.apache.kafka.connect.errors.DataException;
@@ -9,12 +8,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 public class StringRecordWriterProvider implements RecordWriterProvider {
   private static final Logger log = LoggerFactory.getLogger(StringRecordWriterProvider.class);
   @Override
-  public RecordWriter getRecordWriter(String filename, CountingOutputStream out) {
+  public RecordWriter getRecordWriter(String filename, OutputStream out) {
     return new RecordWriter() {
 
       @Override
