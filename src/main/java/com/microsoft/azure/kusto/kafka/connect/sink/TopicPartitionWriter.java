@@ -4,7 +4,6 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 
@@ -38,7 +37,6 @@ class TopicPartitionWriter {
   
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
     
-    private final CompressionType eventDataCompression;
     private final TopicPartition tp;
     private final IngestClient client;
     private final IngestionProperties ingestionProps;
@@ -66,7 +64,6 @@ class TopicPartitionWriter {
         this.basePath = config.getTempDirPath();
         this.flushInterval = config.getFlushInterval();
         this.currentOffset = 0;
-        this.eventDataCompression = ingestionProps.eventDataCompression;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
         this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
@@ -157,14 +154,7 @@ class TopicPartitionWriter {
         offset = offset == null ? currentOffset : offset;
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? offset + 1 : offset;
 
-        String compressionExtension = "";
-        if (shouldCompressData(ingestionProps, null) || eventDataCompression != null) {
-            if(eventDataCompression != null) {
-                compressionExtension = "." + eventDataCompression.toString();
-            } else {
-                compressionExtension = ".gz";
-            }
-        }
+        String compressionExtension = ".gz";
 
         return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
     }
@@ -198,15 +188,12 @@ class TopicPartitionWriter {
 
     void open() {
         // Should compress binary files
-        boolean shouldCompressData = shouldCompressData(this.ingestionProps, this.eventDataCompression);
-
         fileWriter = new FileWriter(
                 basePath,
                 fileThreshold,
                 this::handleRollFile,
                 this::getFilePath,
                 flushInterval,
-                shouldCompressData,
                 reentrantReadWriteLock,
                 ingestionProps,
                 behaviorOnError);
@@ -228,7 +215,4 @@ class TopicPartitionWriter {
         }
     }
 
-    static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
-        return (eventDataCompression == null);
-    }
 }
