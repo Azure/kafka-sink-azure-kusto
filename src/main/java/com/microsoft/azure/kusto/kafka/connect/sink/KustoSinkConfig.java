@@ -6,6 +6,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
+import org.apache.kafka.common.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.util.Strings;
@@ -13,11 +14,13 @@ import org.testng.util.Strings;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
   
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
+    private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
 
     enum BehaviorOnError {
         FAIL, LOG, IGNORE;
@@ -87,16 +90,16 @@ public class KustoSinkConfig extends AbstractConfig {
         + "while processing records or ingesting records in Kusto table, available in connect logs.";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DISPLAY = "Behavior On Error";
     
-    static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "dlq.bootstrap.servers";
+    static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "misc.deadletterqueue.bootstrap.servers";
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this list to Kafka broker's address(es) "
-        + "to which the Connector should write failed records to. "
+        + "to which the Connector should write records failed due to network interruptions or unavailability of Kusto cluster. "
         + "This list should be in the form host-1:port-1,host-2:port-2,…host-n:port-n. ";
-    private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY = "Dead-Letter Queue Bootstrap Servers";
+    private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY = "Miscellaneous Dead-Letter Queue Bootstrap Servers";
     
-    static final String KUSTO_DLQ_TOPIC_NAME_CONF = "dlq.topic.name";
+    static final String KUSTO_DLQ_TOPIC_NAME_CONF = "misc.deadletterqueue.topic.name";
     private static final String KUSTO_DLQ_TOPIC_NAME_DOC = "Set this to the Kafka topic's name "
-        + "to which the failed records are to be sinked.";
-    private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Dead-Letter Queue Topic Name";
+        + "to which the Connector should write records failed due to network interruptions or unavailability of Kusto cluster.";
+    private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Miscellaneous Dead-Letter Queue Topic Name";
     
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DOC = "Maximum time upto which the Connector "
@@ -107,7 +110,7 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
         + "the Connector makes to ingest records into Kusto table.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
-    
+
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
     }
@@ -294,7 +297,7 @@ public class KustoSinkConfig extends AbstractConfig {
     public String getAuthAppid() {
         return this.getString(KUSTO_AUTH_APPID_CONF);
     }
-  
+
     public String getAuthAppkey() {
         return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
     }
@@ -330,9 +333,8 @@ public class KustoSinkConfig extends AbstractConfig {
         } else if (getDlqBootstrapServers().isEmpty() && Strings.isNullOrEmpty(getDlqTopicName())) {
             return false;
         } else {
-            log.warn("DLQ is disabled, configure both `dlq.bootstrap.servers` and `dlq.topic.name` "
-                + "configurations to enable writing failed records to dlq topic.");
-            return false;
+            throw new ConfigException("To enable Miscellaneous Dead-Letter Queue configuration please configure both " +
+                    "`misc.deadletterqueue.bootstrap.servers` and `misc.deadletterqueue.topic.name` configurations ");
         }
     }
     
@@ -342,6 +344,16 @@ public class KustoSinkConfig extends AbstractConfig {
     
     public String getDlqTopicName() {
         return getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+    }
+
+    public Properties getDlqProps() {
+        Map<String, Object> dlqconfigs = originalsWithPrefix(DLQ_PROPS_PREFIX);
+        Properties props = new Properties();
+        props.putAll(dlqconfigs);
+        props.put("bootstrap.servers", getDlqBootstrapServers());
+        props.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+        return props;
     }
     
     public long getMaxRetryAttempts() {

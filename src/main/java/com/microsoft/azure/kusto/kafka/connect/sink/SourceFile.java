@@ -8,7 +8,6 @@ import org.apache.kafka.connect.sink.SinkRecord;
 
 public class SourceFile {
     long rawBytes = 0;
-    long zippedBytes = 0;
     long numRecords = 0;
     public String path;
     public File file;

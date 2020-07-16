@@ -1,15 +1,21 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.data.*;
+import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
+import com.microsoft.azure.kusto.data.Client;
+import com.microsoft.azure.kusto.data.ClientFactory;
+import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
@@ -24,6 +30,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Properties;
+
 import java.util.logging.Logger;
 
 public class E2ETest {
@@ -36,12 +44,26 @@ public class E2ETest {
     private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
     private Logger log = Logger.getLogger(this.getClass().getName());
+    private boolean isDlqEnabled;
+    private String dlqTopicName;
+    private Producer<byte[], byte[]> kafkaProducer;
+
+    @Before
+    public void setUp(){
+      Properties properties = new Properties();
+      properties.put("bootstrap.servers", "localhost:9000");
+      properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+      properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+      kafkaProducer = new KafkaProducer<>(properties);
+      isDlqEnabled = false;
+      dlqTopicName = null;
+    }
 
     @Test
     @Ignore
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "csv";
-        ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
+        ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net/", cluster), appId, appKey, authority);
         Client engineClient = ClientFactory.createClient(engineCsb);
 
         if (tableBaseName.startsWith(testPrefix)) {
@@ -72,13 +94,12 @@ public class E2ETest {
             String basepath = Paths.get(basePath, "csv").toString();
             Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "mappy", fileThreshold, flushInterval);
             KustoSinkConfig config= new KustoSinkConfig(settings);
-
-            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config);
+            TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer.open();
 
             List<SinkRecord> records = new ArrayList<SinkRecord>();
             records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, messages[0].getBytes(), 10));
-            records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, messages[0], 10));
+            records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, messages[0].getBytes(), 10));
 
             for (SinkRecord record : records) {
                 writer.writeRecord(record);
@@ -103,12 +124,12 @@ public class E2ETest {
         Client engineClient = ClientFactory.createClient(engineCsb);
         try {
 
-            ConnectionStringBuilder csb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://ingest-%s.kusto.windows.net", cluster), appId, appKey, authority);
+            ConnectionStringBuilder csb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://ingest-%s.kusto.windows.net/", cluster), appId, appKey, authority);
             IngestClient ingestClient = IngestClientFactory.createClient(csb);
             if (tableBaseName.startsWith(testPrefix)) {
                 engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
             }
-            engineClient.execute(database, String.format(".create table ['%s'] ingestion avro mapping 'avri' " +
+            engineClient.execute(database, String.format(".create table ['%s'] ingestion avro mapping 'avroMapping' " +
                     "'[" +
                     "{\"column\": \"ColA\", \"Properties\":{\"Field\":\"XText\"}}," +
                     "{\"column\": \"ColB\", \"Properties\":{\"Field\":\"RowNumber\"}}" +
@@ -119,16 +140,15 @@ public class E2ETest {
             TopicIngestionProperties props2 = new TopicIngestionProperties();
             props2.ingestionProperties = ingestionProperties;
             props2.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
-            props2.ingestionProperties.setIngestionMapping("avri", IngestionMapping.IngestionMappingKind.Avro);
+            props2.ingestionProperties.setIngestionMapping("avroMapping", IngestionMapping.IngestionMappingKind.Avro);
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
-
             String KustoUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
             String basepath = Paths.get(basePath, "avro").toString();
             long fileThreshold = 100;
             long flushInterval = 300000;
             Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "avri", fileThreshold, flushInterval);
             KustoSinkConfig config= new KustoSinkConfig(settings);
-            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config);
+            TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer2.open();
             List<SinkRecord> records2 = new ArrayList<SinkRecord>();
 

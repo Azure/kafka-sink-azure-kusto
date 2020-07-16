@@ -9,10 +9,10 @@ import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnEr
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -29,6 +29,7 @@ public class KustoSinkConnectorConfigTest {
     @Test
     public void shouldAcceptValidConfig() {
         // Adding required Configuration with no default value.
+        settings.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
@@ -41,6 +42,7 @@ public class KustoSinkConnectorConfigTest {
     @Test
     public void shouldHaveDefaultValues() {
         // Adding required Configuration with no default value.
+        settings.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
@@ -99,6 +101,28 @@ public class KustoSinkConnectorConfigTest {
         assertTrue(config.isDlqEnabled());
         assertEquals(Arrays.asList("localhost:8081", "localhost:8082"), config.getDlqBootstrapServers());
         assertEquals("dlq-error-topic", config.getDlqTopicName());
-    }    
+    }
+
+    @Test
+    public void shouldProcessDlqConfigsWithPrefix() {
+        // Adding required Configuration with no default value.
+        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+
+        settings.put("misc.deadletterqueue.security.protocol", "SASL_PLAINTEXT");
+        settings.put("misc.deadletterqueue.sasl.mechanism", "PLAIN");
+
+        config = new KustoSinkConfig(settings);
+
+        assertNotNull(config);
+
+        Properties dlqProps = config.getDlqProps();
+
+        assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
+        assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
+    }
 
 }
