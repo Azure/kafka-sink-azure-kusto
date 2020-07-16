@@ -158,22 +158,11 @@ class TopicPartitionWriter {
           this.currentOffset = record.kafkaOffset();
           fileWriter.writeData(record);
         } catch (IOException | DataException ex) {
-          handleErrors(ex, "Failed to write records into file for ingestion.");
+            throw new ConnectException("Failed to create file or write records into file for ingestion.", ex);
         } finally {
           reentrantReadWriteLock.readLock().unlock();
         }
       }
-    }
-
-
-    private void handleErrors(Exception ex, String message) {
-        if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
-            throw new ConnectException(message, ex);
-        } else if (KustoSinkConfig.BehaviorOnError.IGNORE == behaviorOnError) {
-            log.error(String.format("%s, Exception=%s", message, ex));
-        } else {
-            log.debug(String.format("%s, Exception=%s", message, ex));
-        }
     }
 
     void open() {
