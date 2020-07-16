@@ -258,41 +258,6 @@ public class FileWriterTest {
         fileWriter2.close();
         Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
     }
-/*
- Test commented as it required shouldCompressData as false which is actually true while running
- the connector as we are compression all files as gzip.
-*/
-
-//    @Test
-//    public void testFileWriterCompressed() throws IOException {
-//        String path = Paths.get(currentDirectory.getPath(), "testGzipFileWriter2").toString();
-//
-//        File folder = new File(path);
-//        boolean mkdirs = folder.mkdirs();
-//        Assert.assertTrue(mkdirs);
-//        HashMap<String, Long> files = new HashMap<>();
-//
-//        final int MAX_FILE_SIZE = 128 * 2;
-//
-//        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-//        GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
-//        String msg = "Message";
-//
-//        Consumer<SourceFile> trackFiles = getAssertFileConsumer(msg);
-//
-//        Function<Long, String> generateFileName = (Long l) -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + ".csv.gz";
-//
-//        // Expect no files to be ingested as size is small and flushInterval is big
-//        //FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 0, false, new ReentrantReadWriteLock(), ingestionProps, BehaviorOnError.FAIL);
-//
-//        gzipOutputStream.write(msg.getBytes());
-//        gzipOutputStream.finish();
-//        SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, byteArrayOutputStream.toByteArray(), 10);
-//        fileWriter.writeData(record);
-//
-//        fileWriter.close();
-//     //   Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
-//    }
 
     static Function<SourceFile, String> getAssertFileConsumerFunction(String msg) {
         return (SourceFile f) -> {
