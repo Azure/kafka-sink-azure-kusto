@@ -62,7 +62,7 @@ public class KustoSinkTask extends SinkTask {
     private String tempDir;
     private boolean isDlqEnabled;
     private String dlqTopicName;
-    private Producer<byte[], byte[]> kafkaProducer;
+    private Producer<byte[], byte[]> dlqProducer;
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
@@ -309,7 +309,7 @@ public class KustoSinkTask extends SinkTask {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped " +
                         "for the topic: %s. please check your configuration.", tp.topic()));
             } else {
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, kustoIngestClient, ingestionProps, config, isDlqEnabled, dlqTopicName, dlqProducer);
                 writer.open();
                 writers.put(tp, writer);
             }
@@ -342,13 +342,13 @@ public class KustoSinkTask extends SinkTask {
             Properties properties = config.getDlqProps();
             log.info("Initializing miscellaneous dead-letter queue producer with the following properties: {}", properties.keySet());
             try {
-                kafkaProducer = new KafkaProducer<>(properties);
+                dlqProducer = new KafkaProducer<>(properties);
             } catch (Exception e) {
                 throw new ConnectException("Failed to initialize producer for miscellaneous dead-letter queue", e);
             }
 
         } else {
-            kafkaProducer = null;
+            dlqProducer = null;
             isDlqEnabled = false;
             dlqTopicName = null;
         }
