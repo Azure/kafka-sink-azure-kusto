@@ -77,6 +77,11 @@ behavior.on.error=FAIL
 misc.deadletterqueue.bootstrap.servers=localhost:9092
 misc.deadletterqueue.topic.name=test-topic-error
 
+errors.tolerance=all
+errors.deadletterqueue.topic.name=connect-dlq-topic
+errors.deadletterqueue.topic.replication.factor=1
+errors.deadletterqueue.context.headers.enable=true
+
 errors.retry.max.time.ms=60000
 errors.retry.backoff.time.ms=5000
 ````
@@ -118,7 +123,8 @@ KafkaTest | count
 > 
 >Use `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter`
 
-
+#### Supported compressions    
+All the records processed by the Connector(except for records having schema as bytearray) are `gzip` compressed after flushing them into a file before ingesting it into Kusto.
 
 #### Avro example
 One can use this gist [FilesKafkaProducer]("https://gist.github.com/ohadbitt/8475dc9f63df1c0d0bc322e9b00fdd00") to create
