@@ -23,10 +23,4 @@ public interface RecordWriter extends Closeable {
    * close the writer.
    */
   void commit();
-
-  /**
-   *
-   * @return Total length of file
-   */
-  long getDataSize();
 }

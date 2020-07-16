@@ -60,7 +60,7 @@ value.converter=org.apache.kafka.connect.storage.StringConverter
 tasks.max=1 
 topics=testing1,testing2
 
-kusto.tables.topics.mapping=[{'topic': 'testing1','db': 'test_db', 'table': 'test_table_1','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'test_db', 'table': 'test_table_2','format': 'csv', 'mapping':'CsvMapping', 'eventDataCompression':'gz'}] 
+kusto.tables.topics.mapping=[{'topic': 'testing1','db': 'test_db', 'table': 'test_table_1','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'test_db', 'table': 'test_table_2','format': 'csv', 'mapping':'CsvMapping'}] 
 
 kusto.url=https://ingest-mycluster.kusto.windows.net/ 
 
@@ -74,8 +74,13 @@ flush.interval.ms=300000
 
 behavior.on.error=FAIL
 
-dlq.bootstrap.servers=localhost:9092
-dlq.topic.name=test-topic-error
+misc.deadletterqueue.bootstrap.servers=localhost:9092
+misc.deadletterqueue.topic.name=test-topic-error
+
+errors.tolerance=all
+errors.deadletterqueue.topic.name=connect-dlq-topic
+errors.deadletterqueue.topic.replication.factor=1
+errors.deadletterqueue.context.headers.enable=true
 
 errors.retry.max.time.ms=60000
 errors.retry.backoff.time.ms=5000
@@ -112,17 +117,14 @@ KafkaTest | count
 
 
 #### Supported formats
-`csv`, `json`, `avro`, `apacheAvro`, `parquet`, `orc`, `tsv`, `scsv`, `sohsv`, `psv`, `txt`.
+`csv`, `json`, `avro`, `apacheAvro`, `tsv`, `scsv`, `sohsv`, `psv`, `txt`.
 
-> Note - `avro`, `apacheAvro`, `parquet` and `orc` files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
+> Note - `avro` and `apacheAvro`files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
 > 
 >Use `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter`
 
-
-#### Supported compressions
-Kusto Kafka connector can get compressed data, this can be specified in the topics_mapping in the configuration under 
-`eventDataCompression`, this can get all the compression types kusto accepts. Using this configuration, files don't get aggregated in the connector and are sent straight for ingestion.
-
+#### Supported compressions    
+All the records processed by the Connector(except for records having schema as bytearray) are `gzip` compressed after flushing them into a file before ingesting it into Kusto.
 
 #### Avro example
 One can use this gist [FilesKafkaProducer]("https://gist.github.com/ohadbitt/8475dc9f63df1c0d0bc322e9b00fdd00") to create

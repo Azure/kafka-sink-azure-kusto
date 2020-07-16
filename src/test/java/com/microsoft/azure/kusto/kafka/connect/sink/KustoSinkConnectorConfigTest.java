@@ -112,8 +112,8 @@ public class KustoSinkConnectorConfigTest {
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
         settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
 
-        settings.put("dlq.security.protocol", "SASL_PLAINTEXT");
-        settings.put("dlq.sasl.mechanism", "PLAIN");
+        settings.put("misc.deadletterqueue.security.protocol", "SASL_PLAINTEXT");
+        settings.put("misc.deadletterqueue.sasl.mechanism", "PLAIN");
 
         config = new KustoSinkConfig(settings);
 

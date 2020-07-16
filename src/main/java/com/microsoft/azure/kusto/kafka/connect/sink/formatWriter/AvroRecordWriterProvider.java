@@ -25,7 +25,6 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
     return new RecordWriter() {
       final DataFileWriter<Object> writer = new DataFileWriter<>(new GenericDatumWriter<>());
       Schema schema;
-      long size =0;
 
       @Override
       public void write(SinkRecord record) throws IOException {
@@ -43,7 +42,6 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
 
         log.trace("Sink record: {}", record);
         Object value = avroData.fromConnectData(schema, record.value());
-        size += value.toString().getBytes().length;
           // AvroData wraps primitive types so their schema can be included. We need to unwrap
           // NonRecordContainers to just their value to properly handle these types
           if (value instanceof NonRecordContainer) {
@@ -69,11 +67,6 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
         } catch (IOException e) {
           throw new DataException(e);
         }
-      }
-
-      @Override
-      public long getDataSize() {
-        return size;
       }
     };
   }

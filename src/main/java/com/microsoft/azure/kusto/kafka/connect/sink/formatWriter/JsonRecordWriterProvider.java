@@ -23,8 +23,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
   private static final String LINE_SEPARATOR = System.lineSeparator();
   private static final byte[] LINE_SEPARATOR_BYTES
       = LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8);
-  private static final long LINE_SEPARATOR_BYTES_LENGTH
-      = LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8).length;
 
   private final ObjectMapper mapper =  new ObjectMapper();
   private final JsonConverter converter = new JsonConverter();
@@ -44,7 +42,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
         final JsonGenerator writer = mapper.getFactory()
             .createGenerator(out)
             .setRootValueSeparator(null);
-        long size =0;
         @Override
         public void write(SinkRecord record) {
           log.trace("Sink record: {}", record);
@@ -62,7 +59,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
               writer.writeObject(value);
               writer.writeRaw(LINE_SEPARATOR);
             }
-            size+= (value.toString().getBytes().length + LINE_SEPARATOR_BYTES_LENGTH);
           } catch (IOException e) {
             throw new ConnectException(e);
           }
@@ -75,11 +71,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
           } catch (IOException e) {
             throw new DataException(e);
           }
-        }
-
-        @Override
-        public long getDataSize() {
-          return size;
         }
 
         @Override

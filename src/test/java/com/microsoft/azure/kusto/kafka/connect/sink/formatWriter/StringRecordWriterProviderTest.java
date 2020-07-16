@@ -4,6 +4,7 @@ import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.FileOutputStream;
@@ -26,7 +27,7 @@ public class StringRecordWriterProviderTest {
     File file = new File("abc.txt");
     StringRecordWriterProvider writer = new StringRecordWriterProvider();
     FileOutputStream fos = new FileOutputStream(file);
-    OutputStream out=fos;
+    OutputStream out = fos;
     RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
     for(SinkRecord record : records){
       rd.write(record);
@@ -39,7 +40,6 @@ public class StringRecordWriterProviderTest {
       assertEquals(st, String.format("hello-%s", i));
       i++;
     }
-    assertEquals(rd.getDataSize(),80);
     file.delete();
   }
 

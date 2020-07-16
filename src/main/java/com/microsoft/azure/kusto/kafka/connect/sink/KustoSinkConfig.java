@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 public class KustoSinkConfig extends AbstractConfig {
   
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
-    private static final String DLQ_PROPS_PREFIX = "dlq.";
+    private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
 
     enum BehaviorOnError {
         FAIL, LOG, IGNORE;
@@ -90,16 +90,16 @@ public class KustoSinkConfig extends AbstractConfig {
         + "while processing records or ingesting records in Kusto table, available in connect logs.";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DISPLAY = "Behavior On Error";
     
-    static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "dlq.bootstrap.servers";
+    static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "misc.deadletterqueue.bootstrap.servers";
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this list to Kafka broker's address(es) "
-        + "to which the Connector should write failed records to. "
+        + "to which the Connector should write records failed due to network interruptions or unavailability of Kusto cluster. "
         + "This list should be in the form host-1:port-1,host-2:port-2,…host-n:port-n. ";
-    private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY = "Dead-Letter Queue Bootstrap Servers";
+    private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY = "Miscellaneous Dead-Letter Queue Bootstrap Servers";
     
-    static final String KUSTO_DLQ_TOPIC_NAME_CONF = "dlq.topic.name";
+    static final String KUSTO_DLQ_TOPIC_NAME_CONF = "misc.deadletterqueue.topic.name";
     private static final String KUSTO_DLQ_TOPIC_NAME_DOC = "Set this to the Kafka topic's name "
-        + "to which the failed records are to be sinked.";
-    private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Dead-Letter Queue Topic Name";
+        + "to which the Connector should write records failed due to network interruptions or unavailability of Kusto cluster.";
+    private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Miscellaneous Dead-Letter Queue Topic Name";
     
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DOC = "Maximum time upto which the Connector "
@@ -333,7 +333,8 @@ public class KustoSinkConfig extends AbstractConfig {
         } else if (getDlqBootstrapServers().isEmpty() && Strings.isNullOrEmpty(getDlqTopicName())) {
             return false;
         } else {
-            throw new ConfigException("To enable DLQ configuration please configure both `dlq.bootstrap.servers` and `dlq.topic.name` configurations ");
+            throw new ConfigException("To enable Miscellaneous Dead-Letter Queue configuration please configure both " +
+                    "`misc.deadletterqueue.bootstrap.servers` and `misc.deadletterqueue.topic.name` configurations ");
         }
     }
     

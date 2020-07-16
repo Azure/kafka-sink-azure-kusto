@@ -27,7 +27,7 @@ public class ByteArrayWriterProviderTest {
     File file = new File("abc.bin");
     ByteRecordWriterProvider writer = new ByteRecordWriterProvider();
     FileOutputStream fos = new FileOutputStream(file);
-    OutputStream out=fos;
+    OutputStream out = fos;
     RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
     for(SinkRecord record : records){
       rd.write(record);
@@ -40,7 +40,6 @@ public class ByteArrayWriterProviderTest {
       assertEquals(st, String.format("hello-%s", i));
       i++;
     }
-    assertEquals(rd.getDataSize(),80);
     file.delete();
   }
 }

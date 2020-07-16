@@ -30,7 +30,7 @@ public class JsonRecordWriterProviderTest {
     File file = new File("abc.json");
     JsonRecordWriterProvider jsonWriter = new JsonRecordWriterProvider();
     FileOutputStream fos = new FileOutputStream(file);
-    OutputStream out=fos;
+    OutputStream out = fos;
     RecordWriter rd = jsonWriter.getRecordWriter(file.getPath(), out);
     for(SinkRecord record : records){
       rd.write(record);
@@ -43,7 +43,6 @@ public class JsonRecordWriterProviderTest {
       assertEquals(st, String.format("{\"hello\":%s}", i));
       i++;
     }
-    assertEquals(rd.getDataSize(),100);
     file.delete();
   }
 }

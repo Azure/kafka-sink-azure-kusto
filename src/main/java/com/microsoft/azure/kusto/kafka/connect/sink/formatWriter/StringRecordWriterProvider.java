@@ -16,14 +16,12 @@ public class StringRecordWriterProvider implements RecordWriterProvider {
   @Override
   public RecordWriter getRecordWriter(String filename, OutputStream out) {
     return new RecordWriter() {
-      long size =0;
 
       @Override
       public void write(SinkRecord record) throws IOException {
         byte[] value = null;
         value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
         out.write(value);
-        size += value.length;
       }
 
       @Override
@@ -42,11 +40,6 @@ public class StringRecordWriterProvider implements RecordWriterProvider {
         } catch (IOException e) {
           throw new DataException(e);
         }
-      }
-
-      @Override
-      public long getDataSize() {
-        return size;
       }
     };
   }

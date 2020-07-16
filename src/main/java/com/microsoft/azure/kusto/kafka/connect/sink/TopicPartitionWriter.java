@@ -4,21 +4,13 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -29,16 +21,14 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 class TopicPartitionWriter {
   
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
+    private static final String COMPRESSION_EXTENSION = ".gz";
     
-    private final CompressionType eventDataCompression;
     private final TopicPartition tp;
     private final IngestClient client;
     private final IngestionProperties ingestionProps;
@@ -57,7 +47,7 @@ class TopicPartitionWriter {
     private final BehaviorOnError behaviorOnError;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-        KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> kafkaProducer)
+        KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer)
     {
         this.tp = tp;
         this.client = client;
@@ -66,14 +56,13 @@ class TopicPartitionWriter {
         this.basePath = config.getTempDirPath();
         this.flushInterval = config.getFlushInterval();
         this.currentOffset = 0;
-        this.eventDataCompression = ingestionProps.eventDataCompression;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
         this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
         this.behaviorOnError = config.getBehaviorOnError();
         this.isDlqEnabled = isDlqEnabled;
         this.dlqTopicName = dlqTopicName;
-        this.kafkaProducer = kafkaProducer;
+        this.kafkaProducer = dlqProducer;
 
     }
 
@@ -116,14 +105,14 @@ class TopicPartitionWriter {
                 TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
             } catch (InterruptedException interruptedErr) {
                 if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                    log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                    log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
                 throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
             }
         } else {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                log.warn("Writing {} failed records to DLQ topic={}", fileDescriptor.records.size(), dlqTopicName);
+                log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                 fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             }
             throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
@@ -142,12 +131,12 @@ class TopicPartitionWriter {
             kafkaProducer.send(dlqRecord, (recordMetadata, exception) -> {
                   if (exception != null) {
                       throw new KafkaException(
-                          String.format("Failed to write records to DLQ topic=%s.", dlqTopicName), 
+                          String.format("Failed to write records to miscellaneous dead-letter queue topic=%s.", dlqTopicName),
                           exception);
                   }
               });
         } catch (IllegalStateException e) {
-            log.error("Failed to write records to DLQ topic, "
+            log.error("Failed to write records to miscellaneous dead-letter queue topic, "
                 + "kafka producer has already been closed. Exception={}", e);
         }
     }
@@ -157,16 +146,7 @@ class TopicPartitionWriter {
         offset = offset == null ? currentOffset : offset;
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? offset + 1 : offset;
 
-        String compressionExtension = "";
-        if (shouldCompressData(ingestionProps, null) || eventDataCompression != null) {
-            if(eventDataCompression != null) {
-                compressionExtension = "." + eventDataCompression.toString();
-            } else {
-                compressionExtension = ".gz";
-            }
-        }
-
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), compressionExtension)).toString();
+        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), COMPRESSION_EXTENSION)).toString();
     }
 
     void writeRecord(SinkRecord record) throws ConnectException {
@@ -198,15 +178,12 @@ class TopicPartitionWriter {
 
     void open() {
         // Should compress binary files
-        boolean shouldCompressData = shouldCompressData(this.ingestionProps, this.eventDataCompression);
-
         fileWriter = new FileWriter(
                 basePath,
                 fileThreshold,
                 this::handleRollFile,
                 this::getFilePath,
                 flushInterval,
-                shouldCompressData,
                 reentrantReadWriteLock,
                 ingestionProps,
                 behaviorOnError);
@@ -228,7 +205,4 @@ class TopicPartitionWriter {
         }
     }
 
-    static boolean shouldCompressData(IngestionProperties ingestionProps, CompressionType eventDataCompression) {
-        return (eventDataCompression == null);
-    }
 }

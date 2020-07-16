@@ -44,7 +44,6 @@ public class FileWriter implements Closeable {
     private Timer timer;
     private Consumer<SourceFile> onRollCallback;
     private final long flushInterval;
-    private final boolean shouldCompressData;
     private Function<Long, String> getFilePath;
     private OutputStream outputStream;
     private String basePath;
@@ -66,7 +65,6 @@ public class FileWriter implements Closeable {
      * @param fileThreshold  - Max size, uncompressed bytes.
      * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
      * @param getFilePath    - Allow external resolving of file name.
-     * @param shouldCompressData - Should the FileWriter compress the incoming data.
      * @param behaviorOnError - Either log, fail or ignore errors based on the mode.
      */
     public FileWriter(String basePath,
@@ -74,7 +72,6 @@ public class FileWriter implements Closeable {
                       Consumer<SourceFile> onRollCallback,
                       Function<Long, String> getFilePath,
                       long flushInterval,
-                      boolean shouldCompressData,
                       ReentrantReadWriteLock reentrantLock,
                       IngestionProperties ingestionProps,
                       BehaviorOnError behaviorOnError) {
@@ -83,7 +80,6 @@ public class FileWriter implements Closeable {
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
-        this.shouldCompressData = shouldCompressData;
         this.behaviorOnError = behaviorOnError;
 
         // This is a fair lock so that we flush close to the time intervals
@@ -114,13 +110,11 @@ public class FileWriter implements Closeable {
         FileOutputStream fos = new FileOutputStream(file);
         currentFileDescriptor = fos.getFD();
         fos.getChannel().truncate(0);
-
-        countingStream = new CountingOutputStream(fos);
         fileProps.file = file;
         currentFile = fileProps;
-
-        outputStream = shouldCompressData ? new GZIPOutputStream(countingStream) : countingStream;
-        recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, outputStream);
+        countingStream = new CountingOutputStream(new GZIPOutputStream(fos));
+        outputStream = countingStream.getOutputStream();
+        recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, countingStream);
     }
 
     void rotate(@Nullable Long offset) throws IOException, DataException {
@@ -131,12 +125,8 @@ public class FileWriter implements Closeable {
     void finishFile(Boolean delete) throws IOException, DataException {
         if(isDirty()){
             recordWriter.commit();
-            if(shouldCompressData){
-                GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
-                gzip.finish();
-            } else {
-                outputStream.flush();
-            }
+            GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
+            gzip.finish();
             try {
                 onRollCallback.accept(currentFile);
               } catch (ConnectException e) {
@@ -168,7 +158,7 @@ public class FileWriter implements Closeable {
     }
     
     private void dumpFile() throws IOException {
-        outputStream.close();
+        countingStream.close();
         currentFileDescriptor = null;
         boolean deleted = currentFile.file.delete();
         if (!deleted) {
@@ -178,8 +168,8 @@ public class FileWriter implements Closeable {
     }
 
     public void rollback() throws IOException {
-        if (outputStream != null) {
-            outputStream.close();
+        if (countingStream != null) {
+            countingStream.close();
             if (currentFile != null && currentFile.file != null) {
                 dumpFile();
             }
@@ -254,9 +244,9 @@ public class FileWriter implements Closeable {
             resetFlushTimer(true);
         }
         recordWriter.write(record);
+        recordWriter.commit();
         currentFile.records.add(record);
-        currentFile.rawBytes = recordWriter.getDataSize();
-        currentFile.zippedBytes += countingStream.numBytes;
+        currentFile.rawBytes = countingStream.numBytes;
         currentFile.numRecords++;
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes) {
             rotate(record.kafkaOffset());
@@ -294,9 +284,11 @@ public class FileWriter implements Closeable {
 
     private class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;
+        private OutputStream outputStream;
 
         CountingOutputStream(OutputStream out) {
             super(out);
+            this.outputStream = out;
         }
 
         @Override
@@ -316,6 +308,11 @@ public class FileWriter implements Closeable {
             out.write(b, off, len);
             this.numBytes += len;
         }
+
+        public OutputStream getOutputStream() {
+            return outputStream;
+        }
     }
 }
+
 

@@ -10,7 +10,6 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
-import com.microsoft.azure.kusto.ingest.source.CompressionType;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -137,8 +136,7 @@ public class KustoSinkTask extends SinkTask {
                 String table = mapping.getString("table");
   
                 String format = mapping.optString("format");
-                CompressionType compressionType = StringUtils.isBlank(mapping.optString("eventDataCompression")) ? null : CompressionType.valueOf(mapping.optString("eventDataCompression"));
-  
+
                 IngestionProperties props = new IngestionProperties(db, table);
   
                 if (format != null && !format.isEmpty()) {
@@ -171,7 +169,6 @@ public class KustoSinkTask extends SinkTask {
                     }
                 }
                 TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
-                topicIngestionProperties.eventDataCompression = compressionType;
                 topicIngestionProperties.ingestionProperties = props;
                 result.put(mapping.getString("topic"), topicIngestionProperties);
             }
@@ -193,9 +190,13 @@ public class KustoSinkTask extends SinkTask {
             Client engineClient = createKustoEngineClient(config);
             if (config.getTopicToTableMapping() != null) {
                 JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
-                for (int i = 0; i < mappings.length(); i++) {
-                    JSONObject mapping = mappings.getJSONObject(i);
-                    validateTableAccess(engineClient, mapping, config, databaseTableErrorList, accessErrorList);
+                if(mappings.length() > 0) {
+                    if(isIngestorRole(mappings.getJSONObject(0), engineClient)) {
+                        for (int i = 0; i < mappings.length(); i++) {
+                            JSONObject mapping = mappings.getJSONObject(i);
+                            validateTableAccess(engineClient, mapping, config, databaseTableErrorList, accessErrorList);
+                        }
+                    }
                 }
             }
             String tableAccessErrorMessage = "";
@@ -221,6 +222,20 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
+    private boolean isIngestorRole(JSONObject testMapping, Client engineClient) throws JSONException {
+        String database = testMapping.getString("db");
+        String table = testMapping.getString("table");
+        try {
+            KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table));
+        } catch(DataServiceException | DataClientException err){
+            if(err.getCause().getMessage().contains("Forbidden:")){
+                log.warn("User might have ingestor privileges, table validation will be skipped for all table mappings ");
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      *  This function validates whether the user has the read and write access to the intended table
      *  before starting to sink records into ADX.
@@ -232,8 +247,8 @@ public class KustoSinkTask extends SinkTask {
         
         String database = mapping.getString("db");
         String table = mapping.getString("table");
-        String format = mapping.optString("format");
-        String mappingName = mapping.optString("mapping");
+        String format = mapping.getString("format");
+        String mappingName = mapping.getString("mapping");
         boolean hasAccess = false;
         try {
             try {
@@ -243,7 +258,6 @@ public class KustoSinkTask extends SinkTask {
                 }
 
             } catch (DataServiceException e) {
-                hasAccess = false;
                 databaseTableErrorList.add(String.format("Database:%s Table:%s | table not found", database, table));
             }
             if(hasAccess) {
@@ -326,11 +340,11 @@ public class KustoSinkTask extends SinkTask {
             isDlqEnabled = true;
             dlqTopicName = config.getDlqTopicName();
             Properties properties = config.getDlqProps();
-            log.info("Initializing DLQ producer with the following properties: {}", properties.keySet());
+            log.info("Initializing miscellaneous dead-letter queue producer with the following properties: {}", properties.keySet());
             try {
                 kafkaProducer = new KafkaProducer<>(properties);
             } catch (Exception e) {
-                throw new ConnectException("Failed to initialize producer for dlq", e);
+                throw new ConnectException("Failed to initialize producer for miscellaneous dead-letter queue", e);
             }
 
         } else {

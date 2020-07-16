@@ -38,14 +38,13 @@ public class AvroRecordWriterTest {
       File file = new File("abc.avro");
       AvroRecordWriterProvider writer = new AvroRecordWriterProvider();
       FileOutputStream fos = new FileOutputStream(file);
-      OutputStream out=fos;
+      OutputStream out = fos;
       RecordWriter rd = writer.getRecordWriter(file.getPath(),out);
       for(SinkRecord record : records){
         rd.write(record);
       }
       rd.commit();
       validate(file.getPath());
-      assertEquals(rd.getDataSize(),290);
       file.delete();
   }
 
