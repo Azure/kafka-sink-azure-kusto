@@ -43,7 +43,7 @@ class TopicPartitionWriter {
     private final long retryBackOffTime;
     private final boolean isDlqEnabled;
     private final String dlqTopicName;
-    private final Producer<byte[], byte[]> kafkaProducer;
+    private final Producer<byte[], byte[]> dlqProducer;
     private final BehaviorOnError behaviorOnError;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
@@ -62,7 +62,7 @@ class TopicPartitionWriter {
         this.behaviorOnError = config.getBehaviorOnError();
         this.isDlqEnabled = isDlqEnabled;
         this.dlqTopicName = dlqTopicName;
-        this.kafkaProducer = dlqProducer;
+        this.dlqProducer = dlqProducer;
 
     }
 
@@ -128,7 +128,7 @@ class TopicPartitionWriter {
         byte[] recordValue = record.value().toString().getBytes(StandardCharsets.UTF_8);
         ProducerRecord<byte[], byte[]> dlqRecord = new ProducerRecord<>(dlqTopicName, recordKey, recordValue);
         try {
-            kafkaProducer.send(dlqRecord, (recordMetadata, exception) -> {
+            dlqProducer.send(dlqRecord, (recordMetadata, exception) -> {
                   if (exception != null) {
                       throw new KafkaException(
                           String.format("Failed to write records to miscellaneous dead-letter queue topic=%s.", dlqTopicName),
@@ -197,8 +197,8 @@ class TopicPartitionWriter {
             log.error("Failed to rollback with exception={}", e);
         }
         try {
-            if (kafkaProducer != null) {
-                kafkaProducer.close();
+            if (dlqProducer != null) {
+                dlqProducer.close();
             }
         } catch (Exception e) {
             log.error("Failed to close kafka producer={}", e);
