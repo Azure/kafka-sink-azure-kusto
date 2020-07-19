@@ -159,7 +159,7 @@ class TopicPartitionWriter {
           this.currentOffset = record.kafkaOffset();
           fileWriter.writeData(record);
         } catch (IOException | DataException ex) {
-            handleErrors(record, ex);
+          handleErrors(record, ex);
         } finally {
           reentrantReadWriteLock.readLock().unlock();
         }
@@ -170,10 +170,10 @@ class TopicPartitionWriter {
         if (BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(FILE_EXCEPTION_MESSAGE, ex);
         } else if (BehaviorOnError.LOG == behaviorOnError) {
-            log.error("{}", FILE_EXCEPTION_MESSAGE);
+            log.error(FILE_EXCEPTION_MESSAGE + " {}", ex);
             sendFailedRecordToDlq(record);
         } else {
-            log.debug("{}", FILE_EXCEPTION_MESSAGE);
+            log.debug(FILE_EXCEPTION_MESSAGE + " {}", ex);
         }
     }
 
