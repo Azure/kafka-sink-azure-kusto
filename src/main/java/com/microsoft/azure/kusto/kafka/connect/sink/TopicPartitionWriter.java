@@ -174,6 +174,7 @@ class TopicPartitionWriter {
             sendFailedRecordToDlq(record);
         } else {
             log.debug(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            sendFailedRecordToDlq(record);
         }
     }
 
