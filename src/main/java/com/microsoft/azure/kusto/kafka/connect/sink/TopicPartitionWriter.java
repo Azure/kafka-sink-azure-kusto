@@ -28,7 +28,8 @@ class TopicPartitionWriter {
   
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
     private static final String COMPRESSION_EXTENSION = ".gz";
-    
+    private static final String FILE_EXCEPTION_MESSAGE = "Failed to create file or write record into file for ingestion.";
+
     private final TopicPartition tp;
     private final IngestClient client;
     private final IngestionProperties ingestionProps;
@@ -158,11 +159,23 @@ class TopicPartitionWriter {
           this.currentOffset = record.kafkaOffset();
           fileWriter.writeData(record);
         } catch (IOException | DataException ex) {
-            throw new ConnectException("Failed to create file or write records into file for ingestion.", ex);
+          handleErrors(record, ex);
         } finally {
           reentrantReadWriteLock.readLock().unlock();
         }
       }
+    }
+
+    private void handleErrors(SinkRecord record, Exception ex) {
+        if (BehaviorOnError.FAIL == behaviorOnError) {
+            throw new ConnectException(FILE_EXCEPTION_MESSAGE, ex);
+        } else if (BehaviorOnError.LOG == behaviorOnError) {
+            log.error(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            sendFailedRecordToDlq(record);
+        } else {
+            log.debug(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            sendFailedRecordToDlq(record);
+        }
     }
 
     void open() {
