@@ -304,7 +304,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getAuthAuthority() {
-      return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
+        return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
     }
 
     public String getTopicToTableMapping() {
@@ -347,4 +347,3 @@ public class KustoSinkConfig extends AbstractConfig {
       System.out.println(getConfig().toEnrichedRst());
     }
 }
-
