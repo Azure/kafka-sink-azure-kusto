@@ -50,21 +50,42 @@ Go to `http://localhost:3030/kafka-connect-ui/#/cluster/fast-data-dev/` and usin
 example configuration:
 
 ```config
+
 name=KustoSinkConnector 
 connector.class=com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector 
+
 key.converter=org.apache.kafka.connect.storage.StringConverter 
 value.converter=org.apache.kafka.connect.storage.StringConverter 
+
 tasks.max=1 
-topics=testing1 
-kusto.tables.topics_mapping=[{'topic': 'testing1','db': 'daniel', 'table': 'KafkaTest','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'daniel', 'table': 'KafkaTest','format': 'csv', 'mapping':'CsvMapping', 'eventDataCompression':'gz'},] 
-kusto.auth.authority=XXX 
+topics=testing1,testing2
+
+kusto.tables.topics.mapping=[{'topic': 'testing1','db': 'test_db', 'table': 'test_table_1','format': 'json', 'mapping':'JsonMapping'},{'topic': 'testing2','db': 'test_db', 'table': 'test_table_2','format': 'csv', 'mapping':'CsvMapping'}] 
+
 kusto.url=https://ingest-mycluster.kusto.windows.net/ 
-kusto.auth.appid=XXX 
-kusto.auth.appkey=XXX 
+
+aad.auth.appid
+aad.auth.appkey
+aad.auth.authority
+
 kusto.sink.tempdir=/var/tmp/ 
-kusto.sink.flush_size=1000
-kusto.sink.flush_interval_ms=300000 
-```
+flush.size.bytes=1000
+flush.interval.ms=300000
+
+behavior.on.error=FAIL
+
+misc.deadletterqueue.bootstrap.servers=localhost:9092
+misc.deadletterqueue.topic.name=test-topic-error
+
+errors.tolerance=all
+errors.deadletterqueue.topic.name=connect-dlq-topic
+errors.deadletterqueue.topic.replication.factor=1
+errors.deadletterqueue.context.headers.enable=true
+
+errors.retry.max.time.ms=60000
+errors.retry.backoff.time.ms=5000
+````
+
 Aggregation in the sink is done using files, these are sent to kusto if the aggregated file has reached the flush_size 
 (size is in bytes) or if the flush_interval_ms interval has passed. 
 For the confluent parameters please refer here https://docs.confluent.io/2.0.0/connect/userguide.html#configuring-connectors
@@ -96,17 +117,14 @@ KafkaTest | count
 
 
 #### Supported formats
-`csv`, `json`, `avro`, `apacheAvro`, `parquet`, `orc`, `tsv`, `scsv`, `sohsv`, `psv`, `txt`.
+`csv`, `json`, `avro`, `apacheAvro`, `tsv`, `scsv`, `sohsv`, `psv`, `txt`.
 
-> Note - `avro`, `apacheAvro`, `parquet` and `orc` files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
+> Note - `avro` and `apacheAvro`files are sent each record (file) separately without aggregation, and are expected to be sent as a byte array containing the full file.
 > 
 >Use `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter`
 
-
-#### Supported compressions
-Kusto Kafka connector can get compressed data, this can be specified in the topics_mapping in the configuration under 
-`eventDataCompression`, this can get all the compression types kusto accepts. Using this configuration, files don't get aggregated in the connector and are sent straight for ingestion.
-
+#### Supported compressions    
+All the records processed by the Connector(except for records having schema as bytearray) are `gzip` compressed after flushing them into a file before ingesting it into Kusto.
 
 #### Avro example
 One can use this gist [FilesKafkaProducer]("https://gist.github.com/ohadbitt/8475dc9f63df1c0d0bc322e9b00fdd00") to create
