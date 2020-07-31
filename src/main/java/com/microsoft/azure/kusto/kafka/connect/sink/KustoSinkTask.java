@@ -247,7 +247,7 @@ public class KustoSinkTask extends SinkTask {
         Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>();
         for (TopicPartition tp : assignment) {
 
-            Long offset = writers.get(tp).lastCommittedOffset;
+            Long offset = writers.get(tp).lastCommittedOffset + 1;
 
             if (offset != null) {
                 log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
