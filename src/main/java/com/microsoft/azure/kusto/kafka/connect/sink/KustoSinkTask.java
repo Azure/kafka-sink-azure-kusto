@@ -418,7 +418,7 @@ public class KustoSinkTask extends SinkTask {
                 throw new ConnectException("Topic Partition not configured properly. " +
                         "verify your `topics` and `kusto.tables.topics.mapping` configurations");
             }
-            Long offset = writers.get(tp).lastCommittedOffset;
+            Long offset = writers.get(tp).lastCommittedOffset + 1;
 
             if (offset != null) {
                 log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
