@@ -15,11 +15,11 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
-import org.testng.Assert;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -107,7 +107,7 @@ public class E2ETest {
 
             validateExpectedResults(engineClient, 2, table);
         } catch (InterruptedException e) {
-            Assert.fail("Test failed", e);
+            Assert.fail("Test failed");
 
         } finally {
             if (table.startsWith(testPrefix)) {
@@ -164,7 +164,7 @@ public class E2ETest {
 
             validateExpectedResults(engineClient, 2, table);
         } catch (InterruptedException | IOException e) {
-            Assert.fail("Test failed", e);
+            Assert.fail("Test failed");
         } finally {
             if (table.startsWith(testPrefix)) {
                 engineClient.execute(database, ".drop table " + table);
