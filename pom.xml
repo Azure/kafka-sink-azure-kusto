@@ -47,14 +47,17 @@
                         </goals>
                         <configuration>
                             <title>Kafka Connect Azure Kusto Connector</title>
-                            <version>${project.version}-preview</version>
-                            <ownerUsername>Microsoft</ownerUsername>
-                            <ownerName>Microsoft.</ownerName>
+                            <version>${project.version}</version>
+                            <ownerUsername>microsoftcorporation</ownerUsername>
+                            <ownerName>Microsoft Corporation</ownerName>
                             <componentTypes>
                                 <componentType>sink</componentType>
                             </componentTypes>
                             <tags>
-                                <tag>Azure Kusto </tag>
+                                <tag>Azure</tag>
+                                <tag>Kusto</tag>
+                                <tag>Data Explorer</tag>
+                                <tag>Database</tag>
                             </tags>
                             <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
                         </configuration>

@@ -23,10 +23,10 @@ Need to build locally with Maven
 Building locally using Maven is simple:
 
 ```bash
-mvn clean compile assembly:single
+mvn clean install
 ```
 
-Which should produce a Jar complete with dependencies.
+The connector jar along with jars of associated dependencies will be found under `target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-1.0.1/microsoftcorporation-kafka-sink-azure-kusto-1.0.1/lib/` folder.
 
 ### Deploy 
 
