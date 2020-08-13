@@ -10,7 +10,7 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.testng.Assert;
+import org.junit.Assert;
 
 import java.io.File;
 import java.io.IOException;
