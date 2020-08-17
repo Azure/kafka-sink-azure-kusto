@@ -28,6 +28,12 @@ mvn clean install
 
 The connector jar along with jars of associated dependencies will be found under `target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-1.0.1/microsoftcorporation-kafka-sink-azure-kusto-1.0.1/lib/` folder.
 
+Use the following command to build an uber jar.
+
+```bash
+mvn clean compile assembly:single
+```
+
 ### Deploy 
 
 Deployment as a Kafka plugin will be demonstrated using a docker image for convenience,
