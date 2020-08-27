@@ -1,5 +1,5 @@
-# Microsoft Azure Data Explorer (Kusto) Kafka Sink 
-This repository contains the source code of the Kafka To ADX Sink.
+# Azure Data Explorer (Kusto) Kafka Connect Sink Connector
+This repository contains the source code of the Kafka Connect Kusto sink connector.
 
 
 ## Setup
