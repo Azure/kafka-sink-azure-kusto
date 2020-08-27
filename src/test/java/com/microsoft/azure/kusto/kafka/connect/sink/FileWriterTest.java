@@ -173,7 +173,7 @@ public class FileWriterTest {
         String msg2 = "Second Message";
         SinkRecord record1 = new SinkRecord("topic", 1, null, null, null, msg2, 10);
         fileWriter2.writeData(record1);
-        Thread.sleep(1010);
+        Thread.sleep(1050);
 
         Assert.assertEquals(files.size(), 2);
 
