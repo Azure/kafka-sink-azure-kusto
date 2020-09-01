@@ -341,9 +341,7 @@ In a standalone mode (not recommended for production), the connector can be test
 
 
 ### 9.2. HDInsight Kafka, on an edge node
-[Review this hands on lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/standalone-mode/README.md).  The lab referenced may have slightly outdated list of sink properties.  Modify them to make current, leveraging the latest sink properties detailed in [section 5](ConnectorGitDoc.md#5-sink-properties).
-
-
+[Review this hands on lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/standalone-mode/README.md).  The lab referenced may have slightly outdated list of sink properties.  Modify them to make current, leveraging the latest sink properties detailed in [section 5](README.md#5-sink-properties).
 
 <hr>
 
