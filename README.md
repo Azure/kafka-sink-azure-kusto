@@ -439,7 +439,7 @@ For a non-secured HDInsight Kafka cluster - [run through this end-to-end hands-o
 For a secured HDInsight Kafka cluster (Kerberised) -  [review these details specific to HDInsight with Enterprise Security Package](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/distributed-mode/hdinsight-kafka/connectors-crud-esp.md)
 
 ### 11.2. Confluent Cloud
-[Run through this end-to-end hands-on-lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/distributed-mode/confluent-kafka/README.md)
+[Run through this end-to-end hands-on-lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/confluent-cloud/README.md)
 
 ### 11.3. Confluent IaaS (operator based)
 [Run through this end-to-end hands-on-lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/distributed-mode/confluent-kafka/README.md)
