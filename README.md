@@ -495,7 +495,7 @@ The connector plugin is open source.  We welcome feedback, and contribution.  Lo
 - **Have a technical question?** Ask on [Stack Overflow with tag "azure-data-explorer"](https://stackoverflow.com/questions/tagged/azure-data-explorer)
 - **Need Support?** Every customer with an active Azure subscription has access to [support](https://docs.microsoft.com/en-us/azure/azure-supportability/how-to-create-azure-support-request) with guaranteed response time.  Consider submitting a ticket and get assistance from Microsoft support team
 
-## 16 Contribute
+## 16. Contribute
 
 We gladly accept community contributions.
 
