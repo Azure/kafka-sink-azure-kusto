@@ -252,10 +252,7 @@ The following is complete set of connector sink properties-
 | 34 | consumer.override.auto.offset.reset | Configurable consuming from offset | Possible values are - earliest or latest<br>*Optional*  |
 | 35 | consumer.override.max.poll.interval.ms| Config to prevent duplication | Set to a value to avoid consumer leaving the group while the Connector is retrying <br>*Optional*  |
 
-
-
 <hr>
-
 
 ## 6. Roadmap
 The following is the roadmap-<br>
@@ -336,8 +333,7 @@ In a standalone mode (not recommended for production), the connector can be test
 
 ### 9.1. Self-contained Dockerized setup
 
-[Review this hands on lab]().  It includes dockerized kafka, connector and Kafka producer to take away complexities and allow you to focus on the connector aspect.
-
+[Review this hands on lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/dockerized-quickstart/README.md).  It includes dockerized kafka, connector and Kafka producer to take away complexities and allow you to focus on the connector aspect.
 
 
 ### 9.2. HDInsight Kafka, on an edge node
