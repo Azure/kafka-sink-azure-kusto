@@ -16,8 +16,9 @@ This repository contains the source code of the Kafka Connect Kusto sink connect
 [10. Distributed deployment details](README.md#10-distributed-deployment-details)<br>
 [11. Test drive the connector - distributed mode](README.md#11-test-drive-the-connector---distributed-mode)<br>
 [12. Apache Kafka version - Docker Kafka Connect base image version - Confluent Helm chart version related](README.md#12-apache-kafka-version---docker-kafka-connect-base-image-version---confluent-helm-chart-version-related)<br>
-[13. Major version specifics](README.md#13-version-specifics)<br>
+[13. Major version specifics](README.md#13-major-version-specifics)<br>
 [14. Other](README.md#14-other)<br>
+[15. Need Support?](README.md#15-need-support)<br>
 
 
 <hr>
