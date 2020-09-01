@@ -1,23 +1,23 @@
 # Azure Data Explorer Kafka Connect Kusto Sink Connector
 This repository contains the source code of the Kafka Connect Kusto sink connector.<br>
-**"Kusto"** is the Microsoft internal project code name for Azure Data Explorer.
+**"Kusto"** is the Microsoft internal project code name for Azure Data Explorer, Microsoft Azure's big data analytical database PaaS offering.
 
 ## Topics covered
 
-[1. Overview](ConnectorGitDoc.md#1-overview)<br>
-[2. Integration design](ConnectorGitDoc.md#2-integration-design)<br>
-[3. Features supported](ConnectorGitDoc.md#3-features-supported)<br>
-[4. Connect worker properties](ConnectorGitDoc.md#4-connect-worker-properties)<br>
-[5. Sink properties](ConnectorGitDoc.md#5-sink-properties)<br>
-[6. Roadmap](ConnectorGitDoc.md#6-roadmap)<br>
-[7. Deployment overview](ConnectorGitDoc.md#7-deployment-overview)<br>
-[8. Connector download/build from source](ConnectorGitDoc.md#8-connector-downloadbuild-from-source)<br>
-[9. Test drive the connector - standalone mode](ConnectorGitDoc.md#9-test-drive-the-connector---standalone-mode)<br>
-[10. Distributed deployment details](ConnectorGitDoc.md#10-distributed-deployment-details)<br>
-[11. Test drive the connector - distributed mode](ConnectorGitDoc.md#11-test-drive-the-connector---distributed-mode)<br>
-[12. Docker image specifics](ConnectorGitDoc.md#12-docker-image-specifics)<br>
-[13. Version specifics](ConnectorGitDoc.md#13-version-specifics)<br>
-[14. Other](ConnectorGitDoc.md#14-other)<br>
+[1. Overview](README.md#1-overview)<br>
+[2. Integration design](README.md#2-integration-design)<br>
+[3. Features supported](README.md#3-features-supported)<br>
+[4. Connect worker properties](README.md#4-connect-worker-properties)<br>
+[5. Sink properties](README.md#5-sink-properties)<br>
+[6. Roadmap](README.md#6-roadmap)<br>
+[7. Deployment overview](README.md#7-deployment-overview)<br>
+[8. Connector download/build from source](README.md#8-connector-downloadbuild-from-source)<br>
+[9. Test drive the connector - standalone mode](README.md#9-test-drive-the-connector---standalone-mode)<br>
+[10. Distributed deployment details](README.md#10-distributed-deployment-details)<br>
+[11. Test drive the connector - distributed mode](README.md#11-test-drive-the-connector---distributed-mode)<br>
+[12. Docker image specifics](README.md#12-docker-image-specifics)<br>
+[13. Version specifics](README.md#13-version-specifics)<br>
+[14. Other](README.md#14-other)<br>
 
 
 <hr>
