@@ -8,7 +8,7 @@
     <groupId>com.microsoft.azure</groupId>
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
-    <description>A Kafka Connect plugin for Azure Kusto Database</description>
+    <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
     <version>1.0.1</version>
     <properties>
         <kafka.version>1.0.0</kafka.version>
@@ -54,7 +54,7 @@
                             <goal>kafka-connect</goal>
                         </goals>
                         <configuration>
-                            <title>Kafka Connect Azure Kusto Connector</title>
+                            <title>Kafka Connect Azure Data Explorer (Kusto) Sink Connector</title>
                             <version>${project.version}</version>
                             <ownerUsername>microsoftcorporation</ownerUsername>
                             <ownerName>Microsoft Corporation</ownerName>
@@ -64,10 +64,14 @@
                             <tags>
                                 <tag>Azure</tag>
                                 <tag>Kusto</tag>
-                                <tag>Data Explorer</tag>
+                                <tag>Azure Data Explorer</tag>
                                 <tag>Database</tag>
+                                <tag>Sink</tag>
+                                <tag>Kafka Connect</tag>
                             </tags>
                             <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
+                            <supportProviderName>Microsoft</supportProviderName>
+                            <supportUrl>https://github.com/Azure/kafka-sink-azure-kusto/issues</supportUrl>
                         </configuration>
                     </execution>
                 </executions>
@@ -85,7 +89,7 @@
         </resources>
     </build>
 
-    <name>Azure Kusto Kafka Sink</name>
+    <name>Kafka Connect Azure Data Explorer (Kusto) Sink</name>
 
     <licenses>
         <license>
@@ -96,8 +100,8 @@
     </licenses>
 
     <scm>
-        <url>scm:git:https://github.com/Azure/kafka-sink-azure-kusto</url>
-        <connection>scm:git:git://github.com/Azure/kafka-sink-azure-kusto.git</connection>
+        <url>https://github.com/Azure/kafka-sink-azure-kusto</url>
+        <connection>scm:git://github.com/Azure/kafka-sink-azure-kusto.git</connection>
     </scm>
 
     <developers>
@@ -148,17 +152,6 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.7</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>4.5.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <version>2.0.2-beta</version>
             <scope>test</scope>
         </dependency>
         <dependency>
