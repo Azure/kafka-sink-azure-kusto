@@ -414,6 +414,8 @@ This is what we will see, a Kusto sink connector cluster with copy tasks running
 <hr>
 <br>
 
+Note: The diagram below depicts just one connector task per Kafka Connect worker.  You can actually run 1..many connector tasks till you max out the capacity.
+
 ![CONNECTOR](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/confluent-cloud/images/AKS-ADX.png)
 <br>
 <br>
