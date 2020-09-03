@@ -459,9 +459,18 @@ Similarly, we recommend leveraging the right version of the Helm chart.  [Conflu
 <hr>
 
 ## 13. Major version specifics
-With the connector version 1.0.0, we overhauled the connector; We renamed some properties for consistency with standards, and removed some sink properties to stay consistent with how Kafka is used, and added multiple new properties, and also improved the delivery semantics from "at most once" to "at least once".    
+With version 1.0, we overhauled the connector.  The following are the changes- 
+1. We renamed some properties for consistency with standards
+2. Added support for schema registry
+3. Added support for more converters - we supported only stringConverter and ByteArrayConverter previously
+4. Improved upfront validation and fail fast
+5. Added support for configurable behavior on error
+6. Added support for configurable retries
+7. Added support for Kafka Connect dead letter queues
+8. Introduced additional dead letter queue property for those errors that are not handled by Kafka Connect through its dead letter queue feature
+9. Improved the delivery guarantees to "at least once" (no data loss)
 
-
+To upgrade this version, you woudl have to stop the connectors, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, and then launch the copy tasks.
 <hr>
 
 ## 14. Other
