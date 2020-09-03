@@ -470,7 +470,7 @@ With version 1.0, we overhauled the connector.  The following are the changes-
 8. Introduced additional dead letter queue property for those errors that are not handled by Kafka Connect through its dead letter queue feature
 9. Improved the delivery guarantees to "at least once" (no data loss)
 
-To upgrade this version, you woudl have to stop the connectors, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, and then launch the copy tasks.
+To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers, then launch the copy tasks.  You can use the consumer.override* feature to manipulate offset to read from.
 <hr>
 
 ## 14. Other
@@ -496,6 +496,9 @@ The connector plugin is open source.  We welcome feedback, and contribution.  Lo
 - Kusto: Right-size Kusto cluster for ingestion (SKU and node count), tune the batch ingestion policy
 - Format: Avro (with schema registry) and CSV perform more-or-less similarly from tests done
 
+### 14.5. Upgrading to version 1.x from prior versions
+To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers, then launch the copy tasks.  You can use the consumer.override* feature to manipulate offset to read from.
+<hr>
 
 ## 15. Need Support?
 - **Found a bug?** Please help us fix it by thoroughly documenting it and [filing an issue](https://github.com/Azure/kafka-sink-azure-kusto/issues/new).
