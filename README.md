@@ -470,7 +470,9 @@ With version 1.0, we overhauled the connector.  The following are the changes-
 8. Introduced additional dead letter queue property for those errors that are not handled by Kafka Connect through its dead letter queue feature
 9. Improved the delivery guarantees to "at least once" (no data loss)
 
-To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers, then launch the copy tasks.  You can use the consumer.override* feature to manipulate offset to read from.
+Here is our [blog post](https://techcommunity.microsoft.com/t5/azure-data-explorer/azure-data-explorer-kafka-connector-new-features-with-version-1/ba-p/1637143).
+
+To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers, then launch the copy tasks.  
 <hr>
 
 ## 14. Other
