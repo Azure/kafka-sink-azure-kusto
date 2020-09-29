@@ -219,39 +219,40 @@ The following is complete set of connector sink properties-
 | :--- | :--- | :--- | :--- | 
 | 1 | connector.class | Classname of the Kusto sink | Hard code to ``` com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector ```<br>*Required* |
 | 2 | topics | Kafka topic specification | List of topics separated by commas<br>*Required*  |
-| 3 | kusto.url | Kusto ingest cluster specification | Provide the ingest URI of your ADX cluster<br>*Required*  |
-| 4 | aad.auth.authority | Credentials for Kusto | Provide the tenant ID of your Azure Active Directory<br>*Required*  |
-| 5 | aad.auth.appid | Credentials for Kusto  | Provide Azure Active Directory Service Principal Name<br>*Required*  |
-| 6 | aad.auth.appkey | Credentials for Kusto  | Provide Azure Active Directory Service Principal secret<br>*Required*  |
-| 7 | kusto.tables.topics.mapping | Mapping of topics to tables  | Provide 1..many topic-table comma-separated mappings as follows-<br>[{'topic': '\<topicName1\>','db': '\<datebaseName\>', 'table': '\<tableName\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName\>'}]<br>*Required*  |
-| 8 | key.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*Required*  |
-| 9 | value.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*Required*  |
-| 10 | value.converter.schema.registry.url | Schema validation | URI of the Kafka schema registry<br>*Optional*  |
-| 11 | value.converter.schemas.enable | Schema validation | Set to true if you have embedded schema with payload but are not leveraging the schema registry<br>Applicable for avro and json<br><br>*Optional*  |
-| 12 | tasks.max | connector parallelism | Specify the number of connector copy/sink tasks<br>*Required*  |
-| 13 | flush.size.bytes | Performance knob for batching | Maximum bufer byte size per topic+partition combination that in combination with flush.interval.ms (whichever is reached first) should result in sinking to Kusto<br>*Default - 1 MB*<br>*Required*  |
-| 14 | flush.interval.ms | Performance knob for batching | Minimum time interval per topic+partition combo that in combination with flush.size.bytes (whichever is reached first) should result in sinking to Kusto<br>*Default - 300 ms*<br>*Required*  |
-| 15 | tempdir.path | Local directory path on Kafka Connect worker to buffer files to before shipping to Kusto | Default is value returned by ```System.getProperty("java.io.tmpdir")``` with a GUID attached to it<br><br>*Optional*  |
-| 16 | behavior.on.error | Configurable behavior in response to errors encountered | Possible values - log, ignore, fail<br><br>log - log the error, send record to dead letter queue, and continue processing<br>ignore - log the error, send record to dead letter queue, proceed with processing despite errors encountered<br>fail - shut down connector task upon encountering<br><br>*Default - fail*<br>*Optional*  |
-| 17 | errors.retry.max.time.ms | Configurable retries for transient errors | Period of time in milliseconds to retry for transient errors<br><br>*Default - 300 ms*<br>*Optional*  |
-| 18 | errors.retry.backoff.time.ms | Configurable retries for transient errors | Period of time in milliseconds to backoff before retry for transient errors<br><br>*Default - 10 ms*<br>*Optional*  |
-| 19 | errors.deadletterqueue.bootstrap.servers | Channel to write records that failed deserialization | CSV or kafkaBroker:port <br>*Optional*  |
-| 20 | errors.deadletterqueue.topic.name | Channel to write records that failed deserialization | Pre-created topic name <br>*Optional*  |
-| 21 | errors.deadletterqueue.security.protocol | Channel to write records that failed deserialization  | Securitry protocol of secure Kafka cluster <br>*Optional but when feature is used with secure cluster, is required*  |
-| 22 | errors.deadletterqueue.sasl.mechanism | Channel to write records that failed deserialization | SASL mechanism of secure Kafka cluster<br>*Optional but when feature is used with secure cluster, is required*  |
-| 23 | errors.deadletterqueue.sasl.jaas.config | Channel to write records that failed deserialization | JAAS config of secure Kafka cluster<br>*Optional but when feature is used with secure cluster, is required*  |
-| 24 | misc.deadletterqueue.bootstrap.servers | Channel to write records that due to reasons other than deserialization | CSV of kafkaBroker:port <br>*Optional*  |
-| 25 | misc.deadletterqueue.topic.name | Channel to write records that due to reasons other than deserialization | Pre-created topic name <br>*Optional*  |
-| 26 | misc.deadletterqueue.security.protocol | Channel to write records that due to reasons other than deserialization  | Securitry protocol of secure Kafka cluster <br>*Optional but when feature is used with secure cluster, is required*  |
-| 27 | misc.deadletterqueue.sasl.mechanism | Channel to write records that due to reasons other than deserialization | SASL mechanism of secure Kafka cluster<br>*Optional but when feature is used with secure cluster, is required*  |
-| 28 | misc.deadletterqueue.sasl.jaas.config | Channel to write records that due to reasons other than deserialization | JAAS config of secure Kafka cluster<br>*Optional but when feature is used with secure cluster, is required*  |
-| 29 | consumer.override.bootstrap.servers | Security details explicitly required for secure Kafka clusters  | Bootstrap server:port CSV of secure Kafka cluster <br>*Required for secure Kafka clusters*  |
-| 30 | consumer.override.security.protocol | Security details explicitly required for secure Kafka clusters  | Security protocol of secure Kafka cluster <br>*Required for secure Kafka clusters*  |
-| 31 | consumer.override.sasl.mechanism | Security details explicitly required for secure Kafka clusters | SASL mechanism of secure Kafka cluster<br>*Required for secure Kafka clusters*  |
-| 32 | consumer.override.sasl.jaas.config | Security details explicitly required for secure Kafka clusters | JAAS config of secure Kafka cluster<br>*Required for secure Kafka clusters*  |
-| 33 | consumer.override.sasl.kerberos.service.name | Security details explicitly required for secure Kafka clusters, specifically kerberized Kafka | Kerberos service name of kerberized Kafka cluster<br>*Required for kerberized Kafka clusters*  |
-| 34 | consumer.override.auto.offset.reset | Configurable consuming from offset | Possible values are - earliest or latest<br>*Optional*  |
-| 35 | consumer.override.max.poll.interval.ms| Config to prevent duplication | Set to a value to avoid consumer leaving the group while the Connector is retrying <br>*Optional*  |
+| 3 | kusto.url | Kusto ingest node specification | Provide the ingest URI of your ADX cluster<br>*Required*  |
+| 4 | kusto.engine.url | Kusto engine node specification | Provide the engine URI of your ADX cluster<br>*Optional*  |
+| 5 | aad.auth.authority | Credentials for Kusto | Provide the tenant ID of your Azure Active Directory<br>*Required*  |
+| 6 | aad.auth.appid | Credentials for Kusto  | Provide Azure Active Directory Service Principal Name<br>*Required*  |
+| 7 | aad.auth.appkey | Credentials for Kusto  | Provide Azure Active Directory Service Principal secret<br>*Required*  |
+| 8 | kusto.tables.topics.mapping | Mapping of topics to tables  | Provide 1..many topic-table comma-separated mappings as follows-<br>[{'topic': '\<topicName1\>','db': '\<datebaseName\>', 'table': '\<tableName\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName\>'}]<br>*Required*  |
+| 9 | key.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*Required*  |
+| 10 | value.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*Required*  |
+| 11 | value.converter.schema.registry.url | Schema validation | URI of the Kafka schema registry<br>*Optional*  |
+| 12 | value.converter.schemas.enable | Schema validation | Set to true if you have embedded schema with payload but are not leveraging the schema registry<br>Applicable for avro and json<br><br>*Optional*  |
+| 13 | tasks.max | connector parallelism | Specify the number of connector copy/sink tasks<br>*Required*  |
+| 14 | flush.size.bytes | Performance knob for batching | Maximum bufer byte size per topic+partition combination that in combination with flush.interval.ms (whichever is reached first) should result in sinking to Kusto<br>*Default - 1 MB*<br>*Required*  |
+| 15 | flush.interval.ms | Performance knob for batching | Minimum time interval per topic+partition combo that in combination with flush.size.bytes (whichever is reached first) should result in sinking to Kusto<br>*Default - 300 ms*<br>*Required*  |
+| 16 | tempdir.path | Local directory path on Kafka Connect worker to buffer files to before shipping to Kusto | Default is value returned by ```System.getProperty("java.io.tmpdir")``` with a GUID attached to it<br><br>*Optional*  |
+| 17 | behavior.on.error | Configurable behavior in response to errors encountered | Possible values - log, ignore, fail<br><br>log - log the error, send record to dead letter queue, and continue processing<br>ignore - log the error, send record to dead letter queue, proceed with processing despite errors encountered<br>fail - shut down connector task upon encountering<br><br>*Default - fail*<br>*Optional*  |
+| 18 | errors.retry.max.time.ms | Configurable retries for transient errors | Period of time in milliseconds to retry for transient errors<br><br>*Default - 300 ms*<br>*Optional*  |
+| 19 | errors.retry.backoff.time.ms | Configurable retries for transient errors | Period of time in milliseconds to backoff before retry for transient errors<br><br>*Default - 10 ms*<br>*Optional*  |
+| 20 | errors.deadletterqueue.bootstrap.servers | Channel to write records that failed deserialization | CSV or kafkaBroker:port <br>*Optional*  |
+| 21 | errors.deadletterqueue.topic.name | Channel to write records that failed deserialization | Pre-created topic name <br>*Optional*  |
+| 22 | errors.deadletterqueue.security.protocol | Channel to write records that failed deserialization  | Securitry protocol of secure Kafka cluster <br>*Optional but when feature is used with secure cluster, is required*  |
+| 23 | errors.deadletterqueue.sasl.mechanism | Channel to write records that failed deserialization | SASL mechanism of secure Kafka cluster<br>*Optional but when feature is used with secure cluster, is required*  |
+| 24 | errors.deadletterqueue.sasl.jaas.config | Channel to write records that failed deserialization | JAAS config of secure Kafka cluster<br>*Optional but when feature is used with secure cluster, is required*  |
+| 25 | misc.deadletterqueue.bootstrap.servers | Channel to write records that due to reasons other than deserialization | CSV of kafkaBroker:port <br>*Optional*  |
+| 26 | misc.deadletterqueue.topic.name | Channel to write records that due to reasons other than deserialization | Pre-created topic name <br>*Optional*  |
+| 27 | misc.deadletterqueue.security.protocol | Channel to write records that due to reasons other than deserialization  | Securitry protocol of secure Kafka cluster <br>*Optional but when feature is used with secure cluster, is required*  |
+| 28 | misc.deadletterqueue.sasl.mechanism | Channel to write records that due to reasons other than deserialization | SASL mechanism of secure Kafka cluster<br>*Optional but when feature is used with secure cluster, is required*  |
+| 29 | misc.deadletterqueue.sasl.jaas.config | Channel to write records that due to reasons other than deserialization | JAAS config of secure Kafka cluster<br>*Optional but when feature is used with secure cluster, is required*  |
+| 30 | consumer.override.bootstrap.servers | Security details explicitly required for secure Kafka clusters  | Bootstrap server:port CSV of secure Kafka cluster <br>*Required for secure Kafka clusters*  |
+| 31 | consumer.override.security.protocol | Security details explicitly required for secure Kafka clusters  | Security protocol of secure Kafka cluster <br>*Required for secure Kafka clusters*  |
+| 32 | consumer.override.sasl.mechanism | Security details explicitly required for secure Kafka clusters | SASL mechanism of secure Kafka cluster<br>*Required for secure Kafka clusters*  |
+| 33 | consumer.override.sasl.jaas.config | Security details explicitly required for secure Kafka clusters | JAAS config of secure Kafka cluster<br>*Required for secure Kafka clusters*  |
+| 34 | consumer.override.sasl.kerberos.service.name | Security details explicitly required for secure Kafka clusters, specifically kerberized Kafka | Kerberos service name of kerberized Kafka cluster<br>*Required for kerberized Kafka clusters*  |
+| 35 | consumer.override.auto.offset.reset | Configurable consuming from offset | Possible values are - earliest or latest<br>*Optional*  |
+| 36 | consumer.override.max.poll.interval.ms| Config to prevent duplication | Set to a value to avoid consumer leaving the group while the Connector is retrying <br>*Optional*  |
 
 <hr>
 
