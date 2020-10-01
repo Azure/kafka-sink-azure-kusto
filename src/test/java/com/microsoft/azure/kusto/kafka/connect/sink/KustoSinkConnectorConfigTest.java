@@ -60,7 +60,7 @@ public class KustoSinkConnectorConfigTest {
     }
 
     @Test
-    public void shouldUseDmUrlWhenKustoEngineUrlWhenNotGivenAndCantGuess() {
+    public void shouldUseDmUrlWhenKustoEngineUrlNotGivenAndCantGuess() {
         HashMap<String, String> settings = setupConfigs();
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, ENGINE_URI);
         KustoSinkConfig config = new KustoSinkConfig(settings);
