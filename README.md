@@ -219,7 +219,7 @@ The following is complete set of connector sink properties-
 | :--- | :--- | :--- | :--- | 
 | 1 | connector.class | Classname of the Kusto sink | Hard code to ``` com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector ```<br>*Required* |
 | 2 | topics | Kafka topic specification | List of topics separated by commas<br>*Required*  |
-| 3 | kusto.url | Kusto ingest cluster specification | Provide the ingest URI of your ADX cluster<br>Use the following construct for the private URL - https://ingest-private-[cluster].kusto.windows.net*Required*  |
+| 3 | kusto.url | Kusto ingest cluster specification | Provide the ingest URI of your ADX cluster<br>Use the following construct for the private URL - https://ingest-private-[cluster].kusto.windows.net<br>*Required*  |
 | 4 | aad.auth.authority | Credentials for Kusto | Provide the tenant ID of your Azure Active Directory<br>*Required*  |
 | 5 | aad.auth.appid | Credentials for Kusto  | Provide Azure Active Directory Service Principal Name<br>*Required*  |
 | 6 | aad.auth.appkey | Credentials for Kusto  | Provide Azure Active Directory Service Principal secret<br>*Required*  |
