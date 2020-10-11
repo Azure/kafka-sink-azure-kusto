@@ -243,7 +243,7 @@ public class KustoSinkTask extends SinkTask {
         try {
             try {
                 KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table));
-                if ((int) rs.getPrimaryResults().getData().get(0).get(0) >= 0) {
+                if ((long) rs.getPrimaryResults().getData().get(0).get(0) >= 0) {
                     hasAccess = true;
                 }
 
