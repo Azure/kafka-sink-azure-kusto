@@ -18,7 +18,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
-  
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
     private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
 
@@ -38,13 +37,13 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     // TODO: this might need to be per kusto cluster...
-    static final String KUSTO_URL_CONF = "kusto.url"; // TODO [yischoen 2020-09-29]: Next major version bump, change to kusto.ingest.url (and update README+docs)
-    private static final String KUSTO_URL_DOC = "Kusto ingestion service URI.";
-    private static final String KUSTO_URL_DISPLAY = "Kusto cluster ingestion URI";
+    static final String KUSTO_URL_CONF = "kusto.ingestion.url";
+    private static final String KUSTO_URL_DOC = "Kusto ingestion endpoint URL.";
+    private static final String KUSTO_URL_DISPLAY = "Kusto cluster ingestion URL";
 
-    static final String KUSTO_ENGINE_URL_CONF = "kusto.engine.url";
-    private static final String KUSTO_ENGINE_URL_DOC = "Kusto engine service URI.";
-    private static final String KUSTO_ENGINE_URL_DISPLAY = "Kusto cluster engine URI";
+    static final String KUSTO_ENGINE_URL_CONF = "kusto.query.url";
+    private static final String KUSTO_ENGINE_URL_DOC = "Kusto query endpoint URL.";
+    private static final String KUSTO_ENGINE_URL_DISPLAY = "Kusto cluster query URL";
 
     static final String KUSTO_AUTH_APPID_CONF = "aad.auth.appid";
     private static final String KUSTO_AUTH_APPID_DOC = "Application Id for Azure Active Directory authentication.";
@@ -261,7 +260,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_ENGINE_URL_CONF,
                 Type.STRING,
-                "", // TODO [yischoen 2020-09-29]: Next major version bump, set to ConfigDef.NO_DEFAULT_VALUE to make it a required setting
+                ConfigDef.NO_DEFAULT_VALUE,
                 Importance.LOW,
                 KUSTO_ENGINE_URL_DOC,
                 connectionGroupName,
@@ -304,11 +303,8 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getString(KUSTO_URL_CONF);
     }
 
-    // TODO [yischoen 2020-09-29]: Next major version bump, just return the value, as it will be a required setting
     public String getKustoEngineUrl() {
-        if (!Strings.isNullOrEmpty(this.getString(KUSTO_ENGINE_URL_CONF)))
-            return this.getString(KUSTO_ENGINE_URL_CONF);
-        return this.getString(KUSTO_URL_CONF).replaceFirst("(?i)ingest-", "");
+        return this.getString(KUSTO_ENGINE_URL_CONF);
     }
 
     public String getAuthAppid() {

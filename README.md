@@ -57,7 +57,7 @@ Integration mode to Azure Data Explorer is batched, queued ingestion leveraging 
 
 
 ### 3.3. Configurable retries
-- The connector supports retries for transient errors with the ability to provide parameters for the same
+- The connector supports retries for transient errors with the ability to provide relevant parameters
 - and retries with exponential backoff
 
 ### 3.4.  Serialization formats
@@ -193,7 +193,7 @@ KafkaClient {
 <br>
 
 **4. Configs to add to the Docker image:**<br>
-This is covered in detail further on.  It is specified here for the purpose of completenes of defining what goes onto the worker config.<br>
+This is covered in detail further on. It is specified here for the purpose of completeness of defining what goes onto the worker config.<br>
 ```
 COPY krb5.conf /etc/krb5.conf
 COPY hdi-esp-jaas.conf /etc/hdi-esp-jaas.conf 
@@ -219,8 +219,8 @@ The following is complete set of connector sink properties-
 | :--- | :--- | :--- | :--- | 
 | 1 | connector.class | Classname of the Kusto sink | Hard code to ``` com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector ```<br>*Required* |
 | 2 | topics | Kafka topic specification | List of topics separated by commas<br>*Required*  |
-| 3 | kusto.url | Kusto ingest cluster specification | Provide the ingest URI of your ADX cluster<br>Use the following construct for the private URL - https://ingest-private-[cluster].kusto.windows.net<br>*Required*  |
-| 4 | kusto.engine.url | Kusto engine node specification | Provide the engine URI of your ADX cluster<br>*Optional*  |
+| 3 | kusto.ingestion.url | Kusto ingestion endpoint URL | Provide the ingest URL of your ADX cluster<br>Use the following construct for the private URL - https://ingest-private-[cluster].kusto.windows.net<br>*Required*  |
+| 4 | kusto.query.url | Kusto query endpoint URL | Provide the engine URL of your ADX cluster<br>*Optional*  |
 | 5 | aad.auth.authority | Credentials for Kusto | Provide the tenant ID of your Azure Active Directory<br>*Required*  |
 | 6 | aad.auth.appid | Credentials for Kusto  | Provide Azure Active Directory Service Principal Name<br>*Required*  |
 | 7 | aad.auth.appkey | Credentials for Kusto  | Provide Azure Active Directory Service Principal secret<br>*Required*  |
@@ -273,12 +273,12 @@ The following is the roadmap-<br>
 Kafka Connect connectors can be deployed in standalone mode (just for development) or in distributed mode (production).<br>
 
 ### 7.1. Standalone Kafka Connect deployment mode 
-This involves having the connector plugin jar in /usr/share/java of a Kafka Connect worker, reference to the same plugin path in connnect-standalone.properties, and launching of the connector from command line.  This is not scalable, not fault tolerant, and is not recommeded for production.
+This involves having the connector plugin jar in /usr/share/java of a Kafka Connect worker, reference to the same plugin path in connect-standalone.properties, and launching of the connector from command line.  This is not scalable, not fault tolerant, and is not recommeded for production.
 
 ### 7.2. Distributed Kafka Connect deployment mode 
 Distributed Kafka Connect essentially involves creation of a KafkaConnect worker cluster as shown in the diagram below.<br>
 - Azure Kubernetes Service is a great infrastructure for the connect cluster, due to its managed and scalabale nature
-- Kubernetes is a great platform for the connect cluster, due to its scalabale nature and self-healing
+- Kubernetes is a great platform for the connect cluster, due to its scalable nature and self-healing
 - Each orange polygon is a Kafka Connect worker and each green polygon is a sink connector instance
 - A Kafka Connect worker can have 1..many task instances which helps with scale
 - When a Kafka Connect worker is maxed out from a resource perspective (CPU, RAM), you can scale horizontally, add more Kafka Connect workers, ands tasks within them

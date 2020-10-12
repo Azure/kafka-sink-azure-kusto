@@ -42,14 +42,6 @@ public class KustoSinkConnectorConfigTest {
         new KustoSinkConfig(settings);
     }
 
-	// TODO [yischoen 2020-09-29]: Next major version bump we will make EngineUrl required, and the following tests will be irrelevant
-    @Test
-    public void shouldGuessKustoEngineUrlWhenNotGiven() {
-        KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
-        String kustoEngineUrl = config.getKustoEngineUrl();
-        assertEquals(ENGINE_URI, kustoEngineUrl);
-    }
-
     @Test
     public void shouldGuessKustoEngineUrlWhenNotGivenPrivateCase() {
         HashMap<String, String> settings = setupConfigs();

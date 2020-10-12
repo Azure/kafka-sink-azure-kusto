@@ -1,10 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Strings;
-import com.microsoft.azure.kusto.data.Client;
-import com.microsoft.azure.kusto.data.ClientFactory;
-import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
-import com.microsoft.azure.kusto.data.KustoOperationResult;
+import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.ingest.IngestClient;
@@ -39,32 +36,36 @@ public class KustoSinkTask extends SinkTask {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
 
-    static final String FETCH_TABLE_QUERY = "%s|count";
-    static final String FETCH_TABLE_MAPPING_QUERY = ".show table %s ingestion %s mapping '%s'";
-    static final String FETCH_PRINCIPAL_ROLES_QUERY = ".show principal access with (principal = '%s', accesstype='ingest',database='%s',table='%s')";
-    static final int INGESTION_ALLOWED_INDEX = 3;
-    private static final String MAPPING = "mapping";
+    public static final String FETCH_TABLE_QUERY = "%s | count";
+    public static final String FETCH_TABLE_MAPPING_QUERY = ".show table %s ingestion %s mapping '%s'";
+    public static final String FETCH_PRINCIPAL_ROLES_QUERY = ".show principal access with (principal = '%s', accesstype='ingest',database='%s',table='%s')";
+    public static final int INGESTION_ALLOWED_INDEX = 3;
+    public static final String MAPPING = "mapping";
     public static final String MAPPING_FORMAT = "format";
     public static final String MAPPING_TABLE = "table";
     public static final String MAPPING_DB = "db";
     public static final String JSON_FORMAT = "json";
+    public static final String SINGLEJSON_FORMAT = "singlejson";
     public static final String MULTIJSON_FORMAT = "multijson";
+    public static final String VALIDATION_OK = "OK";
 
     private final Set<TopicPartition> assignment;
     private Map<String, TopicIngestionProperties> topicsToIngestionProps;
     private KustoSinkConfig config;
-    IngestClient kustoIngestClient;
-    Map<TopicPartition, TopicPartitionWriter> writers;
+    protected IngestClient kustoIngestClient;
+    protected Map<TopicPartition, TopicPartitionWriter> writers;
     private long maxFileSize;
     private long flushInterval;
     private String tempDir;
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> dlqProducer;
+    private static final ClientRequestProperties clientRequestProperties = new ClientRequestProperties();
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
         writers = new HashMap<>();
+        clientRequestProperties.setOption("validate_permissions", true);
     }
 
     public static IngestClient createKustoIngestClient(KustoSinkConfig config) {
@@ -136,13 +137,13 @@ public class KustoSinkTask extends SinkTask {
                 IngestionProperties props = new IngestionProperties(db, table);
 
                 if (format != null && !format.isEmpty()) {
-                    if (format.equalsIgnoreCase(JSON_FORMAT) || format.equalsIgnoreCase("singlejson") || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
+                    if (format.equalsIgnoreCase(JSON_FORMAT) || format.equalsIgnoreCase(SINGLEJSON_FORMAT) || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
                         props.setDataFormat(MULTIJSON_FORMAT);
                     }
                     props.setDataFormat(format);
                 }
 
-                String mappingRef = mapping.optString("mapping");
+                String mappingRef = mapping.optString(MAPPING);
 
                 if (mappingRef != null && !mappingRef.isEmpty() && format != null) {
                     if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.json.toString())) {
@@ -205,10 +206,10 @@ public class KustoSinkTask extends SinkTask {
     }
 
     private boolean isIngestorRole(JSONObject testMapping, Client engineClient) throws JSONException {
-        String database = testMapping.getString("db");
+        String database = testMapping.getString(MAPPING_DB);
         String table = testMapping.getString(MAPPING_TABLE);
         try {
-            engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table));
+            engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table), clientRequestProperties);
         } catch (DataServiceException | DataClientException err) {
             if (err.getCause().getMessage().contains("Forbidden:")) {
                 log.warn("User might have ingestor privileges, table validation will be skipped for all table mappings ");
@@ -227,7 +228,6 @@ public class KustoSinkTask extends SinkTask {
      * @param config       Kusto Sink configuration
      */
     private static void validateTableAccess(Client engineClient, JSONObject mapping, KustoSinkConfig config, List<String> databaseTableErrorList, List<String> accessErrorList) throws JSONException {
-
         String database = mapping.getString(MAPPING_DB);
         String table = mapping.getString(MAPPING_TABLE);
         String format = mapping.getString(MAPPING_FORMAT);
@@ -235,11 +235,10 @@ public class KustoSinkTask extends SinkTask {
         boolean hasAccess = false;
         try {
             try {
-                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table));
-                if ((long) rs.getPrimaryResults().getData().get(0).get(0) >= 0) {
+                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table), clientRequestProperties);
+                if (VALIDATION_OK.equals(rs.getPrimaryResults().getData().get(0).get(0))) {
                     hasAccess = true;
                 }
-
             } catch (DataServiceException e) {
                 databaseTableErrorList.add(String.format("Database:%s Table:%s | table not found", database, table));
             }
