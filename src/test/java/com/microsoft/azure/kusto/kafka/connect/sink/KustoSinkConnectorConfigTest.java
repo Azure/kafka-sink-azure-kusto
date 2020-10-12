@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class KustoSinkConnectorConfigTest {
-    private static final String ENGINE_URI = "https://cluster_name.kusto.windows.net";
     private static final String DM_URI = "https://ingest-cluster_name.kusto.windows.net";
+    private static final String ENGINE_URI = "https://cluster_name.kusto.windows.net";
 
     @Test
     public void shouldAcceptValidConfig() {
@@ -40,15 +40,6 @@ public class KustoSinkConnectorConfigTest {
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_URL_CONF);
         new KustoSinkConfig(settings);
-    }
-
-    @Test
-    public void shouldGuessKustoEngineUrlWhenNotGivenPrivateCase() {
-        HashMap<String, String> settings = setupConfigs();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "https://private-ingest-cluster_name.kusto.windows.net");
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        String kustoEngineUrl = config.getKustoEngineUrl();
-        assertEquals("https://private-cluster_name.kusto.windows.net", kustoEngineUrl);
     }
 
     @Test
@@ -118,6 +109,7 @@ public class KustoSinkConnectorConfigTest {
     public static HashMap<String, String> setupConfigs() {
         HashMap<String, String> configs = new HashMap<>();
         configs.put(KustoSinkConfig.KUSTO_URL_CONF, DM_URI);
+        configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URI);
         configs.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
         configs.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
         configs.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
