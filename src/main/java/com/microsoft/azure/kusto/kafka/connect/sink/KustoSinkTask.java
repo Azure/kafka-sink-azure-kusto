@@ -146,7 +146,7 @@ public class KustoSinkTask extends SinkTask {
   
                 if (mappingRef != null && !mappingRef.isEmpty()) {
                     if (format != null) {
-                        if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.json.toString())){
+                        if (format.equalsIgnoreCase("json") || format.equalsIgnoreCase("singlejson") || format.equalsIgnoreCase("multijson")) {
                             props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Json);
                         } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.avro.toString())){
                             props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Avro);
@@ -238,6 +238,10 @@ public class KustoSinkTask extends SinkTask {
         String table = mapping.getString("table");
         String format = mapping.getString("format");
         String mappingName = mapping.getString("mapping");
+        if (format.equalsIgnoreCase("json") || format.equalsIgnoreCase("singlejson") || format.equalsIgnoreCase("multijson")) {
+            format = "json";
+        }
+
         boolean hasAccess = false;
         try {
             try {
@@ -275,8 +279,13 @@ public class KustoSinkTask extends SinkTask {
                     }
                 } catch (DataServiceException e) {
                     // Logging the error so that the trace is not lost.
-                    log.error("{}", e);
-                    databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
+                    if (!e.getCause().toString().contains("Forbidden")){
+                        log.error("{}", e);
+                        databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
+                    } else {
+                        log.warn("Failed to check permissions, will continue the run as the principal might still be able to ingest: {}", e);
+                    }
+
                 }
             }
         } catch (DataClientException e) {
