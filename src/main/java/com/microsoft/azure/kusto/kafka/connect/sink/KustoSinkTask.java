@@ -1,10 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Strings;
-import com.microsoft.azure.kusto.data.Client;
-import com.microsoft.azure.kusto.data.ClientFactory;
-import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
-import com.microsoft.azure.kusto.data.KustoOperationResult;
+import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.ingest.IngestClient;
@@ -244,8 +241,9 @@ public class KustoSinkTask extends SinkTask {
         boolean hasAccess = false;
         try {
             try {
-                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table));
-                if ((long) rs.getPrimaryResults().getData().get(0).get(0) >= 0) {
+                KustoResultSetTable rs = engineClient.execute(database, String.format(FETCH_TABLE_QUERY, table)).getPrimaryResults();
+                rs.next();
+                if (rs.getLong(0) >= 0) {
                     hasAccess = true;
                 }
 
