@@ -139,19 +139,12 @@ public class KustoSinkTask extends SinkTask {
                 IngestionProperties props = new IngestionProperties(db, table);
   
                 if (format != null && !format.isEmpty()) {
-                    if (format.equals("json") || format.equals("singlejson") || format.equalsIgnoreCase("multijson")) {
+                    if (format.equalsIgnoreCase("json") || format.equalsIgnoreCase("singlejson") || format.equalsIgnoreCase("multijson")) {
                         props.setDataFormat("multijson");
                     }
                     props.setDataFormat(format);
                 }
-  
-                if (format != null && !format.isEmpty()) {
-                    if (format.equals("json") || format.equals("singlejson")){
-                        props.setDataFormat("multijson");
-                    }
-                    props.setDataFormat(format);
-                }
-  
+
                 String mappingRef = mapping.optString("mapping");
   
                 if (mappingRef != null && !mappingRef.isEmpty()) {
