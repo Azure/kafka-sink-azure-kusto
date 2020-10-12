@@ -136,14 +136,7 @@ public class KustoSinkTask extends SinkTask {
                 IngestionProperties props = new IngestionProperties(db, table);
 
                 if (format != null && !format.isEmpty()) {
-                    if (format.equals(JSON_FORMAT) || format.equals("singlejson") || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
-                        props.setDataFormat(MULTIJSON_FORMAT);
-                    }
-                    props.setDataFormat(format);
-                }
-
-                if (format != null && !format.isEmpty()) {
-                    if (format.equals("json") || format.equals("singlejson")) {
+                    if (format.equalsIgnoreCase(JSON_FORMAT) || format.equalsIgnoreCase("singlejson") || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
                         props.setDataFormat(MULTIJSON_FORMAT);
                     }
                     props.setDataFormat(format);
