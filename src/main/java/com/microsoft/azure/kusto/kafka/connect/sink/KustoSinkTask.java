@@ -146,7 +146,7 @@ public class KustoSinkTask extends SinkTask {
                 String mappingRef = mapping.optString(MAPPING);
 
                 if (mappingRef != null && !mappingRef.isEmpty() && format != null) {
-                    if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.json.toString())) {
+                    if (format.equalsIgnoreCase(JSON_FORMAT) || format.equalsIgnoreCase(SINGLEJSON_FORMAT) || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
                         props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Json);
                     } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.avro.toString())) {
                         props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Avro);
@@ -232,6 +232,9 @@ public class KustoSinkTask extends SinkTask {
         String table = mapping.getString(MAPPING_TABLE);
         String format = mapping.getString(MAPPING_FORMAT);
         String mappingName = mapping.getString(MAPPING);
+        if (format.equalsIgnoreCase(JSON_FORMAT) || format.equalsIgnoreCase(SINGLEJSON_FORMAT) || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
+            format = JSON_FORMAT;
+        }
         boolean hasAccess = false;
         try {
             try {
@@ -264,8 +267,12 @@ public class KustoSinkTask extends SinkTask {
                     }
                 } catch (DataServiceException e) {
                     // Logging the error so that the trace is not lost.
-                    log.error("Error fetching principal roles with query {}", query, e);
-                    databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
+                    if (!e.getCause().toString().contains("Forbidden")){
+                        log.error("Error fetching principal roles with query {}", query, e);
+                        databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
+                    } else {
+                        log.warn("Failed to check permissions, will continue the run as the principal might still be able to ingest: {}", e);
+                    }
                 }
             }
         } catch (DataClientException e) {
