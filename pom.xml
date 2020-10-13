@@ -13,6 +13,7 @@
     <properties>
         <kafka.version>1.0.0</kafka.version>
         <json.version>20090211</json.version>
+        <junit.version>4.13.1</junit.version>
         <commonio.version>2.6</commonio.version>
         <kusto-sdk.version>2.1.0</kusto-sdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -148,10 +149,11 @@
             <artifactId>commons-io</artifactId>
             <version>${commonio.version}</version>
         </dependency>
+        <!-- TODO: We're using both JUnit4 and JUnit 5 (see next dependency). Remove JUnit 4. -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.7</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
