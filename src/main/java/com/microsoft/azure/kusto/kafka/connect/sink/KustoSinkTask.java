@@ -53,9 +53,6 @@ public class KustoSinkTask extends SinkTask {
     private KustoSinkConfig config;
     IngestClient kustoIngestClient;
     Map<TopicPartition, TopicPartitionWriter> writers;
-    private long maxFileSize;
-    private long flushInterval;
-    private String tempDir;
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> dlqProducer;
