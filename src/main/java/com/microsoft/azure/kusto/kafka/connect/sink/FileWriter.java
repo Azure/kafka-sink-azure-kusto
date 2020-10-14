@@ -224,7 +224,7 @@ public class FileWriter implements Closeable {
             // Flush time interval gets the write lock so that it won't starve
             reentrantReadWriteLock.writeLock().lock();
             // Lock before the check so that if a writing process just flushed this won't ingest empty files
-            if (currentFile != null && currentFile.rawBytes > 0) {
+            if (isDirty()) {
                 finishFile(true);
             }
             resetFlushTimer(false);
