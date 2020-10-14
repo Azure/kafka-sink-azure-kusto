@@ -11,16 +11,22 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -54,7 +60,7 @@ class TopicPartitionWriter {
         this.client = client;
         this.ingestionProps = ingestionProps.ingestionProperties;
         this.fileThreshold = config.getFlushSizeBytes();
-        this.basePath = config.getTempDirPath();
+        this.basePath = getTempDirectoryName(config.getTempDirPath());
         this.flushInterval = config.getFlushInterval();
         this.currentOffset = 0;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
@@ -205,6 +211,17 @@ class TopicPartitionWriter {
         } catch (Exception e) {
             log.error("Failed to close kafka producer={}", e);
         }
+        try {
+            FileUtils.deleteDirectory(new File(basePath));
+        } catch (IOException e) {
+            log.error("Unable to delete temporary connector folder {}", basePath);
+        }
     }
 
+    static String getTempDirectoryName(String tempDirPath) {
+        String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
+        Path path = Paths.get(tempDirPath, tempDir);
+
+        return path.toString();
+    }
 }

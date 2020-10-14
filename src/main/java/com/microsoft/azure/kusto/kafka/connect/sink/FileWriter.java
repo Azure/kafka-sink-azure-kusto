@@ -100,8 +100,12 @@ public class FileWriter implements Closeable {
 
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
-            throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
+            if (!folder.exists()) {
+                throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
+            }
+            log.warn("Couldn't create the directory as another partition already created");
         }
+
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
         File file = new File(filePath);
@@ -137,7 +141,7 @@ public class FileWriter implements Closeable {
                  * Also, throwing/logging the exception with just a message to 
                  * avoid polluting logs with duplicate trace.
                  */
-                handleErrors("Failed to write records to KustoDB.");
+                handleErrors("Failed to write records to KustoDB.", e);
             }
             if (delete){
                 dumpFile();
@@ -147,9 +151,9 @@ public class FileWriter implements Closeable {
         }
     }
     
-    private void handleErrors(String message) {
+    private void handleErrors(String message, Exception e) {
         if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
-            throw new ConnectException(message);
+            throw new ConnectException(message, e);
         } else if (KustoSinkConfig.BehaviorOnError.LOG == behaviorOnError) {
             log.error("{}", message);
         } else {
