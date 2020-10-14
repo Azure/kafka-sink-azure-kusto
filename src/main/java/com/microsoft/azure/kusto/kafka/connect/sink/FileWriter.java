@@ -103,7 +103,7 @@ public class FileWriter implements Closeable {
             if (!folder.exists()) {
                 throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
             }
-            log.warn("Couldn't create the directory as another partition already created");
+            log.warn("Couldn't create the directory because it already exists (likely a race condition)");
         }
 
         String filePath = getFilePath.apply(offset);
@@ -127,7 +127,7 @@ public class FileWriter implements Closeable {
     }
 
     void finishFile(Boolean delete) throws IOException, DataException {
-        if(isDirty()){
+        if (isDirty()) {
             recordWriter.commit();
             GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
             gzip.finish();
@@ -181,9 +181,8 @@ public class FileWriter implements Closeable {
     }
 
     public void close() throws IOException, DataException {
-        if (timer!= null) {
+        if (timer != null) {
             timer.cancel();
-            timer.purge();
         }
 
         // Flush last file, updating index
@@ -198,7 +197,6 @@ public class FileWriter implements Closeable {
         if (flushInterval > 0) {
             if (shouldDestroyTimer) {
                 if (timer != null) {
-                    timer.purge();
                     timer.cancel();
                 }
 
@@ -211,8 +209,12 @@ public class FileWriter implements Closeable {
                     flushByTimeImpl();
                 }
             };
-            if(timer != null) {
-                timer.schedule(t, flushInterval);
+            if (timer != null) {
+                try {
+                    timer.schedule(t, flushInterval);
+                } catch (IllegalStateException ex){
+                    log.warn("Timer canceled already - ");
+                }
             }
         }
     }
@@ -225,8 +227,8 @@ public class FileWriter implements Closeable {
             if (currentFile != null && currentFile.rawBytes > 0) {
                 finishFile(true);
             }
-            reentrantReadWriteLock.writeLock().unlock();
             resetFlushTimer(false);
+            reentrantReadWriteLock.writeLock().unlock();
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
@@ -243,6 +245,7 @@ public class FileWriter implements Closeable {
         if (recordWriterProvider == null) {
             initializeRecordWriter(record);
         }
+
         if (currentFile == null) {
             openFile(record.kafkaOffset());
             resetFlushTimer(true);
