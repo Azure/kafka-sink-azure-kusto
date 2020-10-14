@@ -155,9 +155,9 @@ public class FileWriter implements Closeable {
         if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(message, e);
         } else if (KustoSinkConfig.BehaviorOnError.LOG == behaviorOnError) {
-            log.error("{}", message);
+            log.error("{}", message, e);
         } else {
-            log.debug("{}", message);
+            log.debug("{}", message, e);
         }
     }
     
@@ -210,11 +210,7 @@ public class FileWriter implements Closeable {
                 }
             };
             if (timer != null) {
-                try {
-                    timer.schedule(t, flushInterval);
-                } catch (IllegalStateException ex){
-                    log.warn("Timer canceled already - ");
-                }
+                timer.schedule(t, flushInterval);
             }
         }
     }
