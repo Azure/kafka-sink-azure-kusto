@@ -297,7 +297,7 @@ public class TopicPartitionWriterTest {
     private Map<String, String> getKustoConfigs(String basePath, long fileThreshold,
                                                 long flushInterval) {
         Map<String, String> settings = new HashMap<>();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_INGEST_CLUSTER_URL);
+        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, KUSTO_INGEST_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, KUSTO_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");

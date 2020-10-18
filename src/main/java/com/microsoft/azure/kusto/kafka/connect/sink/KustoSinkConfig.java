@@ -37,9 +37,9 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     // TODO: this might need to be per kusto cluster...
-    static final String KUSTO_URL_CONF = "kusto.ingestion.url";
-    private static final String KUSTO_URL_DOC = "Kusto ingestion endpoint URL.";
-    private static final String KUSTO_URL_DISPLAY = "Kusto cluster ingestion URL";
+    static final String KUSTO_INGEST_URL_CONF = "kusto.ingestion.url";
+    private static final String KUSTO_INGEST_URL_DOC = "Kusto ingestion endpoint URL.";
+    private static final String KUSTO_INGEST_URL_DISPLAY = "Kusto cluster ingestion URL";
 
     static final String KUSTO_ENGINE_URL_CONF = "kusto.query.url";
     private static final String KUSTO_ENGINE_URL_DOC = "Kusto query endpoint URL.";
@@ -248,15 +248,15 @@ public class KustoSinkConfig extends AbstractConfig {
         
         result
             .define(
-                KUSTO_URL_CONF,
+                    KUSTO_INGEST_URL_CONF,
                 Type.STRING,
                 ConfigDef.NO_DEFAULT_VALUE,
                 Importance.HIGH,
-                KUSTO_URL_DOC,
+                    KUSTO_INGEST_URL_DOC,
                 connectionGroupName,
                 connectionGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_URL_DISPLAY)
+                    KUSTO_INGEST_URL_DISPLAY)
             .define(
                 KUSTO_ENGINE_URL_CONF,
                 Type.STRING,
@@ -300,7 +300,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getKustoUrl() {
-        return this.getString(KUSTO_URL_CONF);
+        return this.getString(KUSTO_INGEST_URL_CONF);
     }
 
     public String getKustoEngineUrl() {

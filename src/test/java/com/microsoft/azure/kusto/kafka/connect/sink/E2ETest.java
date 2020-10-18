@@ -192,7 +192,7 @@ public class E2ETest {
     private Map<String, String> getKustoConfigs(String clusterUrl, String engineUrl, String basePath, String tableMapping,
                                                 long fileThreshold, long flushInterval) {
         Map<String, String> settings = new HashMap<>();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, clusterUrl);
+        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, clusterUrl);
         settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, engineUrl);
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, tableMapping);
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, appId);

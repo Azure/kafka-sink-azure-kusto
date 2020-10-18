@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class KustoSinkConnectorConfigTest {
-    private static final String DM_URI = "https://ingest-cluster_name.kusto.windows.net";
-    private static final String ENGINE_URI = "https://cluster_name.kusto.windows.net";
+    private static final String DM_URL = "https://ingest-cluster_name.kusto.windows.net";
+    private static final String ENGINE_URL = "https://cluster_name.kusto.windows.net";
 
     @Test
     public void shouldAcceptValidConfig() {
@@ -38,26 +38,26 @@ public class KustoSinkConnectorConfigTest {
     public void shouldThrowExceptionWhenKustoURLNotGiven() {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
-        settings.remove(KustoSinkConfig.KUSTO_URL_CONF);
+        settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
         new KustoSinkConfig(settings);
     }
 
     @Test
     public void shouldUseDmUrlWhenKustoEngineUrlNotGivenAndCantGuess() {
         HashMap<String, String> settings = setupConfigs();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, ENGINE_URI);
+        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, ENGINE_URL);
         KustoSinkConfig config = new KustoSinkConfig(settings);
         String kustoEngineUrl = config.getKustoEngineUrl();
-        assertEquals(ENGINE_URI, kustoEngineUrl);
+        assertEquals(ENGINE_URL, kustoEngineUrl);
     }
 
     @Test
     public void shouldUseKustoEngineUrlWhenGiven() {
         HashMap<String, String> settings = setupConfigs();
-        settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URI);
+        settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URL);
         KustoSinkConfig config = new KustoSinkConfig(settings);
         String kustoEngineUrl = config.getKustoEngineUrl();
-        assertEquals(ENGINE_URI, kustoEngineUrl);
+        assertEquals(ENGINE_URL, kustoEngineUrl);
     }
 
     @Test(expected = ConfigException.class)
@@ -72,7 +72,7 @@ public class KustoSinkConnectorConfigTest {
     public void shouldFailWhenBehaviorOnErrorIsIllConfigured() {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
-        settings.remove(KustoSinkConfig.KUSTO_URL_CONF);
+        settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
         settings.put(KustoSinkConfig.KUSTO_BEHAVIOR_ON_ERROR_CONF, "DummyValue");
         new KustoSinkConfig(settings);
     }
@@ -108,8 +108,8 @@ public class KustoSinkConnectorConfigTest {
 
     public static HashMap<String, String> setupConfigs() {
         HashMap<String, String> configs = new HashMap<>();
-        configs.put(KustoSinkConfig.KUSTO_URL_CONF, DM_URI);
-        configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URI);
+        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, DM_URL);
+        configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URL);
         configs.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
         configs.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
         configs.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");

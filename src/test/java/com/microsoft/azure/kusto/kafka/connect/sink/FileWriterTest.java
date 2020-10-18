@@ -277,7 +277,7 @@ public class FileWriterTest {
 
     protected Map<String, String> getProperties() {
         Map<String, String> settings = new HashMap<>();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "xxx");
+        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, "xxx");
         settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, "xxx");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
