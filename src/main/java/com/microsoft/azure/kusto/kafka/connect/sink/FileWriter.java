@@ -100,8 +100,12 @@ public class FileWriter implements Closeable {
 
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
-            throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
+            if (!folder.exists()) {
+                throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
+            }
+            log.warn("Couldn't create the directory because it already exists (likely a race condition)");
         }
+
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
         File file = new File(filePath);
@@ -123,7 +127,7 @@ public class FileWriter implements Closeable {
     }
 
     void finishFile(Boolean delete) throws IOException, DataException {
-        if(isDirty()){
+        if (isDirty()) {
             recordWriter.commit();
             GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
             gzip.finish();
@@ -137,7 +141,7 @@ public class FileWriter implements Closeable {
                  * Also, throwing/logging the exception with just a message to 
                  * avoid polluting logs with duplicate trace.
                  */
-                handleErrors("Failed to write records to KustoDB.");
+                handleErrors("Failed to write records to KustoDB.", e);
             }
             if (delete){
                 dumpFile();
@@ -147,13 +151,13 @@ public class FileWriter implements Closeable {
         }
     }
     
-    private void handleErrors(String message) {
+    private void handleErrors(String message, Exception e) {
         if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
-            throw new ConnectException(message);
+            throw new ConnectException(message, e);
         } else if (KustoSinkConfig.BehaviorOnError.LOG == behaviorOnError) {
-            log.error("{}", message);
+            log.error("{}", message, e);
         } else {
-            log.debug("{}", message);
+            log.debug("{}", message, e);
         }
     }
     
@@ -177,9 +181,8 @@ public class FileWriter implements Closeable {
     }
 
     public void close() throws IOException, DataException {
-        if (timer!= null) {
+        if (timer != null) {
             timer.cancel();
-            timer.purge();
         }
 
         // Flush last file, updating index
@@ -194,7 +197,6 @@ public class FileWriter implements Closeable {
         if (flushInterval > 0) {
             if (shouldDestroyTimer) {
                 if (timer != null) {
-                    timer.purge();
                     timer.cancel();
                 }
 
@@ -207,7 +209,7 @@ public class FileWriter implements Closeable {
                     flushByTimeImpl();
                 }
             };
-            if(timer != null) {
+            if (timer != null) {
                 timer.schedule(t, flushInterval);
             }
         }
@@ -218,11 +220,11 @@ public class FileWriter implements Closeable {
             // Flush time interval gets the write lock so that it won't starve
             reentrantReadWriteLock.writeLock().lock();
             // Lock before the check so that if a writing process just flushed this won't ingest empty files
-            if (currentFile != null && currentFile.rawBytes > 0) {
+            if (isDirty()) {
                 finishFile(true);
             }
-            reentrantReadWriteLock.writeLock().unlock();
             resetFlushTimer(false);
+            reentrantReadWriteLock.writeLock().unlock();
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
@@ -239,6 +241,7 @@ public class FileWriter implements Closeable {
         if (recordWriterProvider == null) {
             initializeRecordWriter(record);
         }
+
         if (currentFile == null) {
             openFile(record.kafkaOffset());
             resetFlushTimer(true);
