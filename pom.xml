@@ -13,7 +13,7 @@
     <properties>
         <kafka.version>1.0.0</kafka.version>
         <json.version>20090211</json.version>
-        <junit.version>4.13.1</junit.version>
+        <junit.version>5.6.2</junit.version>
         <commonio.version>2.6</commonio.version>
         <kusto-sdk.version>2.1.0</kusto-sdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -80,6 +80,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.2</version>
             </plugin>
         </plugins>
         <resources>
@@ -149,17 +150,16 @@
             <artifactId>commons-io</artifactId>
             <version>${commonio.version}</version>
         </dependency>
-        <!-- TODO: We're using both JUnit4 and JUnit 5 (see next dependency). Remove JUnit 4. -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>RELEASE</version>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

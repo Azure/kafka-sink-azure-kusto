@@ -7,40 +7,25 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.Assert;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
+import java.io.*;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Objects;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.AbstractMap;
-
-
-
+import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
-
 
 public class FileWriterTest {
     private File currentDirectory;
     private KustoSinkConfig config;
     IngestionProperties ingestionProps;
 
-    @Before
+    @BeforeEach
     public final void before() {
         config = new KustoSinkConfig(getProperties());
         currentDirectory = new File(Paths.get(
@@ -52,7 +37,7 @@ public class FileWriterTest {
         ingestionProps.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
     }
 
-    @After
+    @AfterEach
     public final void after() {
         try {
             FileUtils.deleteDirectory(currentDirectory);
@@ -66,14 +51,15 @@ public class FileWriterTest {
         String path = Paths.get(currentDirectory.getPath(), "testWriterOpen").toString();
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
 
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
 
         final String FILE_PATH = Paths.get(path, "ABC").toString();
         final int MAX_FILE_SIZE = 128;
 
-        Consumer<SourceFile> trackFiles = (SourceFile f) -> {};
+        Consumer<SourceFile> trackFiles = (SourceFile f) -> {
+        };
 
         Function<Long, String> generateFileName = (Long l) -> FILE_PATH;
 
@@ -82,10 +68,10 @@ public class FileWriterTest {
         SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg.getBytes(), 10);
         fileWriter.initializeRecordWriter(record);
         fileWriter.openFile(null);
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
-        Assert.assertEquals(fileWriter.currentFile.rawBytes, 0);
-        Assert.assertEquals(fileWriter.currentFile.path, FILE_PATH);
-        Assert.assertTrue(fileWriter.currentFile.file.canWrite());
+        Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertEquals(0, fileWriter.currentFile.rawBytes);
+        Assertions.assertEquals(FILE_PATH, fileWriter.currentFile.path);
+        Assertions.assertTrue(fileWriter.currentFile.file.canWrite());
 
         fileWriter.rollback();
     }
@@ -96,9 +82,9 @@ public class FileWriterTest {
         SinkRecord record = new SinkRecord("TestTopic", 1, null, null, null, "random message", 1);
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
 
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
 
         HashMap<String, Long> files = new HashMap<>();
 
@@ -116,21 +102,21 @@ public class FileWriterTest {
             fileWriter.writeData(record1);
         }
 
-        Assert.assertEquals(files.size(), 4);
+        Assertions.assertEquals(4, files.size());
 
         // should still have 1 open file at this point...
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 1);
+        Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
 
         // close current file
         fileWriter.close();
-        Assert.assertEquals(files.size(), 5);
+        Assertions.assertEquals(5, files.size());
 
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
-        Assert.assertEquals(sortedFiles, Arrays.asList((long) 108, (long) 108, (long) 108, (long) 108, (long) 54));
+        Assertions.assertEquals(sortedFiles, Arrays.asList((long) 108, (long) 108, (long) 108, (long) 108, (long) 54));
 
         // make sure folder is clear once done
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     @Test
@@ -139,7 +125,7 @@ public class FileWriterTest {
 
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
         HashMap<String, Long> files = new HashMap<>();
 
         final int MAX_FILE_SIZE = 128 * 2;
@@ -157,14 +143,14 @@ public class FileWriterTest {
 
         Thread.sleep(1000);
 
-        Assert.assertEquals(files.size(), 0);
+        Assertions.assertEquals(0, files.size());
         fileWriter.close();
-        Assert.assertEquals(files.size(), 1);
+        Assertions.assertEquals(1, files.size());
 
         String path2 = Paths.get(currentDirectory.getPath(), "testGzipFileWriter2_2").toString();
         File folder2 = new File(path2);
         mkdirs = folder2.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
 
         Function<Long, String> generateFileName2 = (Long l) -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed
@@ -175,15 +161,15 @@ public class FileWriterTest {
         fileWriter2.writeData(record1);
         Thread.sleep(1050);
 
-        Assert.assertEquals(files.size(), 2);
+        Assertions.assertEquals(2, files.size());
 
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
-        Assert.assertEquals(sortedFiles, Arrays.asList((long) 15, (long) 8));
+        Assertions.assertEquals(sortedFiles, Arrays.asList((long) 15, (long) 8));
 
         // make sure folder is clear once done
         fileWriter2.close();
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     @Test
@@ -210,9 +196,9 @@ public class FileWriterTest {
         String path = Paths.get(currentDirectory.getPath(), "offsetCheckByInterval").toString();
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
         Function<Long, String> generateFileName = (Long offset) -> {
-            if(offset == null){
+            if (offset == null) {
                 offset = offsets.currentOffset;
             }
             return Paths.get(path, Long.toString(offset)).toString();
@@ -247,16 +233,21 @@ public class FileWriterTest {
         Thread.sleep(510);
 
         // Assertions
-        Assert.assertEquals(files.size(), 2);
+        Assertions.assertEquals(2, files.size());
 
         // Make sure that the first file is from offset 1 till 2 and second is from 3 till 3
-        Assert.assertEquals(files.stream().map(Map.Entry::getValue).toArray(Long[]::new), new Long[]{30L, 15L});
-        Assert.assertEquals(files.stream().map((s)->s.getKey().substring(path.length() + 1)).toArray(String[]::new), new String[]{"1", "3"});
-        Assert.assertEquals(committedOffsets, new ArrayList<Long>(){{add(2L);add(3L);}});
+        Assertions.assertEquals(30L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[0]);
+        Assertions.assertEquals(15L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[1]);
+        Assertions.assertEquals("1", files.stream().map((s) -> s.getKey().substring(path.length() + 1)).toArray(String[]::new)[0]);
+        Assertions.assertEquals("3", files.stream().map((s) -> s.getKey().substring(path.length() + 1)).toArray(String[]::new)[1]);
+        Assertions.assertEquals(committedOffsets, new ArrayList<Long>() {{
+            add(2L);
+            add(3L);
+        }});
 
         // make sure folder is clear once done
         fileWriter2.close();
-        Assert.assertEquals(Objects.requireNonNull(folder.listFiles()).length, 0);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     static Function<SourceFile, String> getAssertFileConsumerFunction(String msg) {
@@ -278,25 +269,26 @@ public class FileWriterTest {
                     out.close();
                     String s = new String(out.toByteArray());
 
-                    Assert.assertEquals(s, msg);
+                    Assertions.assertEquals(s, msg);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                Assert.fail(e.getMessage());
+                Assertions.fail(e.getMessage());
             }
             return null;
         };
     }
 
     protected Map<String, String> getProperties() {
-      Map<String, String> settings = new HashMap<>();
-      settings.put(KustoSinkConfig.KUSTO_URL_CONF, "xxx");
-      settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
-      settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-      settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-      settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-      return settings;
+        Map<String, String> settings = new HashMap<>();
+        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "xxx");
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+        return settings;
     }
+
     static Consumer<SourceFile> getAssertFileConsumer(String msg) {
         return (SourceFile f) -> {
             try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
@@ -316,11 +308,11 @@ public class FileWriterTest {
                     out.close();
                     String s = new String(out.toByteArray());
 
-                    Assert.assertEquals(s, msg);
+                    Assertions.assertEquals(s, msg);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                Assert.fail(e.getMessage());
+                Assertions.fail(e.getMessage());
             }
         };
     }

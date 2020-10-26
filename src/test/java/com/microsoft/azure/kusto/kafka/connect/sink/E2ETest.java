@@ -1,8 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
+import com.microsoft.azure.kusto.data.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
@@ -15,25 +15,19 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.Properties;
-
+import java.util.*;
 import java.util.logging.Logger;
 
+@Disabled("Don't want running as part of build or CI. Comment this line to test manually.")
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
     private String appId = System.getProperty("appId");
@@ -48,19 +42,18 @@ public class E2ETest {
     private String dlqTopicName;
     private Producer<byte[], byte[]> kafkaProducer;
 
-    @Before
-    public void setUp(){
-      Properties properties = new Properties();
-      properties.put("bootstrap.servers", "localhost:9000");
-      properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-      properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-      kafkaProducer = new KafkaProducer<>(properties);
-      isDlqEnabled = false;
-      dlqTopicName = null;
+    @BeforeEach
+    public void setUp() {
+        Properties properties = new Properties();
+        properties.put("bootstrap.servers", "localhost:9000");
+        properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+        properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+        kafkaProducer = new KafkaProducer<>(properties);
+        isDlqEnabled = false;
+        dlqTopicName = null;
     }
 
     @Test
-    @Ignore
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "csv";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net/", cluster), appId, appKey, authority);
@@ -93,11 +86,11 @@ public class E2ETest {
             String KustoUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
             String basepath = Paths.get(basePath, "csv").toString();
             Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "mappy", fileThreshold, flushInterval);
-            KustoSinkConfig config= new KustoSinkConfig(settings);
+            KustoSinkConfig config = new KustoSinkConfig(settings);
             TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer.open();
 
-            List<SinkRecord> records = new ArrayList<SinkRecord>();
+            List<SinkRecord> records = new ArrayList<>();
             records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, messages[0].getBytes(), 10));
             records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, null, messages[0].getBytes(), 10));
 
@@ -107,7 +100,7 @@ public class E2ETest {
 
             validateExpectedResults(engineClient, 2, table);
         } catch (InterruptedException e) {
-            Assert.fail("Test failed");
+            Assertions.fail("Test failed");
 
         } finally {
             if (table.startsWith(testPrefix)) {
@@ -117,7 +110,6 @@ public class E2ETest {
     }
 
     @Test
-    @Ignore
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "avro";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
@@ -147,15 +139,15 @@ public class E2ETest {
             long fileThreshold = 100;
             long flushInterval = 300000;
             Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "avri", fileThreshold, flushInterval);
-            KustoSinkConfig config= new KustoSinkConfig(settings);
+            KustoSinkConfig config = new KustoSinkConfig(settings);
             TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer2.open();
-            List<SinkRecord> records2 = new ArrayList<SinkRecord>();
+            List<SinkRecord> records2 = new ArrayList<>();
 
             FileInputStream fs = new FileInputStream("src/test/resources/data.avro");
             byte[] buffer = new byte[1184];
             if (fs.read(buffer) != 1184) {
-                Assert.fail("Error while ");
+                Assertions.fail("Error while ");
             }
             records2.add(new SinkRecord(tp2.topic(), tp2.partition(), null, null, Schema.BYTES_SCHEMA, buffer, 10));
             for (SinkRecord record : records2) {
@@ -164,7 +156,7 @@ public class E2ETest {
 
             validateExpectedResults(engineClient, 2, table);
         } catch (InterruptedException | IOException e) {
-            Assert.fail("Test failed");
+            Assertions.fail("Test failed");
         } finally {
             if (table.startsWith(testPrefix)) {
                 engineClient.execute(database, ".drop table " + table);
@@ -177,10 +169,10 @@ public class E2ETest {
 
         KustoResultSetTable res = engineClient.execute(database, query).getPrimaryResults();
         res.next();
-        Integer timeoutMs = 60 * 6 * 1000;
-        Integer rowCount = res.getInt(0);
-        Integer timeElapsedMs = 0;
-        Integer sleepPeriodMs = 5 * 1000;
+        int timeoutMs = 60 * 6 * 1000;
+        int rowCount = res.getInt(0);
+        int timeElapsedMs = 0;
+        int sleepPeriodMs = 5 * 1000;
 
         while (rowCount < expectedNumberOfRows && timeElapsedMs < timeoutMs) {
             Thread.sleep(sleepPeriodMs);
@@ -190,10 +182,10 @@ public class E2ETest {
             timeElapsedMs += sleepPeriodMs;
         }
         Assertions.assertEquals(rowCount, expectedNumberOfRows);
-        this.log.info("Succesfully ingested " + expectedNumberOfRows + " records.");
+        this.log.info("Successfully ingested " + expectedNumberOfRows + " records.");
     }
 
-    private Map<String, String> getKustoConfigs(String clusterUrl, String basePath,String tableMapping, long fileThreshold,
+    private Map<String, String> getKustoConfigs(String clusterUrl, String basePath, String tableMapping, long fileThreshold,
                                                 long flushInterval) {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_URL_CONF, clusterUrl);
