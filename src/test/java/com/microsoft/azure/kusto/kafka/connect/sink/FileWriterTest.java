@@ -83,11 +83,9 @@ public class FileWriterTest {
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
         Assertions.assertTrue(mkdirs);
-
         Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
 
         HashMap<String, Long> files = new HashMap<>();
-
         final int MAX_FILE_SIZE = 100;
 
         Consumer<SourceFile> trackFiles = (SourceFile f) -> files.put(f.path, f.rawBytes);
@@ -281,7 +279,8 @@ public class FileWriterTest {
 
     protected Map<String, String> getProperties() {
         Map<String, String> settings = new HashMap<>();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "xxx");
+        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, "xxx");
+        settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, "xxx");
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");

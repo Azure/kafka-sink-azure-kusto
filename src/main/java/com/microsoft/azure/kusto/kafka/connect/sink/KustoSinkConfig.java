@@ -18,7 +18,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 public class KustoSinkConfig extends AbstractConfig {
-  
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
     private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
 
@@ -38,9 +37,13 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     // TODO: this might need to be per kusto cluster...
-    static final String KUSTO_URL_CONF = "kusto.url";
-    private static final String KUSTO_URL_DOC = "Kusto ingestion service URI.";
-    private static final String KUSTO_URL_DISPLAY = "Kusto cluster ingestion URI";
+    static final String KUSTO_INGEST_URL_CONF = "kusto.ingestion.url";
+    private static final String KUSTO_INGEST_URL_DOC = "Kusto ingestion endpoint URL.";
+    private static final String KUSTO_INGEST_URL_DISPLAY = "Kusto cluster ingestion URL";
+
+    static final String KUSTO_ENGINE_URL_CONF = "kusto.query.url";
+    private static final String KUSTO_ENGINE_URL_DOC = "Kusto query endpoint URL.";
+    private static final String KUSTO_ENGINE_URL_DISPLAY = "Kusto cluster query URL";
 
     static final String KUSTO_AUTH_APPID_CONF = "aad.auth.appid";
     private static final String KUSTO_AUTH_APPID_DOC = "Application Id for Azure Active Directory authentication.";
@@ -93,7 +96,7 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "misc.deadletterqueue.bootstrap.servers";
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this list to Kafka broker's address(es) "
         + "to which the Connector should write records failed due to restrictions while writing to the file in `tempdir.path`, network interruptions or unavailability of Kusto cluster. "
-        + "This list should be in the form host-1:port-1,host-2:port-2,…host-n:port-n. ";
+        + "This list should be in the form host-1:port-1,host-2:port-2,…host-n:port-n.";
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DISPLAY = "Miscellaneous Dead-Letter Queue Bootstrap Servers";
     
     static final String KUSTO_DLQ_TOPIC_NAME_CONF = "misc.deadletterqueue.topic.name";
@@ -102,7 +105,7 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_DLQ_TOPIC_NAME_DISPLAY = "Miscellaneous Dead-Letter Queue Topic Name";
     
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
-    private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DOC = "Maximum time upto which the Connector "
+    private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DOC = "Maximum time up to which the Connector "
         + "should retry writing records to Kusto table in case of failures.";
     private static final String KUSTO_SINK_MAX_RETRY_TIME_MS_DISPLAY = "Errors Maximum Retry Time";
     
@@ -120,18 +123,16 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public static ConfigDef getConfig() {
-      
         ConfigDef result = new ConfigDef();
         
         defineConnectionConfigs(result);
         defineWriteConfigs(result);
-        defineErrorHandlingAndRetriesConfgis(result);
+        defineErrorHandlingAndRetriesConfigs(result);
 
         return result;
     }
 
-    private static void defineErrorHandlingAndRetriesConfgis(ConfigDef result) {
-      
+    private static void defineErrorHandlingAndRetriesConfigs(ConfigDef result) {
         final String errorAndRetriesGroupName = "Error Handling and Retries";
         int errorAndRetriesGroupOrder = 0;
         
@@ -193,7 +194,6 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     private static void defineWriteConfigs(ConfigDef result) {
-      
         final String writeGroupName = "Writes";
         int writeGroupOrder = 0;
         
@@ -243,21 +243,30 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     private static void defineConnectionConfigs(ConfigDef result) {
-      
         final String connectionGroupName = "Connection";
         int connectionGroupOrder = 0;
         
         result
             .define(
-                KUSTO_URL_CONF,
+                    KUSTO_INGEST_URL_CONF,
                 Type.STRING,
                 ConfigDef.NO_DEFAULT_VALUE,
                 Importance.HIGH,
-                KUSTO_URL_DOC,
+                    KUSTO_INGEST_URL_DOC,
                 connectionGroupName,
                 connectionGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_URL_DISPLAY)
+                    KUSTO_INGEST_URL_DISPLAY)
+            .define(
+                KUSTO_ENGINE_URL_CONF,
+                Type.STRING,
+                ConfigDef.NO_DEFAULT_VALUE,
+                Importance.LOW,
+                KUSTO_ENGINE_URL_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_ENGINE_URL_DISPLAY)
             .define(
                 KUSTO_AUTH_APPKEY_CONF,
                 Type.PASSWORD,
@@ -291,7 +300,11 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public String getKustoUrl() {
-        return this.getString(KUSTO_URL_CONF);
+        return this.getString(KUSTO_INGEST_URL_CONF);
+    }
+
+    public String getKustoEngineUrl() {
+        return this.getString(KUSTO_ENGINE_URL_CONF);
     }
 
     public String getAuthAppid() {
@@ -368,5 +381,4 @@ public class KustoSinkConfig extends AbstractConfig {
     public static void main(String[] args) {
         System.out.println(getConfig().toEnrichedRst());
     }
-  
 }

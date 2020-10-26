@@ -40,19 +40,12 @@ public class KustoSinkTaskTest {
     }
 
     @Test
-    public void testSinkTaskOpen() throws {
-        HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
-
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-
+    public void testSinkTaskOpen() {
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
         doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
-        kustoSinkTaskSpy.start(props);
+        kustoSinkTaskSpy.start(configs);
         ArrayList<TopicPartition> tps = new ArrayList<>();
         tps.add(new TopicPartition("topic1", 1));
         tps.add(new TopicPartition("topic1", 2));
@@ -64,19 +57,12 @@ public class KustoSinkTaskTest {
     }
 
     @Test
-    public void testSinkTaskPutRecord() throws {
-        HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, System.getProperty("java.io.tmpdir"));
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'testing1','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-
+    public void testSinkTaskPutRecord() {
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
         doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
-        kustoSinkTaskSpy.start(props);
+        kustoSinkTaskSpy.start(configs);
 
         ArrayList<TopicPartition> tps = new ArrayList<>();
         TopicPartition tp = new TopicPartition("topic1", 1);
@@ -95,18 +81,12 @@ public class KustoSinkTaskTest {
 
     @Test
     public void testSinkTaskPutRecordMissingPartition() {
-        HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, System.getProperty("java.io.tmpdir"));
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db1', 'table': 'table1','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        configs.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, System.getProperty("java.io.tmpdir"));
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
         doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
-        kustoSinkTaskSpy.start(props);
+        kustoSinkTaskSpy.start(configs);
 
         ArrayList<TopicPartition> tps = new ArrayList<>();
         tps.add(new TopicPartition("topic1", 1));
@@ -120,22 +100,15 @@ public class KustoSinkTaskTest {
         Throwable exception = assertThrows(ConnectException.class, () -> kustoSinkTaskSpy.put(records));
 
         assertEquals("Received a record without a mapped writer for topic:partition(topic2:1), dropping record.", exception.getMessage());
-
     }
 
     @Test
     public void getTable() {
-        HashMap<String, String> props = new HashMap<>();
-        props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
-        props.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        props.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        props.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
         doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
-        kustoSinkTaskSpy.start(props);
+        kustoSinkTaskSpy.start(configs);
         {
             // single table mapping should cause all topics to be mapped to a single table
             Assertions.assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());

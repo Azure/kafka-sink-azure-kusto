@@ -30,12 +30,12 @@ import java.util.logging.Logger;
 @Disabled("Don't want running as part of build or CI. Comment this line to test manually.")
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
-    private String appId = System.getProperty("appId");
-    private String appKey = System.getProperty("appKey");
-    private String authority = System.getProperty("authority");
-    private String cluster = System.getProperty("cluster");
-    private String database = System.getProperty("database");
-    private String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
+    private static final String appId = System.getProperty("appId");
+    private static final String appKey = System.getProperty("appKey");
+    private static final String authority = System.getProperty("authority");
+    private static final String cluster = System.getProperty("cluster");
+    private static final String database = System.getProperty("database");
+    private static final String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
     private String basePath = Paths.get("src/test/resources/", "testE2E").toString();
     private Logger log = Logger.getLogger(this.getClass().getName());
     private boolean isDlqEnabled;
@@ -83,9 +83,10 @@ public class E2ETest {
             props.ingestionProperties = ingestionProperties;
             props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
             props.ingestionProperties.setIngestionMapping("mappy", IngestionMapping.IngestionMappingKind.Csv);
-            String KustoUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
+            String kustoDmUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
+            String kustoEngineUrl = String.format("https://%s.kusto.windows.net", cluster);
             String basepath = Paths.get(basePath, "csv").toString();
-            Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "mappy", fileThreshold, flushInterval);
+            Map<String, String> settings = getKustoConfigs(kustoDmUrl, kustoEngineUrl, basepath, "mappy", fileThreshold, flushInterval);
             KustoSinkConfig config = new KustoSinkConfig(settings);
             TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer.open();
@@ -134,11 +135,12 @@ public class E2ETest {
             props2.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
             props2.ingestionProperties.setIngestionMapping("avroMapping", IngestionMapping.IngestionMappingKind.Avro);
             TopicPartition tp2 = new TopicPartition("testPartition2", 11);
-            String KustoUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
+            String kustoDmUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
+            String kustoEngineUrl = String.format("https://%s.kusto.windows.net", cluster);
             String basepath = Paths.get(basePath, "avro").toString();
             long fileThreshold = 100;
             long flushInterval = 300000;
-            Map<String, String> settings = getKustoConfigs(KustoUrl, basepath, "avri", fileThreshold, flushInterval);
+            Map<String, String> settings = getKustoConfigs(kustoDmUrl, kustoEngineUrl, basepath, "avri", fileThreshold, flushInterval);
             KustoSinkConfig config = new KustoSinkConfig(settings);
             TopicPartitionWriter writer2 = new TopicPartitionWriter(tp2, ingestClient, props2, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer2.open();
@@ -185,10 +187,11 @@ public class E2ETest {
         this.log.info("Successfully ingested " + expectedNumberOfRows + " records.");
     }
 
-    private Map<String, String> getKustoConfigs(String clusterUrl, String basePath, String tableMapping, long fileThreshold,
-                                                long flushInterval) {
+    private Map<String, String> getKustoConfigs(String clusterUrl, String engineUrl, String basePath, String tableMapping,
+                                                long fileThreshold, long flushInterval) {
         Map<String, String> settings = new HashMap<>();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, clusterUrl);
+        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, clusterUrl);
+        settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, engineUrl);
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, tableMapping);
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, appId);
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, appKey);
