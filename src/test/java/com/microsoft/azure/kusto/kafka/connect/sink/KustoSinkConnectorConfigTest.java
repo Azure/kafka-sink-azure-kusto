@@ -1,57 +1,35 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import org.apache.kafka.common.config.ConfigException;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+import org.apache.kafka.common.config.ConfigException;
+import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class KustoSinkConnectorConfigTest {
-    Map<String, String> settings;
-    KustoSinkConfig config;
-
-    @Before
-    public void before() {
-        settings = new HashMap<>();
-        config = null;
-    }
+    private static final String DM_URL = "https://ingest-cluster_name.kusto.windows.net";
+    private static final String ENGINE_URL = "https://cluster_name.kusto.windows.net";
 
     @Test
     public void shouldAcceptValidConfig() {
         // Adding required Configuration with no default value.
-        settings.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-        config = new KustoSinkConfig(settings);
+        KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
         assertNotNull(config);
     }
 
     @Test
     public void shouldHaveDefaultValues() {
         // Adding required Configuration with no default value.
-        settings.put("kusto.tables.topics.mapping","[{'topic': 'xxx','db': 'xxx', 'table': 'xxx','format': 'avro', 'mapping':'avri'}]");
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-        config = new KustoSinkConfig(settings);
+        KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
         assertNotNull(config.getKustoUrl());
-        assertNotNull(config.getFlushSizeBytes());
-        assertNotNull(config.getFlushInterval());
+        assertNotEquals(0, config.getFlushSizeBytes());
+        assertNotEquals(0, config.getFlushInterval());
         assertFalse(config.isDlqEnabled());
         assertEquals(BehaviorOnError.FAIL, config.getBehaviorOnError());
     }
@@ -59,45 +37,53 @@ public class KustoSinkConnectorConfigTest {
     @Test(expected = ConfigException.class)
     public void shouldThrowExceptionWhenKustoURLNotGiven() {
         // Adding required Configuration with no default value.
-        settings.remove(KustoSinkConfig.KUSTO_URL_CONF);
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-        config = new KustoSinkConfig(settings);
+        HashMap<String, String> settings = setupConfigs();
+        settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
+        new KustoSinkConfig(settings);
     }
-    
+
+    @Test
+    public void shouldUseDmUrlWhenKustoEngineUrlNotGivenAndCantGuess() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, ENGINE_URL);
+        KustoSinkConfig config = new KustoSinkConfig(settings);
+        String kustoEngineUrl = config.getKustoEngineUrl();
+        assertEquals(ENGINE_URL, kustoEngineUrl);
+    }
+
+    @Test
+    public void shouldUseKustoEngineUrlWhenGiven() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URL);
+        KustoSinkConfig config = new KustoSinkConfig(settings);
+        String kustoEngineUrl = config.getKustoEngineUrl();
+        assertEquals(ENGINE_URL, kustoEngineUrl);
+    }
+
     @Test(expected = ConfigException.class)
     public void shouldThrowExceptionWhenAppIdNotGiven() {
         // Adding required Configuration with no default value.
-        settings.remove(KustoSinkConfig.KUSTO_URL_CONF);
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-        config = new KustoSinkConfig(settings);
+        HashMap<String, String> settings = setupConfigs();
+        settings.remove(KustoSinkConfig.KUSTO_AUTH_APPID_CONF);
+        new KustoSinkConfig(settings);
     }
-    
+
     @Test(expected = ConfigException.class)
     public void shouldFailWhenBehaviorOnErrorIsIllConfigured() {
         // Adding required Configuration with no default value.
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+        HashMap<String, String> settings = setupConfigs();
+        settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
         settings.put(KustoSinkConfig.KUSTO_BEHAVIOR_ON_ERROR_CONF, "DummyValue");
-        config = new KustoSinkConfig(settings);
+        new KustoSinkConfig(settings);
     }
-    
+
     @Test
     public void verifyDlqSettings() {
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+        HashMap<String, String> settings = setupConfigs();
         settings.put(KustoSinkConfig.KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF, "localhost:8081,localhost:8082");
         settings.put(KustoSinkConfig.KUSTO_DLQ_TOPIC_NAME_CONF, "dlq-error-topic");
-        config = new KustoSinkConfig(settings);
-        
+        KustoSinkConfig config = new KustoSinkConfig(settings);
+
         assertTrue(config.isDlqEnabled());
         assertEquals(Arrays.asList("localhost:8081", "localhost:8082"), config.getDlqBootstrapServers());
         assertEquals("dlq-error-topic", config.getDlqTopicName());
@@ -106,16 +92,11 @@ public class KustoSinkConnectorConfigTest {
     @Test
     public void shouldProcessDlqConfigsWithPrefix() {
         // Adding required Configuration with no default value.
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, "kusto-url");
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
-        settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
-
+        HashMap<String, String> settings = setupConfigs();
         settings.put("misc.deadletterqueue.security.protocol", "SASL_PLAINTEXT");
         settings.put("misc.deadletterqueue.sasl.mechanism", "PLAIN");
 
-        config = new KustoSinkConfig(settings);
+        KustoSinkConfig config = new KustoSinkConfig(settings);
 
         assertNotNull(config);
 
@@ -125,4 +106,14 @@ public class KustoSinkConnectorConfigTest {
         assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
     }
 
+    public static HashMap<String, String> setupConfigs() {
+        HashMap<String, String> configs = new HashMap<>();
+        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, DM_URL);
+        configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URL);
+        configs.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+        return configs;
+    }
 }
