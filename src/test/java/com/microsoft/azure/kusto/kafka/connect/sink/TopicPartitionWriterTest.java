@@ -26,7 +26,8 @@ import static org.mockito.Mockito.*;
 public class TopicPartitionWriterTest {
     // TODO: should probably find a better way to mock internal class (FileWriter)...
     private File currentDirectory;
-    private static final String KUSTO_CLUSTER_URL = "https://ingest-cluster.kusto.windows.net";
+    private static final String KUSTO_INGEST_CLUSTER_URL = "https://ingest-cluster.kusto.windows.net";
+    private static final String KUSTO_CLUSTER_URL = "https://cluster.kusto.windows.net";
     private static final String DATABASE = "testdb1";
     private static final String TABLE = "testtable1";
     private static final String basePath = "somepath";
@@ -248,7 +249,8 @@ public class TopicPartitionWriterTest {
 
     private Map<String, String> getKustoConfigs(String basePath, long fileThreshold, long flushInterval) {
         Map<String, String> settings = new HashMap<>();
-        settings.put(KustoSinkConfig.KUSTO_URL_CONF, KUSTO_CLUSTER_URL);
+        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, KUSTO_INGEST_CLUSTER_URL);
+        settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, KUSTO_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "mapping");
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
