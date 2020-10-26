@@ -40,7 +40,7 @@ public class KustoSinkTaskTest {
     }
 
     @Test
-    public void testSinkTaskOpen() throws {
+    public void testSinkTaskOpen() {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
 
@@ -64,7 +64,7 @@ public class KustoSinkTaskTest {
     }
 
     @Test
-    public void testSinkTaskPutRecord() throws {
+    public void testSinkTaskPutRecord() {
         HashMap<String, String> props = new HashMap<>();
         props.put(KustoSinkConfig.KUSTO_URL_CONF, "https://cluster_name.kusto.windows.net");
         props.put(KustoSinkConfig.KUSTO_SINK_TEMP_DIR_CONF, System.getProperty("java.io.tmpdir"));
