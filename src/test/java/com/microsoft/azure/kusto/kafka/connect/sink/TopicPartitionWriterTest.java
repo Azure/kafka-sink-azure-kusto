@@ -10,10 +10,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 
 import java.io.ByteArrayOutputStream;
@@ -33,11 +30,25 @@ public class TopicPartitionWriterTest {
     private static final String KUSTO_CLUSTER_URL = "https://cluster.kusto.windows.net";
     private static final String DATABASE = "testdb1";
     private static final String TABLE = "testtable1";
+    private static final String basePath = "somepath";
+    private String basePathCurrent;
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> kafkaProducer;
+    private static final long fileThreshold = 100;
+    private static final long flushInterval = 300000;
+    private static final IngestClient mockClient = mock(IngestClient.class);
+    private static final TopicIngestionProperties propsCsv = new TopicIngestionProperties();
+    private static final TopicPartition tp = new TopicPartition("testPartition", 11);
+    private static KustoSinkConfig config;
 
-    @Before
+    @BeforeAll
+    public static void beforeClass() {
+        propsCsv.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
+        propsCsv.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
+    }
+
+    @BeforeEach
     public final void before() {
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "localhost:9000");
@@ -51,9 +62,12 @@ public class TopicPartitionWriterTest {
                 FileWriter.class.getSimpleName(),
                 String.valueOf(Instant.now().toEpochMilli())
         ).toString());
+        basePathCurrent = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
+        Map<String, String> settings = getKustoConfigs(basePathCurrent, fileThreshold, flushInterval);
+        config = new KustoSinkConfig(settings);
     }
 
-    @After
+    @AfterEach
     public final void after() {
         try {
             FileUtils.deleteDirectory(currentDirectory);
@@ -64,16 +78,9 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testHandleRollFile() {
-        TopicPartition tp = new TopicPartition("testPartition", 11);
         IngestClient mockedClient = mock(IngestClient.class);
-        String basePath = "somepath";
-        long fileThreshold = 100;
-        long flushInterval = 300000;
-        IngestionProperties ingestionProperties = new IngestionProperties(DATABASE, TABLE);
         TopicIngestionProperties props = new TopicIngestionProperties();
-        props.ingestionProperties = ingestionProperties;
-        Map<String, String> settings = getKustoConfigs(basePath, fileThreshold, flushInterval);
-        KustoSinkConfig config = new KustoSinkConfig(settings);
+        props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
 
         SourceFile descriptor = new SourceFile();
@@ -90,82 +97,47 @@ public class TopicPartitionWriterTest {
             e.printStackTrace();
         }
 
-        Assert.assertEquals(fileSourceInfoArgument.getValue().getFilePath(), descriptor.path);
-        Assert.assertEquals(TABLE, ingestionPropertiesArgumentCaptor.getValue().getTableName());
-        Assert.assertEquals(DATABASE, ingestionPropertiesArgumentCaptor.getValue().getDatabaseName());
-        Assert.assertEquals(1024, fileSourceInfoArgument.getValue().getRawSizeInBytes());
+        Assertions.assertEquals(fileSourceInfoArgument.getValue().getFilePath(), descriptor.path);
+        Assertions.assertEquals(TABLE, ingestionPropertiesArgumentCaptor.getValue().getTableName());
+        Assertions.assertEquals(DATABASE, ingestionPropertiesArgumentCaptor.getValue().getDatabaseName());
+        Assertions.assertEquals(1024, fileSourceInfoArgument.getValue().getRawSizeInBytes());
     }
 
     @Test
     public void testGetFilename() {
-        TopicPartition tp = new TopicPartition("testTopic", 11);
-        IngestClient mockClient = mock(IngestClient.class);
-        String basePath = "somepath";
-        long fileThreshold = 100;
-        long flushInterval = 300000;
-        TopicIngestionProperties props = new TopicIngestionProperties();
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
 
-        props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        Map<String, String> settings = getKustoConfigs(basePath, fileThreshold, flushInterval);
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
-
-        Assert.assertEquals(writer.getFilePath(null), Paths.get(config.getTempDirPath(), "kafka_testTopic_11_0.csv.gz").toString());
+        Assertions.assertEquals("kafka_testPartition_11_0.csv.gz", (new File(writer.getFilePath(null))).getName());
     }
 
     @Test
     public void testGetFilenameAfterOffsetChanges() {
-        TopicPartition tp = new TopicPartition("testTopic", 11);
-        IngestClient mockClient = mock(IngestClient.class);
-        String basePath = "somepath";
-        long fileThreshold = 100;
-        long flushInterval = 300000;
-        TopicIngestionProperties props = new TopicIngestionProperties();
-        props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        Map<String, String> settings = getKustoConfigs(basePath, fileThreshold, flushInterval);
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
 
-        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "another,stringy,message", 3));
+        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "another,stringy,message", 5));
         records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "{'also':'stringy','sortof':'message'}", 4));
 
         for (SinkRecord record : records) {
             writer.writeRecord(record);
         }
 
-        Assert.assertEquals(writer.getFilePath(null), Paths.get(config.getTempDirPath(), "kafka_testTopic_11_5.csv.gz").toString());
+        Assertions.assertTrue((new File(writer.getFilePath(null))).exists());
+        Assertions.assertEquals("kafka_testPartition_11_5.csv.gz", (new File(writer.getFilePath(null))).getName());
     }
 
     @Test
     public void testOpenClose() {
-        TopicPartition tp = new TopicPartition("testPartition", 1);
-        IngestClient mockClient = mock(IngestClient.class);
-        String basePath = "somepath";
-        long fileThreshold = 100;
-        long flushInterval = 300000;
-        TopicIngestionProperties props = new TopicIngestionProperties();
-        props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-
-        Map<String, String> settings = getKustoConfigs(basePath, fileThreshold, flushInterval);
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
         writer.open();
         writer.close();
     }
 
     @Test
     public void testWriteNonStringAndOffset() throws Exception {
-//        TopicPartition tp = new TopicPartition("testPartition", 11);
-//        IngestClient mockClient = mock(IngestClient.class);
 //        String db = "testdb1";
 //        String table = "testtable1";
-//        String basePath = "somepath";
-//        long fileThreshold = 100;
 //
 //        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, db, table, basePath, fileThreshold);
 //
@@ -186,18 +158,7 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testWriteStringyValuesAndOffset() {
-        TopicPartition tp = new TopicPartition("testTopic", 2);
-        IngestClient mockClient = mock(IngestClient.class);
-        String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
-        long fileThreshold = 100;
-        long flushInterval = 300000;
-        TopicIngestionProperties props = new TopicIngestionProperties();
-
-        props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        Map<String, String> settings = getKustoConfigs(basePath, fileThreshold, flushInterval);
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
@@ -209,26 +170,20 @@ public class TopicPartitionWriterTest {
             writer.writeRecord(record);
         }
 
-        Assert.assertEquals(writer.fileWriter.currentFile.path, Paths.get(config.getTempDirPath(), String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DATA_FORMAT.csv.name())).toString());
+        Assertions.assertTrue((new File(writer.fileWriter.currentFile.path)).exists());
+        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DATA_FORMAT.csv.name()), (new File(writer.fileWriter.currentFile.path)).getName());
         writer.close();
     }
 
     @Test
     public void testWriteStringValuesAndOffset() throws IOException {
-        TopicPartition tp = new TopicPartition("testPartition", 11);
-        IngestClient mockClient = mock(IngestClient.class);
-        String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         String[] messages = new String[]{"stringy message", "another,stringy,message", "{'also':'stringy','sortof':'message'}"};
 
         // Expect to finish file after writing forth message cause of fileThreshold
-        long fileThreshold = messages[0].length() + messages[1].length() + messages[2].length() + messages[2].length() - 1;
-        long flushInterval = 300000;
-        TopicIngestionProperties props = new TopicIngestionProperties();
-        props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
-        Map<String, String> settings = getKustoConfigs(basePath, fileThreshold, flushInterval);
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        long fileThreshold2 = messages[0].length() + messages[1].length() + messages[2].length() + messages[2].length() - 1;
+        Map<String, String> settings2 = getKustoConfigs(basePathCurrent, fileThreshold2, flushInterval);
+        KustoSinkConfig config2 = new KustoSinkConfig(settings2);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config2, isDlqEnabled, dlqTopicName, kafkaProducer);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
@@ -242,11 +197,12 @@ public class TopicPartitionWriterTest {
             writer.writeRecord(record);
         }
 
-        Assert.assertEquals(15, (long) writer.lastCommittedOffset);
-        Assert.assertEquals(16, writer.currentOffset);
+        Assertions.assertEquals(15, (long) writer.lastCommittedOffset);
+        Assertions.assertEquals(16, writer.currentOffset);
 
         String currentFileName = writer.fileWriter.currentFile.path;
-        Assert.assertEquals(currentFileName, Paths.get(config.getTempDirPath(), String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 15, IngestionProperties.DATA_FORMAT.csv.name())).toString());
+        Assertions.assertTrue(new File(currentFileName).exists());
+        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 15, IngestionProperties.DATA_FORMAT.csv.name()), (new File(currentFileName)).getName());
 
         // Read
         writer.fileWriter.finishFile(false);
@@ -257,9 +213,6 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testWriteBytesValuesAndOffset() throws IOException {
-        TopicPartition tp = new TopicPartition("testPartition", 11);
-        IngestClient mockClient = mock(IngestClient.class);
-        String basePath = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         FileInputStream fis = new FileInputStream("src/test/resources/data.avro");
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         int content;
@@ -268,14 +221,13 @@ public class TopicPartitionWriterTest {
             o.write(content);
         }
         // Expect to finish file with one record although fileThreshold is high
-        long fileThreshold = 128;
-        long flushInterval = 300000;
-        TopicIngestionProperties props = new TopicIngestionProperties();
-        props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        props.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
-        Map<String, String> settings = getKustoConfigs(basePath, fileThreshold, flushInterval);
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        long fileThreshold2 = 128;
+        TopicIngestionProperties propsAvro = new TopicIngestionProperties();
+        propsAvro.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
+        propsAvro.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
+        Map<String, String> settings2 = getKustoConfigs(basePathCurrent, fileThreshold2, flushInterval);
+        KustoSinkConfig config2 = new KustoSinkConfig(settings2);
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsAvro, config2, isDlqEnabled, dlqTopicName, kafkaProducer);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
@@ -285,17 +237,17 @@ public class TopicPartitionWriterTest {
             writer.writeRecord(record);
         }
 
-        Assert.assertEquals(10, (long) writer.lastCommittedOffset);
-        Assert.assertEquals(10, writer.currentOffset);
+        Assertions.assertEquals(10, (long) writer.lastCommittedOffset);
+        Assertions.assertEquals(10, writer.currentOffset);
 
         String currentFileName = writer.fileWriter.currentFile.path;
 
-        Assert.assertEquals(currentFileName, Paths.get(config.getTempDirPath(), String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 10, IngestionProperties.DATA_FORMAT.avro.name())).toString());
+        Assertions.assertTrue(new File(currentFileName).exists());
+        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 10, IngestionProperties.DATA_FORMAT.avro.name()), (new File(currentFileName)).getName());
         writer.close();
     }
 
-    private Map<String, String> getKustoConfigs(String basePath, long fileThreshold,
-                                                long flushInterval) {
+    private Map<String, String> getKustoConfigs(String basePath, long fileThreshold, long flushInterval) {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, KUSTO_INGEST_CLUSTER_URL);
         settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, KUSTO_CLUSTER_URL);

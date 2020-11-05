@@ -3,10 +3,10 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.spy;
 public class KustoSinkTaskTest {
     File currentDirectory;
 
-    @Before
+    @BeforeEach
     public final void before() {
         currentDirectory = new File(Paths.get(
                 System.getProperty("java.io.tmpdir"),
@@ -34,7 +34,7 @@ public class KustoSinkTaskTest {
         ).toString());
     }
 
-    @After
+    @AfterEach
     public final void after() {
         currentDirectory.delete();
     }
@@ -111,14 +111,14 @@ public class KustoSinkTaskTest {
         kustoSinkTaskSpy.start(configs);
         {
             // single table mapping should cause all topics to be mapped to a single table
-            Assert.assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());
-            Assert.assertEquals("table1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getTableName());
-            Assert.assertEquals("csv", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
-            Assert.assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
-            Assert.assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
-            Assert.assertEquals("json", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
-            Assert.assertEquals("Mapping", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference());
-            Assert.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
+            Assertions.assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());
+            Assertions.assertEquals("table1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getTableName());
+            Assertions.assertEquals("csv", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
+            Assertions.assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
+            Assertions.assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
+            Assertions.assertEquals("json", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
+            Assertions.assertEquals("Mapping", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference());
+            Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
         }
     }
 }

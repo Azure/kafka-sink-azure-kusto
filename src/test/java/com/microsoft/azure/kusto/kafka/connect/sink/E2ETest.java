@@ -15,11 +15,10 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -28,6 +27,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
 
+@Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
     private static final String appId = System.getProperty("appId");
@@ -42,7 +42,7 @@ public class E2ETest {
     private String dlqTopicName;
     private Producer<byte[], byte[]> kafkaProducer;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "localhost:9000");
@@ -54,7 +54,6 @@ public class E2ETest {
     }
 
     @Test
-    @Ignore
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "csv";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net/", cluster), appId, appKey, authority);
@@ -102,7 +101,7 @@ public class E2ETest {
 
             validateExpectedResults(engineClient, 2, table);
         } catch (InterruptedException e) {
-            Assert.fail("Test failed");
+            Assertions.fail("Test failed");
 
         } finally {
             if (table.startsWith(testPrefix)) {
@@ -112,7 +111,6 @@ public class E2ETest {
     }
 
     @Test
-    @Ignore
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String table = tableBaseName + "avro";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net", cluster), appId, appKey, authority);
@@ -151,7 +149,7 @@ public class E2ETest {
             FileInputStream fs = new FileInputStream("src/test/resources/data.avro");
             byte[] buffer = new byte[1184];
             if (fs.read(buffer) != 1184) {
-                Assert.fail("Error while ");
+                Assertions.fail("Error while ");
             }
             records2.add(new SinkRecord(tp2.topic(), tp2.partition(), null, null, Schema.BYTES_SCHEMA, buffer, 10));
             for (SinkRecord record : records2) {
@@ -160,7 +158,7 @@ public class E2ETest {
 
             validateExpectedResults(engineClient, 2, table);
         } catch (InterruptedException | IOException e) {
-            Assert.fail("Test failed");
+            Assertions.fail("Test failed");
         } finally {
             if (table.startsWith(testPrefix)) {
                 engineClient.execute(database, ".drop table " + table);

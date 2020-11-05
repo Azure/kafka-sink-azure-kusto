@@ -2,15 +2,12 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import org.apache.kafka.common.config.ConfigException;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Properties;
-
-import static org.junit.Assert.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class KustoSinkConnectorConfigTest {
     private static final String DM_URL = "https://ingest-cluster_name.kusto.windows.net";
@@ -20,35 +17,28 @@ public class KustoSinkConnectorConfigTest {
     public void shouldAcceptValidConfig() {
         // Adding required Configuration with no default value.
         KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
-        assertNotNull(config);
+        Assertions.assertNotNull(config);
     }
 
     @Test
     public void shouldHaveDefaultValues() {
         // Adding required Configuration with no default value.
         KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
-        assertNotNull(config.getKustoUrl());
-        assertNotEquals(0, config.getFlushSizeBytes());
-        assertNotEquals(0, config.getFlushInterval());
-        assertFalse(config.isDlqEnabled());
-        assertEquals(BehaviorOnError.FAIL, config.getBehaviorOnError());
+        Assertions.assertNotNull(config.getKustoUrl());
+        Assertions.assertTrue(config.getFlushSizeBytes() > 0);
+        Assertions.assertTrue(config.getFlushInterval() > 0);
+        Assertions.assertFalse(config.isDlqEnabled());
+        Assertions.assertEquals(BehaviorOnError.FAIL, config.getBehaviorOnError());
     }
 
-    @Test(expected = ConfigException.class)
+    @Test
     public void shouldThrowExceptionWhenKustoURLNotGiven() {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
-        new KustoSinkConfig(settings);
-    }
-
-    @Test
-    public void shouldUseDmUrlWhenKustoEngineUrlNotGivenAndCantGuess() {
-        HashMap<String, String> settings = setupConfigs();
-        settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, ENGINE_URL);
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        String kustoEngineUrl = config.getKustoEngineUrl();
-        assertEquals(ENGINE_URL, kustoEngineUrl);
+        Assertions.assertThrows(ConfigException.class, () -> {
+            new KustoSinkConfig(settings);
+        });
     }
 
     @Test
@@ -57,24 +47,28 @@ public class KustoSinkConnectorConfigTest {
         settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URL);
         KustoSinkConfig config = new KustoSinkConfig(settings);
         String kustoEngineUrl = config.getKustoEngineUrl();
-        assertEquals(ENGINE_URL, kustoEngineUrl);
+        Assertions.assertEquals(ENGINE_URL, kustoEngineUrl);
     }
 
-    @Test(expected = ConfigException.class)
+    @Test
     public void shouldThrowExceptionWhenAppIdNotGiven() {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_AUTH_APPID_CONF);
-        new KustoSinkConfig(settings);
+        Assertions.assertThrows(ConfigException.class, () -> {
+            new KustoSinkConfig(settings);
+        });
     }
 
-    @Test(expected = ConfigException.class)
+    @Test
     public void shouldFailWhenBehaviorOnErrorIsIllConfigured() {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
         settings.put(KustoSinkConfig.KUSTO_BEHAVIOR_ON_ERROR_CONF, "DummyValue");
-        new KustoSinkConfig(settings);
+        Assertions.assertThrows(ConfigException.class, () -> {
+            new KustoSinkConfig(settings);
+        });
     }
 
     @Test
@@ -84,9 +78,9 @@ public class KustoSinkConnectorConfigTest {
         settings.put(KustoSinkConfig.KUSTO_DLQ_TOPIC_NAME_CONF, "dlq-error-topic");
         KustoSinkConfig config = new KustoSinkConfig(settings);
 
-        assertTrue(config.isDlqEnabled());
-        assertEquals(Arrays.asList("localhost:8081", "localhost:8082"), config.getDlqBootstrapServers());
-        assertEquals("dlq-error-topic", config.getDlqTopicName());
+        Assertions.assertTrue(config.isDlqEnabled());
+        Assertions.assertEquals(Arrays.asList("localhost:8081", "localhost:8082"), config.getDlqBootstrapServers());
+        Assertions.assertEquals("dlq-error-topic", config.getDlqTopicName());
     }
 
     @Test
@@ -98,12 +92,12 @@ public class KustoSinkConnectorConfigTest {
 
         KustoSinkConfig config = new KustoSinkConfig(settings);
 
-        assertNotNull(config);
+        Assertions.assertNotNull(config);
 
         Properties dlqProps = config.getDlqProps();
 
-        assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
-        assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
+        Assertions.assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
+        Assertions.assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
     }
 
     public static HashMap<String, String> setupConfigs() {

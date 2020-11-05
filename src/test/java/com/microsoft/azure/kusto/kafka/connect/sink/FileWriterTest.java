@@ -7,10 +7,10 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.nio.file.Paths;
@@ -25,7 +25,7 @@ public class FileWriterTest {
     private KustoSinkConfig config;
     IngestionProperties ingestionProps;
 
-    @Before
+    @BeforeEach
     public final void before() {
         config = new KustoSinkConfig(getProperties());
         currentDirectory = new File(Paths.get(
@@ -37,7 +37,7 @@ public class FileWriterTest {
         ingestionProps.setDataFormat(IngestionProperties.DATA_FORMAT.csv);
     }
 
-    @After
+    @AfterEach
     public final void after() {
         try {
             FileUtils.deleteDirectory(currentDirectory);
@@ -51,9 +51,9 @@ public class FileWriterTest {
         String path = Paths.get(currentDirectory.getPath(), "testWriterOpen").toString();
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
 
-        Assert.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
 
         final String FILE_PATH = Paths.get(path, "ABC").toString();
         final int MAX_FILE_SIZE = 128;
@@ -68,10 +68,10 @@ public class FileWriterTest {
         SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg.getBytes(), 10);
         fileWriter.initializeRecordWriter(record);
         fileWriter.openFile(null);
-        Assert.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
-        Assert.assertEquals(0, fileWriter.currentFile.rawBytes);
-        Assert.assertEquals(fileWriter.currentFile.path, FILE_PATH);
-        Assert.assertTrue(fileWriter.currentFile.file.canWrite());
+        Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertEquals(0, fileWriter.currentFile.rawBytes);
+        Assertions.assertEquals(FILE_PATH, fileWriter.currentFile.path);
+        Assertions.assertTrue(fileWriter.currentFile.file.canWrite());
 
         fileWriter.rollback();
     }
@@ -82,8 +82,8 @@ public class FileWriterTest {
         SinkRecord record = new SinkRecord("TestTopic", 1, null, null, null, "random message", 1);
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
-        Assert.assertTrue(mkdirs);
-        Assert.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertTrue(mkdirs);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
 
         HashMap<String, Long> files = new HashMap<>();
         final int MAX_FILE_SIZE = 100;
@@ -100,21 +100,21 @@ public class FileWriterTest {
             fileWriter.writeData(record1);
         }
 
-        Assert.assertEquals(4, files.size());
+        Assertions.assertEquals(4, files.size());
 
         // should still have 1 open file at this point...
-        Assert.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
 
         // close current file
         fileWriter.close();
-        Assert.assertEquals(5, files.size());
+        Assertions.assertEquals(5, files.size());
 
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
-        Assert.assertEquals(sortedFiles, Arrays.asList((long) 108, (long) 108, (long) 108, (long) 108, (long) 54));
+        Assertions.assertEquals(sortedFiles, Arrays.asList((long) 108, (long) 108, (long) 108, (long) 108, (long) 54));
 
         // make sure folder is clear once done
-        Assert.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     @Test
@@ -123,7 +123,7 @@ public class FileWriterTest {
 
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
         HashMap<String, Long> files = new HashMap<>();
 
         final int MAX_FILE_SIZE = 128 * 2;
@@ -141,14 +141,14 @@ public class FileWriterTest {
 
         Thread.sleep(1000);
 
-        Assert.assertEquals(0, files.size());
+        Assertions.assertEquals(0, files.size());
         fileWriter.close();
-        Assert.assertEquals(1, files.size());
+        Assertions.assertEquals(1, files.size());
 
         String path2 = Paths.get(currentDirectory.getPath(), "testGzipFileWriter2_2").toString();
         File folder2 = new File(path2);
         mkdirs = folder2.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
 
         Function<Long, String> generateFileName2 = (Long l) -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed
@@ -159,15 +159,15 @@ public class FileWriterTest {
         fileWriter2.writeData(record1);
         Thread.sleep(1050);
 
-        Assert.assertEquals(2, files.size());
+        Assertions.assertEquals(2, files.size());
 
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
-        Assert.assertEquals(sortedFiles, Arrays.asList((long) 15, (long) 8));
+        Assertions.assertEquals(sortedFiles, Arrays.asList((long) 15, (long) 8));
 
         // make sure folder is clear once done
         fileWriter2.close();
-        Assert.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     @Test
@@ -194,7 +194,7 @@ public class FileWriterTest {
         String path = Paths.get(currentDirectory.getPath(), "offsetCheckByInterval").toString();
         File folder = new File(path);
         boolean mkdirs = folder.mkdirs();
-        Assert.assertTrue(mkdirs);
+        Assertions.assertTrue(mkdirs);
         Function<Long, String> generateFileName = (Long offset) -> {
             if (offset == null) {
                 offset = offsets.currentOffset;
@@ -231,19 +231,21 @@ public class FileWriterTest {
         Thread.sleep(510);
 
         // Assertions
-        Assert.assertEquals(2, files.size());
+        Assertions.assertEquals(2, files.size());
 
         // Make sure that the first file is from offset 1 till 2 and second is from 3 till 3
-        Assert.assertEquals(new Long[]{30L, 15L}, files.stream().map(Map.Entry::getValue).toArray(Long[]::new));
-        Assert.assertEquals(new String[]{"1", "3"}, files.stream().map((s) -> s.getKey().substring(path.length() + 1)).toArray(String[]::new));
-        Assert.assertEquals(committedOffsets, new ArrayList<Long>() {{
+        Assertions.assertEquals(30L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[0]);
+        Assertions.assertEquals(15L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[1]);
+        Assertions.assertEquals("1", files.stream().map((s) -> s.getKey().substring(path.length() + 1)).toArray(String[]::new)[0]);
+        Assertions.assertEquals("3", files.stream().map((s) -> s.getKey().substring(path.length() + 1)).toArray(String[]::new)[1]);
+        Assertions.assertEquals(committedOffsets, new ArrayList<Long>() {{
             add(2L);
             add(3L);
         }});
 
         // make sure folder is clear once done
         fileWriter2.close();
-        Assert.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     static Function<SourceFile, String> getAssertFileConsumerFunction(String msg) {
@@ -265,11 +267,11 @@ public class FileWriterTest {
                     out.close();
                     String s = new String(out.toByteArray());
 
-                    Assert.assertEquals(s, msg);
+                    Assertions.assertEquals(s, msg);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                Assert.fail(e.getMessage());
+                Assertions.fail(e.getMessage());
             }
             return null;
         };
@@ -305,11 +307,11 @@ public class FileWriterTest {
                     out.close();
                     String s = new String(out.toByteArray());
 
-                    Assert.assertEquals(s, msg);
+                    Assertions.assertEquals(s, msg);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                Assert.fail(e.getMessage());
+                Assertions.fail(e.getMessage());
             }
         };
     }
