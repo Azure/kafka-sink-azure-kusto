@@ -27,7 +27,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
 
-@Disabled("Don't want running as part of build or CI. Comment this line to test manually.")
+@Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
     private static final String appId = System.getProperty("appId");
