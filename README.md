@@ -16,9 +16,11 @@ This repository contains the source code of the Kafka Connect Kusto sink connect
 [10. Distributed deployment details](README.md#10-distributed-deployment-details)<br>
 [11. Test drive the connector - distributed mode](README.md#11-test-drive-the-connector---distributed-mode)<br>
 [12. Apache Kafka version - Docker Kafka Connect base image version - Confluent Helm chart version related](README.md#12-apache-kafka-version---docker-kafka-connect-base-image-version---confluent-helm-chart-version-related)<br>
-[13. Major version specifics](README.md#13-major-version-specifics)<br>
-[14. Other](README.md#14-other)<br>
-[15. Need Support?](README.md#15-need-support)<br>
+[13. Other](README.md#13-other)<br>
+[14. Need Support?](README.md#14-need-support)<br>
+[15. Major version specifics](README.md#15-major-version-specifics)<br>
+[16. Release History](README.md#16-release-history)<br>
+[17. Contribute](README.md#17-contribute)<br>
 
 
 <hr>
@@ -277,7 +279,7 @@ This involves having the connector plugin jar in /usr/share/java of a Kafka Conn
 
 ### 7.2. Distributed Kafka Connect deployment mode 
 Distributed Kafka Connect essentially involves creation of a KafkaConnect worker cluster as shown in the diagram below.<br>
-- Azure Kubernetes Service is a great infrastructure for the connect cluster, due to its managed and scalabale nature
+- Azure Kubernetes Service is a great infrastructure for the connect cluster, due to its managed and scalable nature
 - Kubernetes is a great platform for the connect cluster, due to its scalable nature and self-healing
 - Each orange polygon is a Kafka Connect worker and each green polygon is a sink connector instance
 - A Kafka Connect worker can have 1..many task instances which helps with scale
@@ -459,7 +461,40 @@ Similarly, we recommend leveraging the right version of the Helm chart.  [Conflu
 
 <hr>
 
-## 13. Major version specifics
+## 13. Other
+
+
+### 13.1. Feedback, issues and contribution
+The connector plugin is open source. We welcome feedback, and contribution. Log an issue, in the issues tab as needed. See section 14.
+
+### 13.2. Scaling out/in
+- Connector tasks can be scaled out per Kafka Connect worker by pausing, editing and resuming the connector cluster
+- When tasks per worker are maxed out, Azure Kubernetes Service cluster can be scaled out for more nodes, and Kafka Connect workers can be provisioned on the same
+
+
+### 13.3. Sizing
+- Confluent recommends Kafka Connect workers with minimum of 4 cores and 16 GB of RAM
+- Start with 3 workers (3 AKS nodes), and scale horizontally as needed
+- Number of tasks should ideally be equal to the number of Kafka topic partitions, not more
+- Play with the number of tasks, wokers, nodes till you see the performance you desire
+
+### 13.4. Performance tuning
+- Kafka topic: number of partitions should be tuned for performance
+- Connectors: AKS right-sizing, connector tasks right-sizing, configure the right values for flush.size.bytes and flush.interval.ms
+- Kusto: Right-size Kusto cluster for ingestion (SKU and node count), tune the batch ingestion policy
+- Format: Avro (with schema registry) and CSV perform more-or-less similarly from tests done
+
+### 13.5. Upgrading to version 1.x from prior versions
+To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers, then launch the copy tasks.  You can use the consumer.override* feature to manipulate offset to read from.
+<hr>
+
+## 14. Need Support?
+- **Found a bug?** Please help us fix it by thoroughly documenting it and [filing an issue](https://github.com/Azure/kafka-sink-azure-kusto/issues/new).
+- **Have a feature request?** Please post it on [User Voice](https://feedback.azure.com/forums/915733-azure-data-explorer) to help us prioritize
+- **Have a technical question?** Ask on [Stack Overflow with tag "azure-data-explorer"](https://stackoverflow.com/questions/tagged/azure-data-explorer)
+- **Need Support?** Every customer with an active Azure subscription has access to [support](https://docs.microsoft.com/en-us/azure/azure-supportability/how-to-create-azure-support-request) with guaranteed response time.  Consider submitting a ticket and get assistance from Microsoft support team
+
+## 15. Major version specifics
 With version 1.0, we overhauled the connector.  The following are the changes- 
 1. We renamed some properties for consistency with standards
 2. Added support for schema registry
@@ -476,40 +511,20 @@ Here is our [blog post](https://techcommunity.microsoft.com/t5/azure-data-explor
 To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers, then launch the copy tasks.  
 <hr>
 
-## 14. Other
+For information about what changes are included in each release, please see the [Release History](README.md#16-release-history) section of this document.
 
 
-### 14.1. Feedback, issues and contribution
-The connector plugin is open source.  We welcome feedback, and contribution.  Log an issue, in the issues tab as needed.  See section 15.
+## 16. Release History
+| Release Version | Release Date | Changes Included |
+| --------------- | ------------ | ---------------- |
+| 0.1.0           | 2020-03-05   | <ul><li>Initial release</li></ul>  |
+| 1.0.1           | 2020-08-04   | <ul><li>New feature: flush interval - stop aggregation by timer</li><li>New feature: Support orc avro and parquet via 1 file per message. kusto java sdk version</li><li>Bug fix: Connector didn't work well with the New java version</li><li>Bug fix: Fixed usage of compressed files and binary types</li><li>Bug fix: Client was closed when kafka task was called close() certain partitions. Now closing only on stop. Issue resulted in no refresh of the ingestion resources and caused failure on ingest when trying to add message to the azure queue.</li><li>Bug fix: In certain kafka pipelines - the connector files were deleted before ingestion.</li><li>New feature: Support for dlq</li><li>New feature: Support json and avro schema registry</li><li>New feature: Support json and avro converters</li><li>Bug fix: Correct committed offset value to be (+ 1) so as not to ingest last record twice</li></ul> |
+| 1.0.2           | 2020-10-06   | <ul><li>Bug fix: Cast of count of records to long instead of int, to accommodate larger databases.</li></ul>  |
+| 1.0.3           | 2020-10-13   | <ul><li>Bug fix: Fix Multijson usage</li></ul>  |
+| 2.0.0           | 2020-11-12   | <ul><li>Bug fix: Trying to create a new directory failed probably because it was already created due to a race condition.</li><li>Bug fix: Resetting the timer was not behind lock, which could result in a race condition of it being destroyed by other code.</li><li>New feature: Added required kusto.query.url parameter so that we can now specify a Kusto Query URL that isn't simply the default of the Kusto Ingestion URL prepended with "ingest-".</li><li>New feature: Renamed the kusto.url parameter to kusto.ingestion.url for clarity and consistency.</li></ul>  |
 
-### 14.2. Scaling out/in
-- Connector tasks can be scaled out per Kafka Connect worker by pausing, editing and resuming the connector cluster
-- When tasks per worker are maxed out, Azure Kubernetes Service cluster can be scaled out for more nodes, and Kafka Connect workers can be provisioned on the same
 
-
-### 14.3. Sizing
-- Confluent recommends Kafka Connect workers with minimum of 4 cores and 16 GB of RAM
-- Start with 3 workers (3 AKS nodes), and scale horizontally as needed
-- Number of tasks should ideally be equal to the number of Kafka topic partitions, not more
-- Play with the number of tasks, wokers, nodes till you see the performance you desire
-
-### 14.4. Performance tuning
-- Kafka topic: number of partitions should be tuned for performance
-- Connectors: AKS right-sizing, connector tasks right-sizing, configure the right values for flush.size.bytes and flush.interval.ms
-- Kusto: Right-size Kusto cluster for ingestion (SKU and node count), tune the batch ingestion policy
-- Format: Avro (with schema registry) and CSV perform more-or-less similarly from tests done
-
-### 14.5. Upgrading to version 1.x from prior versions
-To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers, then launch the copy tasks.  You can use the consumer.override* feature to manipulate offset to read from.
-<hr>
-
-## 15. Need Support?
-- **Found a bug?** Please help us fix it by thoroughly documenting it and [filing an issue](https://github.com/Azure/kafka-sink-azure-kusto/issues/new).
-- **Have a feature request?** Please post it on [User Voice](https://feedback.azure.com/forums/915733-azure-data-explorer) to help us prioritize
-- **Have a technical question?** Ask on [Stack Overflow with tag "azure-data-explorer"](https://stackoverflow.com/questions/tagged/azure-data-explorer)
-- **Need Support?** Every customer with an active Azure subscription has access to [support](https://docs.microsoft.com/en-us/azure/azure-supportability/how-to-create-azure-support-request) with guaranteed response time.  Consider submitting a ticket and get assistance from Microsoft support team
-
-## 16. Contribute
+## 17. Contribute
 
 We gladly accept community contributions.
 
