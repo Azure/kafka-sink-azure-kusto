@@ -19,6 +19,8 @@ This repository contains the source code of the Kafka Connect Kusto sink connect
 [13. Major version specifics](README.md#13-major-version-specifics)<br>
 [14. Other](README.md#14-other)<br>
 [15. Need Support?](README.md#15-need-support)<br>
+[16. Release History](README.md#16-release-history)<br>
+[17. Contribute](README.md#17-contribute)<br>
 
 
 <hr>
@@ -509,7 +511,17 @@ To upgrade, you would have to stop the connector tasks, recreate your connect wo
 - **Have a technical question?** Ask on [Stack Overflow with tag "azure-data-explorer"](https://stackoverflow.com/questions/tagged/azure-data-explorer)
 - **Need Support?** Every customer with an active Azure subscription has access to [support](https://docs.microsoft.com/en-us/azure/azure-supportability/how-to-create-azure-support-request) with guaranteed response time.  Consider submitting a ticket and get assistance from Microsoft support team
 
-## 16. Contribute
+## 16. Release History
+| Release Version | Release Date | Changes Included |
+| --------------- | ------------ | ---------------- |
+| 0.1.0           | 2020-03-05   | <ul><li>Initial release</li></ul>  |
+| 1.0.1           | 2020-08-04   | <ul><li>New feature: flush interval - stop aggregation by timer</li><li>New feature: Support orc avro and parquet via 1 file per message. kusto java sdk version</li><li>Bug fix: Connector didn't work well with the New java version</li><li>Bug fix: Fixed usage of compressed files and binary types</li><li>Bug fix: Client was closed when kafka task was called close() certain partitions. Now closing only on stop. Issue resulted in no refresh of the ingestion resources and caused failure on ingest when trying to add message to the azure queue.</li><li>Bug fix: In certain kafka pipelines - the connector files were deleted before ingestion.</li><li>New feature: Support for dlq</li><li>New feature: Support json and avro schema registry</li><li>New feature: Support json and avro converters</li><li>Bug fix: Correct committed offset value to be (+ 1) so as not to ingest last record twice</li></ul> |
+| 1.0.2           | 2020-10-06   | <ul><li>Bug fix: Cast of count of records to long instead of int, to accommodate larger databases.</li></ul>  |
+| 1.0.3           | 2020-10-13   | <ul><li>Bug fix: Fix Multijson usage</li></ul>  |
+| 2.0.0           | 2020-11-12   | <ul><li>Bug fix: Trying to create a new directory failed probably because it was already created due to a race condition.</li><li>Bug fix: Resetting the timer was not behind lock, which could result in a race condition of it being destroyed by other code.</li><li>New feature: Added required kusto.query.url parameter so that we can now specify a Kusto Query URL that isn't simply the default of the Kusto Ingestion URL prepended with "ingest-".</li><li>New feature: Renamed the kusto.url parameter to kusto.ingestion.url for clarity and consistency.</li></ul>  |
+
+
+## 17. Contribute
 
 We gladly accept community contributions.
 
