@@ -20,7 +20,7 @@ This repository contains the source code of the Kafka Connect Kusto sink connect
 [14. Need Support?](README.md#14-need-support)<br>
 [15. Major version specifics](README.md#15-major-version-specifics)<br>
 [16. Release History](README.md#16-release-history)<br>
-[17. Contribute](README.md#17-contribute)<br>
+[17. Contributing](README.md#17-contributing)<br>
 
 
 <hr>
@@ -524,11 +524,23 @@ For information about what changes are included in each release, please see the 
 | 2.0.0           | 2020-11-12   | <ul><li>Bug fix: Trying to create a new directory failed probably because it was already created due to a race condition.</li><li>Bug fix: Resetting the timer was not behind lock, which could result in a race condition of it being destroyed by other code.</li><li>New feature: Added required kusto.query.url parameter so that we can now specify a Kusto Query URL that isn't simply the default of the Kusto Ingestion URL prepended with "ingest-".</li><li>New feature: Renamed the kusto.url parameter to kusto.ingestion.url for clarity and consistency.</li></ul>  |
 
 
-## 17. Contribute
+## 17. Contributing
 
-We gladly accept community contributions.
+This project welcomes contributions and suggestions.  Most contributions require you to agree to a
+Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
+the rights to use your contribution. For details, visit https://cla.microsoft.com.
 
-- Source Code Contributions: If you would like to become an active contributor to this project please follow the instructions provided in [Contributing.md](CONTRIBUTING.md).
+When you submit a pull request, a CLA-bot will automatically determine whether you need to provide
+a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions
+provided by the bot. You will only need to do this once across all repos using our CLA.
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+In order to make the PR process efficient, please follow the below checklist:
+* **There is an issue open concerning the code added** - Either a bug or enhancement. Preferably the issue includes an agreed upon approach.
+* **PR comment explains the changes done** - This should be a TL;DR; as the rest of it should be documented in the related issue.
+* **PR is concise** - Try to avoid making drastic changes in a single PR. Split it into multiple changes if possible. If you feel a major change is needed, make sure the commit history is clear and maintainers can comfortably review both the code and the logic behind the change. 
+* **Please provide any related information needed to understand the change** - Especially in the form of unit tests, but also docs, guidelines, use-case, best practices, etc as appropriate.
+* **Checks should pass**
 
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
+For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
+contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
