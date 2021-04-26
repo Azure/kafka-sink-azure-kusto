@@ -14,7 +14,7 @@
         <kafka.version>1.0.0</kafka.version>
         <json.version>20090211</json.version>
         <junit.version>5.6.2</junit.version>
-        <commonio.version>2.6</commonio.version>
+        <commonio.version>2.7</commonio.version>
         <kusto-sdk.version>2.1.0</kusto-sdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
