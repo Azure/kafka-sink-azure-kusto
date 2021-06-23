@@ -240,7 +240,7 @@ public class KustoSinkTask extends SinkTask {
                     hasAccess = true;
                 }
             } catch (DataServiceException e) {
-                databaseTableErrorList.add(String.format("Database:%s Table:%s | table not found", database, table));
+                databaseTableErrorList.add(String.format("Caught exception while trying to validate access to Database '%s' Table '%s', with message '%s'", database, table, e.getMessage()));
             }
             if (hasAccess) {
                 try {
@@ -268,7 +268,7 @@ public class KustoSinkTask extends SinkTask {
                         log.error("Error fetching principal roles with query {}", query, e);
                         databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
                     } else {
-                        log.warn("Failed to check permissions, will continue the run as the principal might still be able to ingest: {}", e);
+                        log.warn("Failed to check permissions with query '{}', will continue the run as the principal might still be able to ingest", query, e);
                     }
                 }
             }
@@ -365,11 +365,11 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void put(Collection<SinkRecord> records) {
         SinkRecord lastRecord = null;
-        for (SinkRecord record : records) {
-            log.debug("Record to topic: {}", record.topic());
+        for (SinkRecord sinkRecord : records) {
+            log.debug("Record to topic: {}", sinkRecord.topic());
 
-            lastRecord = record;
-            TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
+            lastRecord = sinkRecord;
+            TopicPartition tp = new TopicPartition(sinkRecord.topic(), sinkRecord.kafkaPartition());
             TopicPartitionWriter writer = writers.get(tp);
 
             if (writer == null) {
@@ -379,7 +379,7 @@ public class KustoSinkTask extends SinkTask {
                 throw e;
             }
 
-            writer.writeRecord(record);
+            writer.writeRecord(sinkRecord);
         }
 
         if (lastRecord != null) {
