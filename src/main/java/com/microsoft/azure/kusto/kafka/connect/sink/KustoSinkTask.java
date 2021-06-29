@@ -8,6 +8,7 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -240,14 +241,14 @@ public class KustoSinkTask extends SinkTask {
                     hasAccess = true;
                 }
             } catch (DataServiceException e) {
-                databaseTableErrorList.add(String.format("Database:%s Table:%s | table not found", database, table));
+                databaseTableErrorList.add(String.format("Couldn't validate access to Database '%s' Table '%s', with exception '%s'", database, table, ExceptionUtils.getStackTrace(e)));
             }
             if (hasAccess) {
                 try {
                     engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_QUERY, table, format, mappingName));
                 } catch (DataServiceException e) {
                     hasAccess = false;
-                    databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found", database, table, format, mappingName));
+                    databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'", database, table, format, mappingName, ExceptionUtils.getStackTrace(e)));
                 }
             }
             if (hasAccess) {
@@ -265,10 +266,9 @@ public class KustoSinkTask extends SinkTask {
                 } catch (DataServiceException e) {
                     // Logging the error so that the trace is not lost.
                     if (!e.getCause().toString().contains("Forbidden")){
-                        log.error("Error fetching principal roles with query {}", query, e);
-                        databaseTableErrorList.add(String.format("Database:%s Table:%s", database, table));
+                        databaseTableErrorList.add(String.format("Fetching principal roles using query '%s' resulted in exception '%s'", query, ExceptionUtils.getStackTrace(e)));
                     } else {
-                        log.warn("Failed to check permissions, will continue the run as the principal might still be able to ingest: {}", e);
+                        log.warn("Failed to check permissions with query '{}', will continue the run as the principal might still be able to ingest", query, e);
                     }
                 }
             }
@@ -365,11 +365,11 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void put(Collection<SinkRecord> records) {
         SinkRecord lastRecord = null;
-        for (SinkRecord record : records) {
-            log.debug("Record to topic: {}", record.topic());
+        for (SinkRecord sinkRecord : records) {
+            log.debug("Record to topic: {}", sinkRecord.topic());
 
-            lastRecord = record;
-            TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
+            lastRecord = sinkRecord;
+            TopicPartition tp = new TopicPartition(sinkRecord.topic(), sinkRecord.kafkaPartition());
             TopicPartitionWriter writer = writers.get(tp);
 
             if (writer == null) {
@@ -379,7 +379,7 @@ public class KustoSinkTask extends SinkTask {
                 throw e;
             }
 
-            writer.writeRecord(record);
+            writer.writeRecord(sinkRecord);
         }
 
         if (lastRecord != null) {
