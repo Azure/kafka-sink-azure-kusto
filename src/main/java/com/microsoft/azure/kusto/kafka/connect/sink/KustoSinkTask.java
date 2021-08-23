@@ -46,9 +46,6 @@ public class KustoSinkTask extends SinkTask {
     public static final String MAPPING_FORMAT = "format";
     public static final String MAPPING_TABLE = "table";
     public static final String MAPPING_DB = "db";
-    public static final String JSON_FORMAT = "json";
-    public static final String SINGLEJSON_FORMAT = "singlejson";
-    public static final String MULTIJSON_FORMAT = "multijson";
     public static final String VALIDATION_OK = "OK";
 
     private final Set<TopicPartition> assignment;
@@ -136,16 +133,17 @@ public class KustoSinkTask extends SinkTask {
                 IngestionProperties props = new IngestionProperties(db, table);
 
                 if (format != null && !format.isEmpty()) {
-                    if (format.equalsIgnoreCase(JSON_FORMAT) || format.equalsIgnoreCase(SINGLEJSON_FORMAT) || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
-                        props.setDataFormat(MULTIJSON_FORMAT);
+                    if (isDataFormatAnyTypeOfJson(format)) {
+                        props.setDataFormat(IngestionProperties.DATA_FORMAT.multijson);
+                    } else {
+                        props.setDataFormat(format);
                     }
-                    props.setDataFormat(format);
                 }
 
                 String mappingRef = mapping.optString(MAPPING);
 
                 if (mappingRef != null && !mappingRef.isEmpty() && format != null) {
-                    if (format.equalsIgnoreCase(JSON_FORMAT) || format.equalsIgnoreCase(SINGLEJSON_FORMAT) || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
+                    if (isDataFormatAnyTypeOfJson(format)) {
                         props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Json);
                     } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.avro.toString())) {
                         props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Avro);
@@ -218,6 +216,12 @@ public class KustoSinkTask extends SinkTask {
         return true;
     }
 
+    private static boolean isDataFormatAnyTypeOfJson(String format) {
+        return format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.json.name())
+                || format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.singlejson.name())
+                || format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.multijson.name());
+    }
+
     /**
      * This function validates whether the user has the read and write access to the intended table
      * before starting to sink records into ADX.
@@ -231,8 +235,8 @@ public class KustoSinkTask extends SinkTask {
         String table = mapping.getString(MAPPING_TABLE);
         String format = mapping.getString(MAPPING_FORMAT);
         String mappingName = mapping.getString(MAPPING);
-        if (format.equalsIgnoreCase(JSON_FORMAT) || format.equalsIgnoreCase(SINGLEJSON_FORMAT) || format.equalsIgnoreCase(MULTIJSON_FORMAT)) {
-            format = JSON_FORMAT;
+        if (isDataFormatAnyTypeOfJson(format)) {
+            format = IngestionProperties.DATA_FORMAT.json.name();
         }
         boolean hasAccess = false;
         try {
