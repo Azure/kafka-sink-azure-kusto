@@ -24,7 +24,7 @@ public class KustoSinkConnectorConfigTest {
     public void shouldHaveDefaultValues() {
         // Adding required Configuration with no default value.
         KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
-        Assertions.assertNotNull(config.getKustoUrl());
+        Assertions.assertNotNull(config.getKustoIngestUrl());
         Assertions.assertTrue(config.getFlushSizeBytes() > 0);
         Assertions.assertTrue(config.getFlushInterval() > 0);
         Assertions.assertFalse(config.isDlqEnabled());

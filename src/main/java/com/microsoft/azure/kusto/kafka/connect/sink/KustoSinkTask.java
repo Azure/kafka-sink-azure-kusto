@@ -72,12 +72,21 @@ public class KustoSinkTask extends SinkTask {
                 }
 
                 ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        config.getKustoUrl(),
+                        config.getKustoIngestUrl(),
                         config.getAuthAppid(),
                         config.getAuthAppkey(),
                         config.getAuthAuthority()
                 );
                 kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+                if (config.isStreamingEnabled()){
+                    ConnectionStringBuilder engineKcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                            config.getKustoEngineUrl(),
+                            config.getAuthAppid(),
+                            config.getAuthAppkey(),
+                            config.getAuthAuthority()
+                    );
+                    return IngestClientFactory.createManagedStreamingIngestClient(kcsb, engineKcsb);
+                }
 
                 return IngestClientFactory.createClient(kcsb);
             }
@@ -320,7 +329,7 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void start(Map<String, String> props) {
         config = new KustoSinkConfig(props);
-        String url = config.getKustoUrl();
+        String url = config.getKustoIngestUrl();
 
         validateTableMappings(config);
         if (config.isDlqEnabled()) {

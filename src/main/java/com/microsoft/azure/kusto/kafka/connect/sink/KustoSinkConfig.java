@@ -74,7 +74,7 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_FLUSH_INTERVAL_MS_CONF = "flush.interval.ms";
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DOC = "Kusto sink max staleness in milliseconds (per topic+partition combo).";
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY = "Maximum Flush Interval";
-    
+
     static final String KUSTO_BEHAVIOR_ON_ERROR_CONF = "behavior.on.error";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DOC = "Behavior on error setting for "
         + "ingestion of records into Kusto table. "
@@ -113,6 +113,12 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
         + "the Connector makes to ingest records into Kusto table.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
+
+    static final String KUSTO_SINK_STREAMING_INGESTION_CONF = "kusto.streaming";
+    private static final String KUSTO_SINK_STREAMING_INGESTION_DOC = "Should the client opt to using streaming ingestion"
+            + "if the streaming ingestion fails transiently queued ingest would apply, for this specific batch ingestion" +
+            "latency is configured via ingestion batching policy.";
+    private static final String KUSTO_SINK_STREAMING_INGESTION_DISPLAY = "Kusto streaming ingestion";
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -239,7 +245,18 @@ public class KustoSinkConfig extends AbstractConfig {
                 writeGroupName,
                 writeGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY);
+                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY)
+            .define(
+                KUSTO_SINK_STREAMING_INGESTION_CONF,
+                Type.BOOLEAN,
+                false,
+                null,//ConfigDef.ValidList
+                Importance.MEDIUM,
+                KUSTO_SINK_STREAMING_INGESTION_DOC,
+                writeGroupName,
+                writeGroupOrder++,
+                Width.MEDIUM,
+                KUSTO_SINK_STREAMING_INGESTION_DISPLAY);
     }
 
     private static void defineConnectionConfigs(ConfigDef result) {
@@ -299,7 +316,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 KUSTO_AUTH_AUTHORITY_DISPLAY);
     }
 
-    public String getKustoUrl() {
+    public String getKustoIngestUrl() {
         return this.getString(KUSTO_INGEST_URL_CONF);
     }
 
@@ -377,7 +394,11 @@ public class KustoSinkConfig extends AbstractConfig {
     public long getRetryBackOffTimeMs() {
         return this.getLong(KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF);
     }
-    
+
+    public boolean isStreamingEnabled(){
+        return this.getBoolean(KUSTO_SINK_STREAMING_INGESTION_CONF);
+    }
+
     public static void main(String[] args) {
         System.out.println(getConfig().toEnrichedRst());
     }

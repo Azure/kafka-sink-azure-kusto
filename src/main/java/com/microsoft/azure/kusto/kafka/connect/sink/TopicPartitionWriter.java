@@ -11,7 +11,6 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -23,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
@@ -70,7 +68,6 @@ class TopicPartitionWriter {
         this.isDlqEnabled = isDlqEnabled;
         this.dlqTopicName = dlqTopicName;
         this.dlqProducer = dlqProducer;
-
     }
 
     public void handleRollFile(SourceFile fileDescriptor) {
