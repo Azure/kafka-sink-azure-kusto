@@ -58,8 +58,12 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_AUTH_AUTHORITY_DISPLAY = "Kusto Auth Authority";
     
     static final String KUSTO_TABLES_MAPPING_CONF = "kusto.tables.topics.mapping";
-    private static final String KUSTO_TABLES_MAPPING_DOC = "Kusto target tables mapping (per topic mapping, "
-        + "'topic1:table1;topic2:table2;').";
+    private static final String KUSTO_TABLES_MAPPING_DOC = "A JSON array mapping ingestion from topic to table, e.g: "
+        + "[{'topic1':'t1','db':'kustoDb', 'table': 'table1', 'format': 'csv', 'mapping': 'csvMapping', 'streaming': 'false'}..].\n"
+        + "Streaming is optional, defaults to false. Mind usage and cogs of streaming ingestion, read here: https://docs.microsoft.com/en-us/azure/data-explorer/ingest-data-streaming.\n"
+        + "Note: If the streaming ingestion fails transiently -"
+        + " queued ingest would apply, for this specific batch ingestion batching latency is configured regularly via"
+        + "ingestion batching policy";
     private static final String KUSTO_TABLES_MAPPING_DISPLAY = "Kusto Table Topics Mapping";
     
     static final String KUSTO_SINK_TEMP_DIR_CONF = "tempdir.path";
@@ -113,12 +117,6 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DOC = "BackOff time between retry attempts "
         + "the Connector makes to ingest records into Kusto table.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
-
-    static final String KUSTO_SINK_STREAMING_INGESTION_CONF = "kusto.streaming";
-    private static final String KUSTO_SINK_STREAMING_INGESTION_DOC = "Should the client opt to using streaming ingestion"
-            + "if the streaming ingestion fails transiently queued ingest would apply, for this specific batch ingestion" +
-            "latency is configured via ingestion batching policy.";
-    private static final String KUSTO_SINK_STREAMING_INGESTION_DISPLAY = "Kusto streaming ingestion";
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -245,18 +243,8 @@ public class KustoSinkConfig extends AbstractConfig {
                 writeGroupName,
                 writeGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY)
-            .define(
-                KUSTO_SINK_STREAMING_INGESTION_CONF,
-                Type.BOOLEAN,
-                false,
-                null,//ConfigDef.ValidList
-                Importance.MEDIUM,
-                KUSTO_SINK_STREAMING_INGESTION_DOC,
-                writeGroupName,
-                writeGroupOrder++,
-                Width.MEDIUM,
-                KUSTO_SINK_STREAMING_INGESTION_DISPLAY);
+                KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY
+            );
     }
 
     private static void defineConnectionConfigs(ConfigDef result) {
@@ -393,10 +381,6 @@ public class KustoSinkConfig extends AbstractConfig {
     
     public long getRetryBackOffTimeMs() {
         return this.getLong(KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF);
-    }
-
-    public boolean isStreamingEnabled(){
-        return this.getBoolean(KUSTO_SINK_STREAMING_INGESTION_CONF);
     }
 
     public static void main(String[] args) {

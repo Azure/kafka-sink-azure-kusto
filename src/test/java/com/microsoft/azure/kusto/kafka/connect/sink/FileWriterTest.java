@@ -63,7 +63,7 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName = (Long l) -> FILE_PATH;
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), ingestionProps, BehaviorOnError.FAIL);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), IngestionProperties.DATA_FORMAT.valueOf(ingestionProps.getDataFormat()), BehaviorOnError.FAIL);
         String msg = "Line number 1: This is a message from the other size";
         SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg.getBytes(), 10);
         fileWriter.initializeRecordWriter(record);
@@ -92,7 +92,7 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString() + "csv.gz";
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), ingestionProps, BehaviorOnError.FAIL);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), IngestionProperties.DATA_FORMAT.valueOf(ingestionProps.getDataFormat()), BehaviorOnError.FAIL);
 
         for (int i = 0; i < 9; i++) {
             String msg = String.format("Line number %d : This is a message from the other size", i);
@@ -133,7 +133,7 @@ public class FileWriterTest {
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + "csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), ingestionProps, BehaviorOnError.FAIL);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), IngestionProperties.DATA_FORMAT.valueOf(ingestionProps.getDataFormat()), BehaviorOnError.FAIL);
 
         String msg = "Message";
         SinkRecord record = new SinkRecord("topic", 1, null, null, null, msg, 10);
@@ -152,7 +152,7 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName2 = (Long l) -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed
-        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, new ReentrantReadWriteLock(), ingestionProps, BehaviorOnError.FAIL);
+        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, new ReentrantReadWriteLock(), IngestionProperties.DATA_FORMAT.valueOf(ingestionProps.getDataFormat()), BehaviorOnError.FAIL);
 
         String msg2 = "Second Message";
         SinkRecord record1 = new SinkRecord("topic", 1, null, null, null, msg2, 10);
@@ -201,7 +201,7 @@ public class FileWriterTest {
             }
             return Paths.get(path, Long.toString(offset)).toString();
         };
-        FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, reentrantReadWriteLock, ingestionProps, BehaviorOnError.FAIL);
+        FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, reentrantReadWriteLock, IngestionProperties.DATA_FORMAT.valueOf(ingestionProps.getDataFormat()), BehaviorOnError.FAIL);
         String msg2 = "Second Message";
         reentrantReadWriteLock.readLock().lock();
         long recordOffset = 1;

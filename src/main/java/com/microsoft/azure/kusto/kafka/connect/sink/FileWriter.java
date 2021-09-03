@@ -56,7 +56,7 @@ public class FileWriter implements Closeable {
     private String flushError;
     private RecordWriterProvider recordWriterProvider;
     private RecordWriter recordWriter;
-    private final IngestionProperties ingestionProps;
+    private final IngestionProperties.DATA_FORMAT format;
     private BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
 
@@ -73,7 +73,7 @@ public class FileWriter implements Closeable {
                       Function<Long, String> getFilePath,
                       long flushInterval,
                       ReentrantReadWriteLock reentrantLock,
-                      IngestionProperties ingestionProps,
+                      IngestionProperties.DATA_FORMAT format,
                       BehaviorOnError behaviorOnError) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
@@ -87,7 +87,7 @@ public class FileWriter implements Closeable {
 
         // If we failed on flush we want to throw the error from the put() flow.
         flushError = null;
-        this.ingestionProps = ingestionProps;
+        this.format = format;
 
     }
 
@@ -262,14 +262,14 @@ public class FileWriter implements Closeable {
             recordWriterProvider = new JsonRecordWriterProvider();
         }
         else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
-            if (ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.json.toString())) {
+            if (format.equals(IngestionProperties.DATA_FORMAT.json)) {
                 recordWriterProvider = new JsonRecordWriterProvider();
-            } else if(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())) {
+            } else if(format.equals(IngestionProperties.DATA_FORMAT.avro)) {
                 recordWriterProvider = new AvroRecordWriterProvider();
             } else {
                 throw new ConnectException(String.format("Invalid Kusto table mapping, Kafka records of type "
                    + "Avro and JSON can only be ingested to Kusto table having Avro or JSON mapping. "
-                   + "Currently, it is of type %s.", ingestionProps.getDataFormat()));
+                   + "Currently, it is of type %s.", format));
             }
         }
         else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)){
@@ -277,7 +277,7 @@ public class FileWriter implements Closeable {
         }
         else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.BYTES)){
             recordWriterProvider = new ByteRecordWriterProvider();
-            if(ingestionProps.getDataFormat().equals(IngestionProperties.DATA_FORMAT.avro.toString())) {
+            if(format.equals(IngestionProperties.DATA_FORMAT.avro)) {
                 shouldWriteAvroAsBytes = true;
             }
         } else {
