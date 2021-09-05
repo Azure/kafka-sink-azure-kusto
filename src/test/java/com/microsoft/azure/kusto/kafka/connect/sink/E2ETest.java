@@ -15,10 +15,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -122,6 +119,9 @@ public class E2ETest {
         try {
             if (tableBaseName.startsWith(testPrefix)) {
                 engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
+                if (streaming){
+                    engineClient.execute(database, ".clear database cache streamingingestion schema");
+                }
             }
             //look for streaming in
             engineClient.execute(database, String.format(".create table ['%s'] ingestion %s mapping '%s' " +
@@ -155,8 +155,10 @@ public class E2ETest {
             }
 
             kustoSinkTask.put(records);
+            // Streaming result should show
+            int timeoutMs = streaming ? 0 : 60 * 6 * 1000;
 
-            validateExpectedResults(engineClient, 2, table);
+            validateExpectedResults(engineClient, 2, table, timeoutMs);
         } catch (InterruptedException e) {
             return false;
         } finally {
@@ -168,12 +170,11 @@ public class E2ETest {
         return true;
     }
 
-    private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table) throws InterruptedException, DataClientException, DataServiceException {
+    private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table, int timeoutMs) throws InterruptedException, DataClientException, DataServiceException {
         String query = String.format("%s | count", table);
 
         KustoResultSetTable res = engineClient.execute(database, query).getPrimaryResults();
         res.next();
-        int timeoutMs = 60 * 6 * 1000;
         int rowCount = res.getInt(0);
         int timeElapsedMs = 0;
         int sleepPeriodMs = 5 * 1000;

@@ -1,7 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Strings;
-import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.data.exceptions.KustoDataException;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -107,7 +106,7 @@ class TopicPartitionWriter {
                 this.lastCommittedOffset = currentOffset;
                 return;
             } catch (IngestionServiceException | StorageException exception) {
-                if(ingestionProps.streaming && exception instanceof IngestionServiceException){
+                if (ingestionProps.streaming && exception instanceof IngestionServiceException){
                     Throwable innerException = exception.getCause();
                     if (innerException instanceof KustoDataException &&
                             ((KustoDataException) innerException).isPermanent()){

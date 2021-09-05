@@ -247,7 +247,6 @@ public class FileWriter implements Closeable {
             resetFlushTimer(true);
         }
         recordWriter.write(record);
-        recordWriter.commit();
         currentFile.records.add(record);
         currentFile.rawBytes = countingStream.numBytes;
         currentFile.numRecords++;
