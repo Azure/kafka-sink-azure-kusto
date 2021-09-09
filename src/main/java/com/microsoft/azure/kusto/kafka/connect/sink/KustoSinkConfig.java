@@ -61,8 +61,8 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_TABLES_MAPPING_DOC = "A JSON array mapping ingestion from topic to table, e.g: "
         + "[{'topic1':'t1','db':'kustoDb', 'table': 'table1', 'format': 'csv', 'mapping': 'csvMapping', 'streaming': 'false'}..].\n"
         + "Streaming is optional, defaults to false. Mind usage and cogs of streaming ingestion, read here: https://docs.microsoft.com/en-us/azure/data-explorer/ingest-data-streaming.\n"
-        + "Note: If the streaming ingestion fails transiently -"
-        + " queued ingest would apply, for this specific batch ingestion batching latency is configured regularly via"
+        + "Note: If the streaming ingestion fails transiently,"
+        + " queued ingest would apply for this specific batch ingestion. Batching latency is configured regularly via"
         + "ingestion batching policy";
     private static final String KUSTO_TABLES_MAPPING_DISPLAY = "Kusto Table Topics Mapping";
     

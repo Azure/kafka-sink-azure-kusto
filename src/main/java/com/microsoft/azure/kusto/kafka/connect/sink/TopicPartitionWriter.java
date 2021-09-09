@@ -96,7 +96,7 @@ class TopicPartitionWriter {
                     // Note: next version it will also contain Queued status - which is OK as getIngestionStatusCollection
                     // won't cause any data fetch
                     IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
-                    if (!hasStreamingSucceeded(ingestionStatus) && ingestionStatus.failureStatus.equals(IngestionFailureInfo.FailureStatusValue.Permanent)) {
+                    if (!hasStreamingSucceeded(ingestionStatus)) {
                        retryAttempts += ManagedStreamingIngestClient.MAX_RETRY_CALLS - 1;
                        backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
                        continue;

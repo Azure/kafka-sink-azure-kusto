@@ -228,7 +228,7 @@ public class FileWriterTest {
         fileWriter2.writeData(record3);
         reentrantReadWriteLock.readLock().unlock();
 
-        Thread.sleep(510);
+        Thread.sleep(550);
 
         // Assertions
         Assertions.assertEquals(2, files.size());

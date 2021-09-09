@@ -123,7 +123,6 @@ public class E2ETest {
                     engineClient.execute(database, ".clear database cache streamingingestion schema");
                 }
             }
-            //look for streaming in
             engineClient.execute(database, String.format(".create table ['%s'] ingestion %s mapping '%s' " +
                     "'[" + mapping + "]'", table, dataFormat, mappingReference));
 
