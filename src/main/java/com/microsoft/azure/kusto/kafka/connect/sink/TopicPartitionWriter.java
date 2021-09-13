@@ -92,12 +92,10 @@ class TopicPartitionWriter {
             try {
                 IngestionResult ingestionResult = client.ingestFromFile(fileSourceInfo, ingestionProps.ingestionProperties);
                 if (ingestionProps.streaming && ingestionResult instanceof IngestionStatusResult) {
-                    // If IngestionStatusResult returned then the ingestion status is from streaming ingest -
-                    // Note: next version it will also contain Queued status - which is OK as getIngestionStatusCollection
-                    // won't cause any data fetch
+                    // If IngestionStatusResult returned then the ingestion status is from streaming ingest
                     IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
                     if (!hasStreamingSucceeded(ingestionStatus)) {
-                       retryAttempts += ManagedStreamingIngestClient.MAX_RETRY_CALLS - 1;
+                       retryAttempts += ManagedStreamingIngestClient.MAX_RETRY_CALLS;
                        backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
                        continue;
                     }
