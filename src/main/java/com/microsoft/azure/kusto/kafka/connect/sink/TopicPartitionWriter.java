@@ -1,17 +1,21 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.google.common.base.Strings;
+import com.microsoft.azure.kusto.data.exceptions.KustoDataException;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
+import com.microsoft.azure.kusto.ingest.result.*;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 
+import com.microsoft.azure.storage.StorageException;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -22,8 +26,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
@@ -38,7 +42,7 @@ class TopicPartitionWriter {
 
     private final TopicPartition tp;
     private final IngestClient client;
-    private final IngestionProperties ingestionProps;
+    private final TopicIngestionProperties ingestionProps;
     private final String basePath;
     private final long flushInterval;
     private final long fileThreshold;
@@ -58,7 +62,7 @@ class TopicPartitionWriter {
     {
         this.tp = tp;
         this.client = client;
-        this.ingestionProps = ingestionProps.ingestionProperties;
+        this.ingestionProps = ingestionProps;
         this.fileThreshold = config.getFlushSizeBytes();
         this.basePath = getTempDirectoryName(config.getTempDirPath());
         this.flushInterval = config.getFlushInterval();
@@ -70,7 +74,6 @@ class TopicPartitionWriter {
         this.isDlqEnabled = isDlqEnabled;
         this.dlqTopicName = dlqTopicName;
         this.dlqProducer = dlqProducer;
-
     }
 
     public void handleRollFile(SourceFile fileDescriptor) {
@@ -87,22 +90,64 @@ class TopicPartitionWriter {
          */
         for (int retryAttempts = 0; true; retryAttempts++) {
             try {
-                client.ingestFromFile(fileSourceInfo, ingestionProps);
+                IngestionResult ingestionResult = client.ingestFromFile(fileSourceInfo, ingestionProps.ingestionProperties);
+                if (ingestionProps.streaming && ingestionResult instanceof IngestionStatusResult) {
+                    // If IngestionStatusResult returned then the ingestion status is from streaming ingest
+                    IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
+                    if (!hasStreamingSucceeded(ingestionStatus)) {
+                       retryAttempts += ManagedStreamingIngestClient.MAX_RETRY_CALLS;
+                       backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
+                       continue;
+                    }
+                }
                 log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
                 this.lastCommittedOffset = currentOffset;
                 return;
-            } catch (IngestionServiceException exception) {
+            } catch (IngestionServiceException | StorageException exception) {
+                if (ingestionProps.streaming && exception instanceof IngestionServiceException){
+                    Throwable innerException = exception.getCause();
+                    if (innerException instanceof KustoDataException &&
+                            ((KustoDataException) innerException).isPermanent()){
+                        throw new ConnectException(exception);
+                    }
+                }
                 // TODO : improve handling of specific transient exceptions once the client supports them.
                 // retrying transient exceptions
                 backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
-            } catch (IngestionClientException exception) {
+            } catch (IngestionClientException | URISyntaxException exception) {
                 throw new ConnectException(exception);
             }
         }
     }
 
-    private void backOffForRemainingAttempts(int retryAttempts, Exception e, SourceFile fileDescriptor) {
+    private boolean hasStreamingSucceeded(IngestionStatus status) throws URISyntaxException, StorageException {
+        switch (status.status){
+            case Succeeded:
+            case Queued:
+            case Pending:
+                return true;
+            case Skipped:
+            case PartiallySucceeded:
+                String failureStatus = status.getFailureStatus();
+                String details = status.getDetails();
+                UUID ingestionSourceId = status.getIngestionSourceId();
+                log.warn("A batch of streaming records has {} ingestion: table:{}, database:{}, operationId: {}," +
+                        "ingestionSourceId: {}{}{}.\n" +
+                        "Status is final and therefore ingestion won't be retried and data won't reach dlq",
+                        status.getStatus(),
+                        status.getTable(),
+                        status.getDatabase(),
+                        status.getOperationId(),
+                        ingestionSourceId,
+                        (!Strings.isNullOrEmpty(failureStatus) ? (", failure: " + failureStatus) : ""),
+                        (!Strings.isNullOrEmpty(details) ? (", details: " + details) : ""));
+                return true;
+            case Failed:
+        }
+        return false;
+    }
 
+    private void backOffForRemainingAttempts(int retryAttempts, Exception exce, SourceFile fileDescriptor) {
         if (retryAttempts < maxRetryAttempts) {
             // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
             // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
@@ -115,14 +160,14 @@ class TopicPartitionWriter {
                     log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
-                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), e);
+                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), exce);
             }
         } else {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
                 log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                 fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             }
-            throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", e);
+            throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", exce);
         }
     }
     
@@ -153,7 +198,7 @@ class TopicPartitionWriter {
         offset = offset == null ? currentOffset : offset;
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? offset + 1 : offset;
 
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.getDataFormat(), COMPRESSION_EXTENSION)).toString();
+        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.ingestionProperties.getDataFormat(), COMPRESSION_EXTENSION)).toString();
     }
 
     void writeRecord(SinkRecord record) throws ConnectException {
@@ -193,7 +238,7 @@ class TopicPartitionWriter {
                 this::getFilePath,
                 flushInterval,
                 reentrantReadWriteLock,
-                ingestionProps,
+                IngestionProperties.DATA_FORMAT.valueOf(ingestionProps.ingestionProperties.getDataFormat()),
                 behaviorOnError);
     }
 

@@ -15,10 +15,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -65,7 +62,7 @@ public class E2ETest {
         messagesBytes.add(messages[1].getBytes());
         long flushInterval = 100;
 
-        if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval)) {
+        if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval, false)) {
             Assertions.fail("Test failed");
         }
     }
@@ -82,7 +79,7 @@ public class E2ETest {
         messagesBytes.add(messages[1].getBytes());
         long flushInterval = 100;
 
-        if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval)) {
+        if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval, false)) {
             Assertions.fail("Test failed");
         }
     }
@@ -106,12 +103,14 @@ public class E2ETest {
         messagesBytes.add(message);
         long flushInterval = 300000;
 
-        if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval)) {
+        if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval, true)) {
             Assertions.fail("Test failed");
         }
     }
 
-    private boolean executeTest(String dataFormat, IngestionMapping.IngestionMappingKind ingestionMappingKind, String mapping, List<byte[]> messagesBytes, long flushInterval) throws URISyntaxException, DataServiceException, DataClientException {
+    private boolean executeTest(String dataFormat, IngestionMapping.IngestionMappingKind ingestionMappingKind, String mapping,
+                                List<byte[]> messagesBytes, long flushInterval, boolean streaming)
+            throws URISyntaxException, DataServiceException, DataClientException {
         String table = tableBaseName + dataFormat;
         String mappingReference = dataFormat + "Mapping";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net/", cluster), appId, appKey, authority);
@@ -120,13 +119,16 @@ public class E2ETest {
         try {
             if (tableBaseName.startsWith(testPrefix)) {
                 engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
+                if (streaming){
+                    engineClient.execute(database, ".clear database cache streamingingestion schema");
+                }
             }
             engineClient.execute(database, String.format(".create table ['%s'] ingestion %s mapping '%s' " +
                     "'[" + mapping + "]'", table, dataFormat, mappingReference));
 
             TopicPartition tp = new TopicPartition("testPartition" + dataFormat, 11);
             ConnectionStringBuilder csb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://ingest-%s.kusto.windows.net", cluster), appId, appKey, authority);
-            IngestClient ingestClient = IngestClientFactory.createClient(csb);
+            IngestClient ingestClient = IngestClientFactory.createManagedStreamingIngestClient(csb,engineCsb);
             IngestionProperties ingestionProperties = new IngestionProperties(database, table);
 
             long fileThreshold = 100;
@@ -137,21 +139,25 @@ public class E2ETest {
             String kustoDmUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
             String kustoEngineUrl = String.format("https://%s.kusto.windows.net", cluster);
             String basepath = Paths.get(basePath, dataFormat).toString();
-            Map<String, String> settings = getKustoConfigs(kustoDmUrl, kustoEngineUrl, basepath, mappingReference, fileThreshold, flushInterval);
+            Map<String, String> settings = getKustoConfigs(
+                    kustoDmUrl, kustoEngineUrl, basepath, mappingReference, fileThreshold,
+                    flushInterval, tp, dataFormat, table, streaming);
             KustoSinkConfig config = new KustoSinkConfig(settings);
             TopicPartitionWriter writer = new TopicPartitionWriter(tp, ingestClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
             writer.open();
-
+            KustoSinkTask kustoSinkTask = new KustoSinkTask();
+            kustoSinkTask.start(settings);
+            kustoSinkTask.open(new ArrayList<TopicPartition>(){ {add(tp);}});
             List<SinkRecord> records = new ArrayList<>();
             for (byte[] messageBytes : messagesBytes) {
                 records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, messageBytes, 10));
             }
 
-            for (SinkRecord record : records) {
-                writer.writeRecord(record);
-            }
+            kustoSinkTask.put(records);
+            // Streaming result should show
+            int timeoutMs = streaming ? 0 : 60 * 6 * 1000;
 
-            validateExpectedResults(engineClient, 2, table);
+            validateExpectedResults(engineClient, 2, table, timeoutMs);
         } catch (InterruptedException e) {
             return false;
         } finally {
@@ -163,12 +169,11 @@ public class E2ETest {
         return true;
     }
 
-    private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table) throws InterruptedException, DataClientException, DataServiceException {
+    private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table, int timeoutMs) throws InterruptedException, DataClientException, DataServiceException {
         String query = String.format("%s | count", table);
 
         KustoResultSetTable res = engineClient.execute(database, query).getPrimaryResults();
         res.next();
-        int timeoutMs = 60 * 6 * 1000;
         int rowCount = res.getInt(0);
         int timeElapsedMs = 0;
         int sleepPeriodMs = 5 * 1000;
@@ -185,11 +190,14 @@ public class E2ETest {
     }
 
     private Map<String, String> getKustoConfigs(String clusterUrl, String engineUrl, String basePath, String tableMapping,
-                                                long fileThreshold, long flushInterval) {
+                                                long fileThreshold, long flushInterval, TopicPartition topic, String format,
+                                                String table, boolean streaming) {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, clusterUrl);
         settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, engineUrl);
-        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, tableMapping);
+        settings.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                String.format("[{'topic': '%s','db': '%s', 'table': '%s','format': '%s', 'mapping':'%s' %s}]",
+                        topic.topic(), database, table, format, tableMapping, streaming ? ",'streaming':true" : ""));
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, appId);
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, appKey);
         settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, authority);

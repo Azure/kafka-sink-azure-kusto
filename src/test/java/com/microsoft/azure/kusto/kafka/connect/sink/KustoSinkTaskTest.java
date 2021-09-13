@@ -116,7 +116,8 @@ public class KustoSinkTaskTest {
             Assertions.assertEquals("csv", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
             Assertions.assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
             Assertions.assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
-            Assertions.assertEquals("json", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
+            Assertions.assertEquals("multijson",
+                    kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
             Assertions.assertEquals("Mapping", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference());
             Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
         }
