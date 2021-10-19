@@ -236,7 +236,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_SINK_FLUSH_INTERVAL_MS_CONF,
                 Type.LONG,
-                TimeUnit.SECONDS.toMillis(300),
+                TimeUnit.SECONDS.toMillis(30),
                 ConfigDef.Range.atLeast(100),
                 Importance.HIGH,
                 KUSTO_SINK_FLUSH_INTERVAL_MS_DOC,
