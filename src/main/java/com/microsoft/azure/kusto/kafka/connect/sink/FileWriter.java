@@ -146,7 +146,7 @@ public class FileWriter implements Closeable {
             if (delete){
                 dumpFile();
             }
-        } else {
+        } else if (outputStream != null) {
             outputStream.close();
         }
     }
@@ -169,15 +169,6 @@ public class FileWriter implements Closeable {
             log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());
         }
         currentFile = null;
-    }
-
-    public void rollback() throws IOException {
-        if (countingStream != null) {
-            countingStream.close();
-            if (currentFile != null && currentFile.file != null) {
-                dumpFile();
-            }
-        }
     }
 
     public void close() throws IOException, DataException {

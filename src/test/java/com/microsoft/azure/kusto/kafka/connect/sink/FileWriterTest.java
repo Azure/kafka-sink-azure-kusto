@@ -73,7 +73,6 @@ public class FileWriterTest {
         Assertions.assertEquals(FILE_PATH, fileWriter.currentFile.path);
         Assertions.assertTrue(fileWriter.currentFile.file.canWrite());
 
-        fileWriter.rollback();
     }
 
     @Test
