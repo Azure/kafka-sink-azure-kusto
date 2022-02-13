@@ -39,7 +39,7 @@ import java.util.zip.GZIPOutputStream;
 public class FileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
-    
+
     SourceFile currentFile;
     private Timer timer;
     private Consumer<SourceFile> onRollCallback;
@@ -135,10 +135,10 @@ public class FileWriter implements Closeable {
                 onRollCallback.accept(currentFile);
               } catch (ConnectException e) {
                 /*
-                 * Swallow the exception and continue to process subsequent records 
+                 * Swallow the exception and continue to process subsequent records
                  * when behavior.on.error is not set to fail mode.
-                 * 
-                 * Also, throwing/logging the exception with just a message to 
+                 *
+                 * Also, throwing/logging the exception with just a message to
                  * avoid polluting logs with duplicate trace.
                  */
                 handleErrors("Failed to write records to KustoDB.", e);
@@ -150,7 +150,7 @@ public class FileWriter implements Closeable {
             outputStream.close();
         }
     }
-    
+
     private void handleErrors(String message, Exception e) {
         if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(message, e);
@@ -160,7 +160,7 @@ public class FileWriter implements Closeable {
             log.debug("{}", message, e);
         }
     }
-    
+
     private void dumpFile() throws IOException {
         countingStream.close();
         currentFileDescriptor = null;
@@ -216,15 +216,13 @@ public class FileWriter implements Closeable {
     }
 
     void flushByTimeImpl() {
-        try {
-            // Flush time interval gets the write lock so that it won't starve
-            reentrantReadWriteLock.writeLock().lock();
+        // Flush time interval gets the write lock so that it won't starve
+        try(AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.writeLock())) {
             // Lock before the check so that if a writing process just flushed this won't ingest empty files
             if (isDirty()) {
                 finishFile(true);
             }
             resetFlushTimer(false);
-            reentrantReadWriteLock.writeLock().unlock();
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;

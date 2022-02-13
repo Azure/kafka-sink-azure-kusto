@@ -17,7 +17,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.Nullable;
@@ -35,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 class TopicPartitionWriter {
-  
+
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
     private static final String COMPRESSION_EXTENSION = ".gz";
     private static final String FILE_EXCEPTION_MESSAGE = "Failed to create file or write record into file for ingestion.";
@@ -68,7 +67,7 @@ class TopicPartitionWriter {
         this.flushInterval = config.getFlushInterval();
         this.currentOffset = 0;
         this.reentrantReadWriteLock = new ReentrantReadWriteLock(true);
-        this.maxRetryAttempts = config.getMaxRetryAttempts() + 1; 
+        this.maxRetryAttempts = config.getMaxRetryAttempts() + 1;
         this.retryBackOffTime = config.getRetryBackOffTimeMs();
         this.behaviorOnError = config.getBehaviorOnError();
         this.isDlqEnabled = isDlqEnabled;
@@ -170,12 +169,12 @@ class TopicPartitionWriter {
             throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", exce);
         }
     }
-    
+
     public void sendFailedRecordToDlq(SinkRecord record) {
         byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
-            + "topic=%s, partition=%s, offset=%s.", 
-            record.topic(), 
-            record.kafkaPartition(), 
+            + "topic=%s, partition=%s, offset=%s.",
+            record.topic(),
+            record.kafkaPartition(),
             record.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
         byte[] recordValue = record.value().toString().getBytes(StandardCharsets.UTF_8);
         ProducerRecord<byte[], byte[]> dlqRecord = new ProducerRecord<>(dlqTopicName, recordKey, recordValue);
@@ -205,14 +204,11 @@ class TopicPartitionWriter {
       if (record == null) {
         this.currentOffset = record.kafkaOffset();
       } else {
-        try {
-          reentrantReadWriteLock.readLock().lock();
+        try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.readLock())) {
           this.currentOffset = record.kafkaOffset();
           fileWriter.writeData(record);
-        } catch (IOException | DataException ex) {
+        } catch (Exception ex) {
           handleErrors(record, ex);
-        } finally {
-          reentrantReadWriteLock.readLock().unlock();
         }
       }
     }
