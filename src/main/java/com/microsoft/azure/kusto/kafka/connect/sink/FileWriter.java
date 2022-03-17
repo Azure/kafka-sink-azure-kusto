@@ -286,7 +286,7 @@ public class FileWriter implements Closeable {
 
     private class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;
-        private OutputStream outputStream;
+        private final OutputStream outputStream;
 
         CountingOutputStream(OutputStream out) {
             super(out);

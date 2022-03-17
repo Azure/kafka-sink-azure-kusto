@@ -177,7 +177,7 @@ public class KustoSinkConfig extends AbstractConfig {
             .define(
                 KUSTO_SINK_MAX_RETRY_TIME_MS_CONF,
                 Type.LONG,
-                TimeUnit.SECONDS.toMillis(300),
+                TimeUnit.SECONDS.toMillis(30),
                 Importance.LOW,
                 KUSTO_SINK_MAX_RETRY_TIME_MS_DOC,
                 errorAndRetriesGroupName,
