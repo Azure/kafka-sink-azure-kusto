@@ -258,21 +258,23 @@ The following is complete set of connector sink properties-
 <hr>
 
 ## 6. Streaming ingestion
-Kusto supports [Streaming ingestion](https://docs.microsoft.com/azure/data-explorer/ingest-data-streaming) in order to achieve lower than a second latency.
+Kusto supports [Streaming ingestion](https://docs.microsoft.com/azure/data-explorer/ingest-data-streaming) in order to achieve sub-second latency.
 
 This connector supports this using [Managed streaming client](https://github.com/Azure/azure-kusto-java/blob/master/ingest/src/main/java/com/microsoft/azure/kusto/ingest/ManagedStreamingIngestClient.java).
 
 Usage: configure per topic-table that streaming should be used. For example:
+```
 kusto.tables.topics.mapping=[{'topic': 't1','db': 'db', 'table': 't1','format': 'json', 'mapping':'map', 'streaming': true}].
+```
 
-Requirements: Streaming configured on the cluster. [Streaming policy](https://docs.microsoft.com/azure/data-explorer/kusto/management/streamingingestionpolicy)
+Requirements: Streaming enabled on the cluster. [Streaming policy](https://docs.microsoft.com/azure/data-explorer/kusto/management/streamingingestionpolicy)
 configured on the table or database.
 
-Extra configurations: flush.size.bytes and flush.interval.ms are still used to batch
+Additional configurations: flush.size.bytes and flush.interval.ms are still used to batch
 records together before ingestion - flush.size.bytes should not be over 4MB, flush.interval.ms 
 is suggested to be low (hundreds of milliseconds).
-We recommend to still configure ingestion batching policy over table or database as the client 
-fallbacks to queued ingestion on failure of all its retries.
+We still recommend configuring ingestion batching policy at the table or database level, as the client falls back to
+queued ingestion in case of failure and retry-exhaustion.
 
 
 ## 7. Roadmap
@@ -497,7 +499,8 @@ The connector plugin is open source. We welcome feedback, and contribution. Log 
 ### 14.4. Performance tuning
 - Kafka topic: number of partitions should be tuned for performance
 - Connectors: AKS right-sizing, connector tasks right-sizing, configure the right values for flush.size.bytes and flush.interval.ms
-- Kusto: Right-size Kusto cluster for ingestion (SKU and node count), tune the table [ingestion batching policy](https://docs.microsoft.com/azure/data-explorer/kusto/management/batchingpolicy)
+- Kusto: Right-size Kusto cluster for ingestion (SKU and node count), tune the table or database 
+  [ingestion batching policy](https://docs.microsoft.com/azure/data-explorer/kusto/management/batchingpolicy)
 - Format: Avro (with schema registry) and CSV perform more-or-less similarly from tests done
 
 ### 14.5. Upgrading to version 1.x from prior versions
