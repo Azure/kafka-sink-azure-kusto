@@ -40,7 +40,7 @@ The connector is open source and we welcome community contribution.
 
 ## 2. Integration design
 
-Integration mode to Azure Data Explorer is batched, queued ingestion leveraging the Azure Data Explorer Java SDK.  Events are dequeued from Kafka and per the flush* sink properties, batched, and shipped to Azure Data Explorer as gzipped files, and queued for ingestion.  Azure Data Explorer has a configurable table [ingest batching policy](https://docs.microsoft.com/azure/data-explorer/kusto/management/batchingpolicy), based on which ingestion into tables occurs automatically.
+Integration mode to Azure Data Explorer is queued or streaming ingestion leveraging the Azure Data Explorer Java SDK.  Events are dequeued from Kafka and per the flush* sink properties, batched or streamed, and shipped to Azure Data Explorer as gzipped files.  In case of batch ingestions, Azure Data Explorer has a configurable table [ingest batching policy](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/batchingpolicy), based on which ingestion into tables occurs automatically. In case of streaming ingestion, configure 'streaming' as 'true' in 'kusto.tables.topics.mapping', by default streaming is set as false.
 
 <hr>
 
@@ -225,7 +225,7 @@ The following is complete set of connector sink properties-
 | 5 | aad.auth.authority | Credentials for Kusto | Provide the tenant ID of your Azure Active Directory<br>*Required*  |
 | 6 | aad.auth.appid | Credentials for Kusto  | Provide Azure Active Directory Service Principal Name<br>*Required*  |
 | 7 | aad.auth.appkey | Credentials for Kusto  | Provide Azure Active Directory Service Principal secret<br>*Required*  |
-| 8 | kusto.tables.topics.mapping | Mapping of topics to tables  | Provide 1..many topic-table comma-separated mappings as follows-<br>[{'topic': '\<topicName1\>','db': '\<datebaseName\>', 'table': '\<tableName\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName\>'}]<br>*Required*  |
+| 8 | kusto.tables.topics.mapping | Mapping of topics to tables  | Provide 1..many topic-table comma-separated mappings as follows-<br>[{'topic': '\<topicName1\>','db': '\<datebaseName\>', 'table': '\<tableName1\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName1\>','streaming':'false'},{'topic': '\<topicName2\>','db': '\<datebaseName\>', 'table': '\<tableName2\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName2\>','streaming':'false'}]<br>*Required*  |
 | 9 | key.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*Required*  |
 | 10 | value.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*Required*  |
 | 11 | value.converter.schema.registry.url | Schema validation | URI of the Kafka schema registry<br>*Optional*  |
@@ -542,7 +542,7 @@ For information about what changes are included in each release, please see the 
 | 1.0.3           | 2020-10-13   | <ul><li>Bug fix: Fix Multijson usage</li></ul>  |
 | 2.0.0           | 2020-11-12   | <ul><li>Bug fix: Trying to create a new directory failed probably because it was already created due to a race condition.</li><li>Bug fix: Resetting the timer was not behind lock, which could result in a race condition of it being destroyed by other code.</li><li>New feature: Added required kusto.query.url parameter so that we can now specify a Kusto Query URL that isn't simply the default of the Kusto Ingestion URL prepended with "ingest-".</li><li>New feature: Renamed the kusto.url parameter to kusto.ingestion.url for clarity and consistency.</li></ul>  |
 | 2.1.0           | 2021-07-11   | <ul><li>Upgrade Kusto Java SDK to 2.8.2.</li></ul>  |
-| 2.2.0           | 2021-09-13   | <ul><li>Support Kusto streaming ingest.</li></ul>  |
+| 2.2.0           | 2021-09-13   | <ul><li>New feature: Streaming ingestion has been added</li></ul>  |
 
 
 ## 17. Contributing
