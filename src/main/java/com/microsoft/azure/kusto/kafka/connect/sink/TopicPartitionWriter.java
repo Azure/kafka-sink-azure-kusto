@@ -202,9 +202,7 @@ class TopicPartitionWriter {
     }
 
     void writeRecord(SinkRecord record) throws ConnectException {
-      if (record == null) {
-        this.currentOffset = record.kafkaOffset();
-      } else {
+      if (record != null) {
         try {
           reentrantReadWriteLock.readLock().lock();
           this.currentOffset = record.kafkaOffset();
