@@ -11,7 +11,7 @@ public class AutoCloseableLock implements AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         lock.unlock();
     }
 }

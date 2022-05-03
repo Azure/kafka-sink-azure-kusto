@@ -17,6 +17,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.Nullable;
@@ -207,7 +208,7 @@ class TopicPartitionWriter {
         try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.readLock())) {
           this.currentOffset = record.kafkaOffset();
           fileWriter.writeData(record);
-        } catch (Exception ex) {
+        } catch (IOException | DataException ex) {
           handleErrors(record, ex);
         }
       }
