@@ -40,7 +40,7 @@ The connector is open source and we welcome community contribution.
 
 ## 2. Integration design
 
-Integration mode to Azure Data Explorer is batched, queued ingestion leveraging the Azure Data Explorer Java SDK.  Events are dequeued from Kafka and per the flush* sink properties, batched, and shipped to Azure Data Explorer as gzipped files, and queued for ingestion.  Azure Data Explorer has a configurable table [ingest batching policy](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/batchingpolicy), based on which ingestion into tables occurs automatically.
+Integration mode to Azure Data Explorer is queued or streaming ingestion leveraging the Azure Data Explorer Java SDK.  Events are dequeued from Kafka and per the flush* sink properties, batched or streamed, and shipped to Azure Data Explorer as gzipped files.  In case of batch ingestions, Azure Data Explorer has a configurable table [ingest batching policy](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/batchingpolicy), based on which ingestion into tables occurs automatically. In case of streaming ingestion, configure 'streaming' as 'true' in 'kusto.tables.topics.mapping', by default streaming is set as false.
 
 <hr>
 
@@ -84,8 +84,7 @@ Integration mode to Azure Data Explorer is batched, queued ingestion leveraging 
 | 5 | org.apache.kafka.connect.converters.ByteArrayConverter | Use with ORC, Parquet files written as messages to Kafka |
 
 ### 3.8.  Kafka Connect transformers
-- The connector does not support transformers. Prefer transformation on the server side in Kafka or ingestion time in Azure Data Explorer with [update policies](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/management/updatepolicy).
-
+- The connector does not support transformers. Prefer transformation on the server side in Kafka or ingestion time in Azure Data Explorer with [update policies](https://docs.microsoft.com/azure/data-explorer/kusto/management/updatepolicy).
 
 ### 3.9. Topics to tables mapping
 - The connector supports multiple topics to multiple tables configuration per Kafka Connect worker
@@ -118,7 +117,7 @@ Therefore the connector supports "At least once" delivery guarantees.
 <hr>
 
 ## 4. Connect worker properties
-- There are some core configs that need to be set at the Kafka connect worker level.  Some of these are security configs and the (consumer) override policy. These for e.g. need to be baked into the [Docker image](ConnectorReadme.md#10-distributed-deployment-details) covered further on in this document-
+- There are some core configs that need to be set at the Kafka connect worker level.  Some of these are security configs and the (consumer) override policy. These for e.g. need to be baked into the [Docker image](Readme.md#10-distributed-deployment-details) covered further on in this document-
 
 ### 4.1. Confluent Cloud
 
@@ -226,14 +225,14 @@ The following is complete set of connector sink properties-
 | 5 | aad.auth.authority | Credentials for Kusto | Provide the tenant ID of your Azure Active Directory<br>*Required*  |
 | 6 | aad.auth.appid | Credentials for Kusto  | Provide Azure Active Directory Service Principal Name<br>*Required*  |
 | 7 | aad.auth.appkey | Credentials for Kusto  | Provide Azure Active Directory Service Principal secret<br>*Required*  |
-| 8 | kusto.tables.topics.mapping | Mapping of topics to tables  | Provide 1..many topic-table comma-separated mappings as follows-<br>[{'topic': '\<topicName1\>','db': '\<datebaseName\>', 'table': '\<tableName\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName\>'}]<br>*Required*  |
+| 8 | kusto.tables.topics.mapping | Mapping of topics to tables  | Provide 1..many topic-table comma-separated mappings as follows-<br>[{'topic': '\<topicName1\>','db': '\<datebaseName\>', 'table': '\<tableName1\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName1\>','streaming':'false'},{'topic': '\<topicName2\>','db': '\<datebaseName\>', 'table': '\<tableName2\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName2\>','streaming':'false'}]<br>*Required*  |
 | 9 | key.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*Required*  |
 | 10 | value.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*Required*  |
 | 11 | value.converter.schema.registry.url | Schema validation | URI of the Kafka schema registry<br>*Optional*  |
 | 12 | value.converter.schemas.enable | Schema validation | Set to true if you have embedded schema with payload but are not leveraging the schema registry<br>Applicable for avro and json<br><br>*Optional*  |
 | 13 | tasks.max | connector parallelism | Specify the number of connector copy/sink tasks<br>*Required*  |
 | 14 | flush.size.bytes | Performance knob for batching | Maximum bufer byte size per topic+partition combination that in combination with flush.interval.ms (whichever is reached first) should result in sinking to Kusto<br>*Default - 1 MB*<br>*Required*  |
-| 15 | flush.interval.ms | Performance knob for batching | Minimum time interval per topic+partition combo that in combination with flush.size.bytes (whichever is reached first) should result in sinking to Kusto<br>*Default - 300 ms*<br>*Required*  |
+| 15 | flush.interval.ms | Performance knob for batching | Minimum time interval per topic+partition combo that in combination with flush.size.bytes (whichever is reached first) should result in sinking to Kusto<br>*Default - 30 seconds*<br>*Required*  |
 | 16 | tempdir.path | Local directory path on Kafka Connect worker to buffer files to before shipping to Kusto | Default is value returned by ```System.getProperty("java.io.tmpdir")``` with a GUID attached to it<br><br>*Optional*  |
 | 17 | behavior.on.error | Configurable behavior in response to errors encountered | Possible values - log, ignore, fail<br><br>log - log the error, send record to dead letter queue, and continue processing<br>ignore - log the error, send record to dead letter queue, proceed with processing despite errors encountered<br>fail - shut down connector task upon encountering<br><br>*Default - fail*<br>*Optional*  |
 | 18 | errors.retry.max.time.ms | Configurable retries for transient errors | Period of time in milliseconds to retry for transient errors<br><br>*Default - 300 ms*<br>*Optional*  |
@@ -258,26 +257,45 @@ The following is complete set of connector sink properties-
 
 <hr>
 
-## 6. Roadmap
+## 6. Streaming ingestion
+Kusto supports [Streaming ingestion](https://docs.microsoft.com/azure/data-explorer/ingest-data-streaming) in order to achieve sub-second latency.
+
+This connector supports this using [Managed streaming client](https://github.com/Azure/azure-kusto-java/blob/master/ingest/src/main/java/com/microsoft/azure/kusto/ingest/ManagedStreamingIngestClient.java).
+
+Usage: configure per topic-table that streaming should be used. For example:
+```
+kusto.tables.topics.mapping=[{'topic': 't1','db': 'db', 'table': 't1','format': 'json', 'mapping':'map', 'streaming': true}].
+```
+
+Requirements: Streaming enabled on the cluster. [Streaming policy](https://docs.microsoft.com/azure/data-explorer/kusto/management/streamingingestionpolicy)
+configured on the table or database.
+
+Additional configurations: flush.size.bytes and flush.interval.ms are still used to batch
+records together before ingestion - flush.size.bytes should not be over 4MB, flush.interval.ms 
+is suggested to be low (hundreds of milliseconds).
+We still recommend configuring ingestion batching policy at the table or database level, as the client falls back to
+queued ingestion in case of failure and retry-exhaustion.
+
+
+## 7. Roadmap
 The following is the roadmap-<br>
 
 | # | Roadmap item| 
 | :--- | :--- |
-| 1 | Streaming ingestion support |
-| 2 | Schema evolution support |
-| 3 | Protobuf support*  - converter, schema registry<br>*This item is based on demand AND availability of native Protobuf ingestion support*|
+| 1 | Schema evolution support |
+| 2 | Protobuf support*  - converter, schema registry<br>*This item is based on demand AND availability of native Protobuf ingestion support*|
 
 
 
 <hr>
 
-## 7. Deployment overview
+## 8. Deployment overview
 Kafka Connect connectors can be deployed in standalone mode (just for development) or in distributed mode (production).<br>
 
-### 7.1. Standalone Kafka Connect deployment mode 
+### 8.1. Standalone Kafka Connect deployment mode 
 This involves having the connector plugin jar in /usr/share/java of a Kafka Connect worker, reference to the same plugin path in connect-standalone.properties, and launching of the connector from command line.  This is not scalable, not fault tolerant, and is not recommeded for production.
 
-### 7.2. Distributed Kafka Connect deployment mode 
+### 8.2. Distributed Kafka Connect deployment mode 
 Distributed Kafka Connect essentially involves creation of a KafkaConnect worker cluster as shown in the diagram below.<br>
 - Azure Kubernetes Service is a great infrastructure for the connect cluster, due to its managed and scalable nature
 - Kubernetes is a great platform for the connect cluster, due to its scalable nature and self-healing
@@ -294,17 +312,17 @@ Distributed Kafka Connect essentially involves creation of a KafkaConnect worker
 <br>
 
 
-## 8. Connector download/build from source
+## 9. Connector download/build from source
 
 Multiple options are available-
 
-### 8.1. Download a ready-to-use uber jar from our Github repo releases listing
+### 9.1. Download a ready-to-use uber jar from our Github repo releases listing
 https://github.com/Azure/kafka-sink-azure-kusto/releases
 
-### 8.2. Download the connector from Confluent Connect Hub
-<to be added>
+### 9.2. Download the connector from Confluent Connect Hub
+https://www.confluent.io/hub/microsoftcorporation/kafka-sink-azure-kusto/
 
-### 8.3. Build uber jar from source
+### 9.3. Build uber jar from source
 The dependencies are-
 * JDK >= 1.8 [download](https://www.oracle.com/technetwork/java/javase/downloads/index.html)
 * Maven [download](https://maven.apache.org/install.html)
@@ -332,21 +350,21 @@ Look within `target/components/packages/microsoftcorporation-kafka-sink-azure-ku
 <hr>
 
 
-## 9. Test drive the connector - standalone mode
+## 10. Test drive the connector - standalone mode
 In a standalone mode (not recommended for production), the connector can be test driven in any of the following ways-
 
-### 9.1. Self-contained Dockerized setup
+### 10.1. Self-contained Dockerized setup
 
 [Review this hands on lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/dockerized-quickstart/README.md).  It includes dockerized kafka, connector and Kafka producer to take away complexities and allow you to focus on the connector aspect.
 
 
-### 9.2. HDInsight Kafka, on an edge node
+### 10.2. HDInsight Kafka, on an edge node
 [Review this hands on lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/standalone-mode/README.md).  The lab referenced may have slightly outdated list of sink properties.  Modify them to make current, leveraging the latest sink properties detailed in [section 5](README.md#5-sink-properties).
 
 <hr>
 
 
-## 10. Distributed deployment details
+## 11. Distributed deployment details
 The following are the components and configuration needed in place.<br>
 
 ![CONNECTOR](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/confluent-cloud/images/connector-CRUD.png)
@@ -357,7 +375,7 @@ The following are the components and configuration needed in place.<br>
 
 The following section strives to explain further, pictorially, what's involved with distributed deployment of the connector-<br>
 
-### 10.1. Docker image creation
+### 11.1. Docker image creation
 
 1.  Create a Docker Hub account if it does not exist
 2.  Install Docker desktop on your machine
@@ -371,7 +389,7 @@ The following section strives to explain further, pictorially, what's involved w
 <hr>
 <br>
 
-### 10.2. Provision Kafka Connect workers on an Azure Kubernetes Service cluster
+### 11.2. Provision Kafka Connect workers on an Azure Kubernetes Service cluster
 
 5.  Provision KafkaConnect workers on our Azure Kubernetes Service cluster
 
@@ -394,7 +412,7 @@ When we are done, we have a live KafkaConnect cluster that is integrated with Co
 Note: This still does not have copy tasks (connector tasks) running yet
 
 
-### 10.3. Postman for Kafka Connect REST APIs or REST calls from your CLI
+### 11.3. Postman for Kafka Connect REST APIs or REST calls from your CLI
 
 6.  Install Postman on our local machine<br>
 7.  Import KafkaConnect REST call JSON collection from Github into Postman<br>
@@ -405,7 +423,7 @@ OR<br>
 
 Note: Depending on Kafka security configuration, [update the security configuration in the sink properties](https://docs.confluent.io/current/connect/security.html#authentication).
 
-### 10.4. Launch the connector tasks using the Kafka Connect REST API
+### 11.4. Launch the connector tasks using the Kafka Connect REST API
 
 9.  Launch the Kafka-ADX copy tasks/REST call, otherwise called connector tasks from Postman or via curl command
 
@@ -431,70 +449,71 @@ Section 11, below, links to a hands-on lab to test drive the deployment.  The la
 
 <hr>
 
-## 11. Test drive the connector - distributed mode
+## 12. Test drive the connector - distributed mode
 
 The labs referenced below may have slightly outdated list of sink properties.  Modify them to make current, leveraging the latest sink properties detailed in [section 5](https://github.com/microsoft/kusto-kafka-feature/blob/master/docs/ConnectorGitDoc.md#5-sink-properties).
 
-### 11.1. HDInsight Kafka
+### 12.1. HDInsight Kafka
 For a non-secured HDInsight Kafka cluster - [run through this end-to-end hands-on-lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/distributed-mode/hdinsight-kafka/README.md) 
 <br>
 For a secured HDInsight Kafka cluster (Kerberised) -  [review these details specific to HDInsight with Enterprise Security Package](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/distributed-mode/hdinsight-kafka/connectors-crud-esp.md)
 
-### 11.2. Confluent Cloud
+### 12.2. Confluent Cloud
 [Run through this end-to-end hands-on-lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/confluent-cloud/README.md)
 
-### 11.3. Confluent IaaS (operator based)
+### 12.3. Confluent IaaS (operator based)
 [Run through this end-to-end hands-on-lab](https://github.com/Azure/azure-kusto-labs/blob/master/kafka-integration/distributed-mode/confluent-kafka/README.md)
 
 
 <hr>
 
 
-## 12. Apache Kafka version - Docker Kafka Connect base image version - Confluent Helm chart version related
+## 13. Apache Kafka version - Docker Kafka Connect base image version - Confluent Helm chart version related
 
-### 12.1. Docker image
+### 13.1. Docker image
 We have deliberately not published a Docker image due to the multitude of versions of Apache Kafka bundled into the Confluent platform versions, and multiple versions of our Kafka connector, not to mention the security configs specific to each customer's Kafka deployment.  We therefore recommend that a custom image be developed using the [appropriate version](https://hub.docker.com/r/confluentinc/cp-kafka-connect/tags) compatible with the Apache Kafka version.
 
-### 12.2. Helm chart
+### 13.2. Helm chart
 Similarly, we recommend leveraging the right version of the Helm chart.  [Confluent base helm chart for Kafka Connect](https://github.com/confluentinc/cp-helm-charts).
 
 
 <hr>
 
-## 13. Other
+## 14. Other
 
 
-### 13.1. Feedback, issues and contribution
+### 14.1. Feedback, issues and contribution
 The connector plugin is open source. We welcome feedback, and contribution. Log an issue, in the issues tab as needed. See section 14.
 
-### 13.2. Scaling out/in
+### 14.2. Scaling out/in
 - Connector tasks can be scaled out per Kafka Connect worker by pausing, editing and resuming the connector cluster
 - When tasks per worker are maxed out, Azure Kubernetes Service cluster can be scaled out for more nodes, and Kafka Connect workers can be provisioned on the same
 
 
-### 13.3. Sizing
+### 14.3. Sizing
 - Confluent recommends Kafka Connect workers with minimum of 4 cores and 16 GB of RAM
 - Start with 3 workers (3 AKS nodes), and scale horizontally as needed
 - Number of tasks should ideally be equal to the number of Kafka topic partitions, not more
 - Play with the number of tasks, wokers, nodes till you see the performance you desire
 
-### 13.4. Performance tuning
+### 14.4. Performance tuning
 - Kafka topic: number of partitions should be tuned for performance
 - Connectors: AKS right-sizing, connector tasks right-sizing, configure the right values for flush.size.bytes and flush.interval.ms
-- Kusto: Right-size Kusto cluster for ingestion (SKU and node count), tune the batch ingestion policy
+- Kusto: Right-size Kusto cluster for ingestion (SKU and node count), tune the table or database 
+  [ingestion batching policy](https://docs.microsoft.com/azure/data-explorer/kusto/management/batchingpolicy)
 - Format: Avro (with schema registry) and CSV perform more-or-less similarly from tests done
 
-### 13.5. Upgrading to version 1.x from prior versions
+### 14.5. Upgrading to version 1.x from prior versions
 To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers, then launch the copy tasks.  You can use the consumer.override* feature to manipulate offset to read from.
 <hr>
 
-## 14. Need Support?
+## 15. Need Support?
 - **Found a bug?** Please help us fix it by thoroughly documenting it and [filing an issue](https://github.com/Azure/kafka-sink-azure-kusto/issues/new).
 - **Have a feature request?** Please post it on [User Voice](https://feedback.azure.com/forums/915733-azure-data-explorer) to help us prioritize
 - **Have a technical question?** Ask on [Stack Overflow with tag "azure-data-explorer"](https://stackoverflow.com/questions/tagged/azure-data-explorer)
-- **Need Support?** Every customer with an active Azure subscription has access to [support](https://docs.microsoft.com/en-us/azure/azure-supportability/how-to-create-azure-support-request) with guaranteed response time.  Consider submitting a ticket and get assistance from Microsoft support team
+- **Need Support?** Every customer with an active Azure subscription has access to [support](https://docs.microsoft.com/azure/azure-supportability/how-to-create-azure-support-request) with guaranteed response time.  Consider submitting a ticket and get assistance from Microsoft support team
 
-## 15. Major version specifics
+## 16. Major version specifics
 With version 1.0, we overhauled the connector.  The following are the changes- 
 1. We renamed some properties for consistency with standards
 2. Added support for schema registry
@@ -514,7 +533,7 @@ To upgrade, you would have to stop the connector tasks, recreate your connect wo
 For information about what changes are included in each release, please see the [Release History](README.md#16-release-history) section of this document.
 
 
-## 16. Release History
+## 17. Release History
 | Release Version | Release Date | Changes Included |
 | --------------- | ------------ | ---------------- |
 | 0.1.0           | 2020-03-05   | <ul><li>Initial release</li></ul>  |
@@ -522,6 +541,8 @@ For information about what changes are included in each release, please see the 
 | 1.0.2           | 2020-10-06   | <ul><li>Bug fix: Cast of count of records to long instead of int, to accommodate larger databases.</li></ul>  |
 | 1.0.3           | 2020-10-13   | <ul><li>Bug fix: Fix Multijson usage</li></ul>  |
 | 2.0.0           | 2020-11-12   | <ul><li>Bug fix: Trying to create a new directory failed probably because it was already created due to a race condition.</li><li>Bug fix: Resetting the timer was not behind lock, which could result in a race condition of it being destroyed by other code.</li><li>New feature: Added required kusto.query.url parameter so that we can now specify a Kusto Query URL that isn't simply the default of the Kusto Ingestion URL prepended with "ingest-".</li><li>New feature: Renamed the kusto.url parameter to kusto.ingestion.url for clarity and consistency.</li></ul>  |
+| 2.1.0           | 2021-07-11   | <ul><li>Upgrade Kusto Java SDK to 2.8.2.</li></ul>  |
+| 2.2.0           | 2021-09-13   | <ul><li>New feature: Streaming ingestion has been added</li></ul>  |
 
 
 ## 17. Contributing
