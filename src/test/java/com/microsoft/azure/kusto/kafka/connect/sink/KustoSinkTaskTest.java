@@ -1,5 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.microsoft.azure.kusto.ingest.IngestClient;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -36,7 +37,7 @@ public class KustoSinkTaskTest {
 
     @AfterEach
     public final void after() {
-        currentDirectory.delete();
+        boolean delete = currentDirectory.delete();
     }
 
     @Test

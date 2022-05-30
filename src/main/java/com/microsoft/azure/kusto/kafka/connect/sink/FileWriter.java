@@ -41,6 +41,8 @@ public class FileWriter implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
     
     SourceFile currentFile;
+    // Lock is given from TopicPartitionWriter to lock while ingesting
+    ReentrantReadWriteLock reentrantReadWriteLock;
     private Timer timer;
     private Consumer<SourceFile> onRollCallback;
     private final long flushInterval;
@@ -49,8 +51,7 @@ public class FileWriter implements Closeable {
     private String basePath;
     private CountingOutputStream countingStream;
     private long fileThreshold;
-    // Lock is given from TopicPartitionWriter to lock while ingesting
-    private ReentrantReadWriteLock reentrantReadWriteLock;
+
     // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
     private FileDescriptor currentFileDescriptor;
     private String flushError;
@@ -148,6 +149,7 @@ public class FileWriter implements Closeable {
             }
         } else {
             outputStream.close();
+            currentFile = null;
         }
     }
     
@@ -160,15 +162,19 @@ public class FileWriter implements Closeable {
             log.debug("{}", message, e);
         }
     }
-    
+
+    // Synchronize for Can be called from rollback - in that
     private void dumpFile() throws IOException {
-        countingStream.close();
-        currentFileDescriptor = null;
-        boolean deleted = currentFile.file.delete();
-        if (!deleted) {
-            log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());
+        SourceFile temp = this.currentFile;
+        if (temp != null) {
+            countingStream.close();
+            currentFileDescriptor = null;
+            boolean deleted = temp.file.delete();
+            if (!deleted) {
+                log.warn("couldn't delete temporary file. File exists: " + temp.file.exists());
+            }
+            this.currentFile = null;
         }
-        currentFile = null;
     }
 
     public void rollback() throws IOException {
@@ -181,15 +187,18 @@ public class FileWriter implements Closeable {
     }
 
     public void close() throws IOException, DataException {
-        if (timer != null) {
-            timer.cancel();
-        }
+        stop();
 
         // Flush last file, updating index
         finishFile(true);
+    }
 
-        // Setting to null so subsequent calls to close won't write it again
-        currentFile = null;
+    public void stop() {
+        if (timer != null) {
+            Timer temp = timer;
+            timer = null;
+            temp.cancel();
+        }
     }
 
     // Set shouldDestroyTimer to true if the current running task should be cancelled
@@ -223,17 +232,19 @@ public class FileWriter implements Closeable {
             if (isDirty()) {
                 finishFile(true);
             }
+
             resetFlushTimer(false);
-            reentrantReadWriteLock.writeLock().unlock();
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
             flushError = String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize);
             log.error(flushError, e);
+        } finally {
+            reentrantReadWriteLock.writeLock().unlock();
         }
     }
 
-    public synchronized void writeData(SinkRecord record) throws IOException, DataException {
+    public void writeData(SinkRecord record) throws IOException, DataException {
         if (flushError != null) {
             throw new ConnectException(flushError);
         }

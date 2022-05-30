@@ -404,6 +404,11 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void stop() {
         log.warn("Stopping KustoSinkTask");
+        // First stop so that no more ingestions trigger from timer flushes
+        for (TopicPartitionWriter writer : writers.values()) {
+            writer.stop();
+        }
+
         for (TopicPartitionWriter writer : writers.values()) {
             writer.close();
         }
