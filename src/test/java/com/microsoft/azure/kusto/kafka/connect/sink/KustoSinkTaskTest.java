@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockito.stubbing.Answer;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -18,10 +19,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.spy;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 public class KustoSinkTaskTest {
     File currentDirectory;
@@ -49,8 +48,8 @@ public class KustoSinkTaskTest {
         kustoSinkTaskSpy.start(configs);
         ArrayList<TopicPartition> tps = new ArrayList<>();
         tps.add(new TopicPartition("topic1", 1));
-        tps.add(new TopicPartition("topic1", 2));
-        tps.add(new TopicPartition("topic2", 1));
+        tps.add(new TopicPartition("topic2", 2));
+        tps.add(new TopicPartition("topic3", 3));
 
         kustoSinkTaskSpy.open(tps);
 
@@ -122,5 +121,50 @@ public class KustoSinkTaskTest {
             Assertions.assertEquals("Mapping", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference());
             Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
         }
+    }
+
+    @Test
+    public void closeTaskAndWaitToFinish() {
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        kustoSinkTaskSpy.start(configs);
+        ArrayList<TopicPartition> tps = new ArrayList<>();
+        tps.add(new TopicPartition("topic1", 1));
+        tps.add(new TopicPartition("topic2", 2));
+        tps.add(new TopicPartition("topic2", 3));
+        kustoSinkTaskSpy.open(tps);
+
+        // Clean fast close
+        long l1 = System.currentTimeMillis();
+        kustoSinkTaskSpy.close(tps);
+        long l2 = System.currentTimeMillis();
+
+        assertTrue(l2-l1 < 1000);
+
+        // Check close time when one close takes time to close
+        TopicPartition tp = new TopicPartition("topic2", 4);
+        IngestClient mockedClient = mock(IngestClient.class);
+        TopicIngestionProperties props = new TopicIngestionProperties();
+
+        props.ingestionProperties = kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties;
+
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, new KustoSinkConfig(configs), false, null, null);
+        TopicPartitionWriter writerSpy = spy(writer);
+        long sleepTime = 2 * 1000;
+        Answer<Void> answer = invocation -> {
+            Thread.sleep(sleepTime);
+            return null;
+        };
+
+        doAnswer(answer).when(writerSpy).close();
+        kustoSinkTaskSpy.open(tps);
+        tps.add(tp);
+        kustoSinkTaskSpy.writers.put(tp, writerSpy);
+
+        kustoSinkTaskSpy.close(tps);
+        long l3 = System.currentTimeMillis();
+        assertTrue(l3-l2 > sleepTime  && l3-l2 < sleepTime + 1000);
     }
 }

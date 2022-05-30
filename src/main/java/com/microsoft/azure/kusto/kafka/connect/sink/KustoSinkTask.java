@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.*;
 
 
 /**
@@ -347,13 +348,21 @@ public class KustoSinkTask extends SinkTask {
 
     @Override
     public void close(Collection<TopicPartition> partitions) {
+        log.warn("Closing writers in KustoSinkTask");
+        CountDownLatch countDownLatch = new CountDownLatch(partitions.size());
+        // First stop so that no more ingestions trigger from timer flushes
+        partitions.forEach((TopicPartition tp) -> writers.get(tp).stop());
         for (TopicPartition tp : partitions) {
             try {
                 writers.get(tp).close();
+                // TODO: if we still get duplicates from rebalance - consider keeping writers aside - we might
+                // just get the same topic partition again
                 writers.remove(tp);
                 assignment.remove(tp);
             } catch (ConnectException e) {
-                log.error("Error closing writer for {}.", tp, e);
+                log.error("Error closing topic partition for {}.", tp, e);
+            } finally {
+                countDownLatch.countDown();
             }
         }
     }
@@ -458,7 +467,6 @@ public class KustoSinkTask extends SinkTask {
                 throw new ConnectException("Topic Partition not configured properly. " +
                         "verify your `topics` and `kusto.tables.topics.mapping` configurations");
             }
-
             Long lastCommittedOffset = writers.get(tp).lastCommittedOffset;
 
             if (lastCommittedOffset != null) {
