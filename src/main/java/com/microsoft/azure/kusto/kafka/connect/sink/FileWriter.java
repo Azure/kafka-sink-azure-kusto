@@ -60,6 +60,7 @@ public class FileWriter implements Closeable {
     private final IngestionProperties.DATA_FORMAT format;
     private BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
+    private boolean stopped = false;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -132,6 +133,11 @@ public class FileWriter implements Closeable {
             recordWriter.commit();
             GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
             gzip.finish();
+
+            // It could be we were waiting on the lock when task suddenly stops and we should not ingest anymore
+            if (stopped) {
+                return;
+            }
             try {
                 onRollCallback.accept(currentFile);
               } catch (ConnectException e) {
@@ -194,6 +200,8 @@ public class FileWriter implements Closeable {
     }
 
     public void stop() {
+        stopped = true;
+
         if (timer != null) {
             Timer temp = timer;
             timer = null;
@@ -228,6 +236,7 @@ public class FileWriter implements Closeable {
         try {
             // Flush time interval gets the write lock so that it won't starve
             reentrantReadWriteLock.writeLock().lock();
+
             // Lock before the check so that if a writing process just flushed this won't ingest empty files
             if (isDirty()) {
                 finishFile(true);
