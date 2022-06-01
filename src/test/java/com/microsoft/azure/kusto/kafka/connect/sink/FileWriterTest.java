@@ -106,15 +106,15 @@ public class FileWriterTest {
         Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
 
         // close current file
-        fileWriter.stop();
+        fileWriter.rotate(54L);
         Assertions.assertEquals(5, files.size());
 
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
         Assertions.assertEquals(sortedFiles, Arrays.asList((long) 108, (long) 108, (long) 108, (long) 108, (long) 54));
 
-        // make sure folder is clear once done
-        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
+        // make sure folder is clear once done - with only the new file
+        Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     @Test
@@ -165,6 +165,10 @@ public class FileWriterTest {
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
         Assertions.assertEquals(sortedFiles, Arrays.asList((long) 15, (long) 8));
+
+        // make sure folder is clear once done
+        fileWriter2.close();
+        Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     @Test

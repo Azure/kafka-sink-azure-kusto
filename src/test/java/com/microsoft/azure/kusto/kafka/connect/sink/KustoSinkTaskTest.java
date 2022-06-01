@@ -160,11 +160,13 @@ public class KustoSinkTaskTest {
 
         doAnswer(answer).when(writerSpy).close();
         kustoSinkTaskSpy.open(tps);
+        writerSpy.open();
         tps.add(tp);
         kustoSinkTaskSpy.writers.put(tp, writerSpy);
 
         kustoSinkTaskSpy.close(tps);
         long l3 = System.currentTimeMillis();
+        System.out.println("l3-l2 " + (l3-l2));
         assertTrue(l3-l2 > sleepTime  && l3-l2 < sleepTime + 1000);
     }
 }
