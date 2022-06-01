@@ -173,13 +173,13 @@ public class FileWriter implements Closeable {
     private void dumpFile() throws IOException {
         SourceFile temp = this.currentFile;
         if (temp != null) {
+            this.currentFile = null;
             countingStream.close();
             currentFileDescriptor = null;
             boolean deleted = temp.file.delete();
             if (!deleted) {
                 log.warn("couldn't delete temporary file. File exists: " + temp.file.exists());
             }
-            this.currentFile = null;
         }
     }
 
@@ -236,6 +236,10 @@ public class FileWriter implements Closeable {
         try {
             // Flush time interval gets the write lock so that it won't starve
             reentrantReadWriteLock.writeLock().lock();
+
+            if (stopped) {
+                return;
+            }
 
             // Lock before the check so that if a writing process just flushed this won't ingest empty files
             if (isDirty()) {
