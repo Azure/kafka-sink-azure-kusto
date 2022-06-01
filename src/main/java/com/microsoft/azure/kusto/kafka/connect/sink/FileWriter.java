@@ -39,10 +39,8 @@ import java.util.zip.GZIPOutputStream;
 public class FileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
-    
+
     SourceFile currentFile;
-    // Lock is given from TopicPartitionWriter to lock while ingesting
-    ReentrantReadWriteLock reentrantReadWriteLock;
     private Timer timer;
     private Consumer<SourceFile> onRollCallback;
     private final long flushInterval;
@@ -51,7 +49,8 @@ public class FileWriter implements Closeable {
     private String basePath;
     private CountingOutputStream countingStream;
     private long fileThreshold;
-
+    // Lock is given from TopicPartitionWriter to lock while ingesting
+    private ReentrantReadWriteLock reentrantReadWriteLock;
     // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
     private FileDescriptor currentFileDescriptor;
     private String flushError;
@@ -142,10 +141,10 @@ public class FileWriter implements Closeable {
                 onRollCallback.accept(currentFile);
               } catch (ConnectException e) {
                 /*
-                 * Swallow the exception and continue to process subsequent records 
+                 * Swallow the exception and continue to process subsequent records
                  * when behavior.on.error is not set to fail mode.
-                 * 
-                 * Also, throwing/logging the exception with just a message to 
+                 *
+                 * Also, throwing/logging the exception with just a message to
                  * avoid polluting logs with duplicate trace.
                  */
                 handleErrors("Failed to write records to KustoDB.", e);
@@ -158,7 +157,7 @@ public class FileWriter implements Closeable {
             currentFile = null;
         }
     }
-    
+
     private void handleErrors(String message, Exception e) {
         if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(message, e);
@@ -169,11 +168,10 @@ public class FileWriter implements Closeable {
         }
     }
 
-    // Synchronize for Can be called from rollback - in that
     private void dumpFile() throws IOException {
-        SourceFile temp = this.currentFile;
+        SourceFile temp = currentFile;
+        currentFile = null;
         if (temp != null) {
-            this.currentFile = null;
             countingStream.close();
             currentFileDescriptor = null;
             boolean deleted = temp.file.delete();
@@ -233,10 +231,8 @@ public class FileWriter implements Closeable {
     }
 
     void flushByTimeImpl() {
-        try {
-            // Flush time interval gets the write lock so that it won't starve
-            reentrantReadWriteLock.writeLock().lock();
-
+        // Flush time interval gets the write lock so that it won't starve
+        try(AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.writeLock())) {
             if (stopped) {
                 return;
             }
@@ -247,13 +243,12 @@ public class FileWriter implements Closeable {
             }
 
             resetFlushTimer(false);
+            reentrantReadWriteLock.writeLock().unlock();
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
             flushError = String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize);
             log.error(flushError, e);
-        } finally {
-            reentrantReadWriteLock.writeLock().unlock();
         }
     }
 
