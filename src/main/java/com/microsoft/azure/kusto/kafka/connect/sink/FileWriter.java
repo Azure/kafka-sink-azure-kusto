@@ -190,14 +190,12 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public void close() throws IOException, DataException {
+    @Override
+    public void close() throws IOException {
         stop();
-
-        // Flush last file, updating index
-        finishFile(true);
     }
 
-    public void stop() {
+    public void stop() throws DataException {
         stopped = true;
 
         if (timer != null) {
@@ -243,7 +241,6 @@ public class FileWriter implements Closeable {
             }
 
             resetFlushTimer(false);
-            reentrantReadWriteLock.writeLock().unlock();
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;

@@ -48,8 +48,8 @@ public class KustoSinkTaskTest {
         kustoSinkTaskSpy.start(configs);
         ArrayList<TopicPartition> tps = new ArrayList<>();
         tps.add(new TopicPartition("topic1", 1));
-        tps.add(new TopicPartition("topic2", 2));
-        tps.add(new TopicPartition("topic3", 3));
+        tps.add(new TopicPartition("topic1", 2));
+        tps.add(new TopicPartition("topic2", 1));
 
         kustoSinkTaskSpy.open(tps);
 

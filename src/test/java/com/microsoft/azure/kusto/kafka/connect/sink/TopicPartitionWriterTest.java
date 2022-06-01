@@ -266,13 +266,13 @@ public class TopicPartitionWriterTest {
         for (SinkRecord record : records) {
             spyWriter.writeRecord(record);
         }
-
         // 2 records are waiting to be ingested - expect close to revoke them so that even after 5 seconds it won't ingest
-        verifyZeroInteractions(mockClient);
+        Assertions.assertNull(spyWriter.lastCommittedOffset);
         spyWriter.close();
+        Assertions.assertNull(spyWriter.lastCommittedOffset);
+
         Thread.sleep(flushInterval + contextSwitchInterval);
-        verifyZeroInteractions(mockClient);
-        Assertions.assertEquals(null, spyWriter.lastCommittedOffset);
+        Assertions.assertNull(spyWriter.lastCommittedOffset);
     }
 
     private Map<String, String> getKustoConfigs(String basePath, long fileThreshold, long flushInterval) {

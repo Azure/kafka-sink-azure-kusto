@@ -240,7 +240,7 @@ class TopicPartitionWriter {
     void close() {
         try {
             fileWriter.rollback();
-            // fileWriter.close(); close would cause ingestions - we want to avoid this as the new offsets won't commit
+            fileWriter.close(); // Not really needed -here for cleaner code
         } catch (IOException e) {
             log.error("Failed to rollback with exception={}", e);
         }
@@ -262,7 +262,7 @@ class TopicPartitionWriter {
         fileWriter.stop();
     }
 
-        static String getTempDirectoryName(String tempDirPath) {
+    static String getTempDirectoryName(String tempDirPath) {
         String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
         Path path = Paths.get(tempDirPath, tempDir);
 
