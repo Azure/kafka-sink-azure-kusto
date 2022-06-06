@@ -38,7 +38,6 @@ public class E2ETest {
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> kafkaProducer;
-
     @BeforeEach
     public void setUp() {
         Properties properties = new Properties();
@@ -53,7 +52,7 @@ public class E2ETest {
     @Test
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String dataFormat = "csv";
-        IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.Csv;
+        IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.CSV;
         String mapping = "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"transform\":\"SourceLocation\"}}," +
                          "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Ordinal\":\"1\"}},";
         String[] messages = new String[]{"first field a,11", "first field b,22"};
@@ -70,7 +69,7 @@ public class E2ETest {
     @Test
     public void testE2EJson() throws URISyntaxException, DataClientException, DataServiceException {
         String dataFormat = "json";
-        IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.Json;
+        IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.JSON;
         String mapping = "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"Path\":\"$.ColA\"}}," +
                          "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Path\":\"$.ColB\"}},";
         String[] messages = new String[]{"{'ColA': 'first field a', 'ColB': '11'}", "{'ColA': 'first field b', 'ColB': '22'}"};
@@ -87,7 +86,7 @@ public class E2ETest {
     @Test
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String dataFormat = "avro";
-        IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.Avro;
+        IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.AVRO;
         String mapping = "{\"column\": \"ColA\", \"Properties\":{\"Field\":\"XText\"}}," +
                          "{\"column\": \"ColB\", \"Properties\":{\"Field\":\"RowNumber\"}}";
         byte[] message = new byte[1184];
