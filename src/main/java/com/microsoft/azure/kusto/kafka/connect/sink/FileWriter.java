@@ -56,7 +56,7 @@ public class FileWriter implements Closeable {
     private String flushError;
     private RecordWriterProvider recordWriterProvider;
     private RecordWriter recordWriter;
-    private final IngestionProperties.DATA_FORMAT format;
+    private final IngestionProperties.DataFormat format;
     private BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
 
@@ -73,7 +73,7 @@ public class FileWriter implements Closeable {
                       Function<Long, String> getFilePath,
                       long flushInterval,
                       ReentrantReadWriteLock reentrantLock,
-                      IngestionProperties.DATA_FORMAT format,
+                      IngestionProperties.DataFormat format,
                       BehaviorOnError behaviorOnError) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
@@ -261,9 +261,9 @@ public class FileWriter implements Closeable {
             recordWriterProvider = new JsonRecordWriterProvider();
         }
         else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
-            if (format.equals(IngestionProperties.DATA_FORMAT.json)) {
+            if (format.equals(IngestionProperties.DataFormat.JSON)) {
                 recordWriterProvider = new JsonRecordWriterProvider();
-            } else if(format.equals(IngestionProperties.DATA_FORMAT.avro)) {
+            } else if(format.equals(IngestionProperties.DataFormat.AVRO)) {
                 recordWriterProvider = new AvroRecordWriterProvider();
             } else {
                 throw new ConnectException(String.format("Invalid Kusto table mapping, Kafka records of type "
@@ -276,7 +276,7 @@ public class FileWriter implements Closeable {
         }
         else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.BYTES)){
             recordWriterProvider = new ByteRecordWriterProvider();
-            if(format.equals(IngestionProperties.DATA_FORMAT.avro)) {
+            if(format.equals(IngestionProperties.DataFormat.AVRO)) {
                 shouldWriteAvroAsBytes = true;
             }
         } else {

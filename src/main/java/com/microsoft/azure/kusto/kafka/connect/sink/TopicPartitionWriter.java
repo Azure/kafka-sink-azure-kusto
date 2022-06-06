@@ -1,9 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Strings;
-import com.microsoft.azure.kusto.data.exceptions.KustoDataException;
+import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
@@ -95,7 +94,7 @@ class TopicPartitionWriter {
                     // If IngestionStatusResult returned then the ingestion status is from streaming ingest
                     IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
                     if (!hasStreamingSucceeded(ingestionStatus)) {
-                       retryAttempts += ManagedStreamingIngestClient.MAX_RETRY_CALLS;
+                       retryAttempts += ManagedStreamingIngestClient.ATTEMPT_COUNT;
                        backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
                        continue;
                     }
@@ -106,8 +105,8 @@ class TopicPartitionWriter {
             } catch (IngestionServiceException | StorageException exception) {
                 if (ingestionProps.streaming && exception instanceof IngestionServiceException){
                     Throwable innerException = exception.getCause();
-                    if (innerException instanceof KustoDataException &&
-                            ((KustoDataException) innerException).isPermanent()){
+                    if (innerException instanceof KustoDataExceptionBase &&
+                            ((KustoDataExceptionBase) innerException).isPermanent()){
                         throw new ConnectException(exception);
                     }
                 }
@@ -236,7 +235,7 @@ class TopicPartitionWriter {
                 this::getFilePath,
                 flushInterval,
                 reentrantReadWriteLock,
-                IngestionProperties.DATA_FORMAT.valueOf(ingestionProps.ingestionProperties.getDataFormat()),
+                ingestionProps.ingestionProperties.getDataFormat(),
                 behaviorOnError);
     }
 
