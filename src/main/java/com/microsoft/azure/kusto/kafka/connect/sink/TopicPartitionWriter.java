@@ -239,7 +239,7 @@ class TopicPartitionWriter {
     void close() {
         try {
             fileWriter.rollback();
-            fileWriter.close(); // Not really needed -here for cleaner code
+            fileWriter.close();
         } catch (IOException e) {
             log.error("Failed to rollback with exception={}", e);
         }

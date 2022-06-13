@@ -181,7 +181,7 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public void rollback() throws IOException {
+    public synchronized void rollback() throws IOException {
         if (countingStream != null) {
             countingStream.close();
             if (currentFile != null && currentFile.file != null) {
@@ -191,11 +191,11 @@ public class FileWriter implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
         stop();
     }
 
-    public void stop() throws DataException {
+    public synchronized void stop() throws DataException {
         stopped = true;
 
         if (timer != null) {
