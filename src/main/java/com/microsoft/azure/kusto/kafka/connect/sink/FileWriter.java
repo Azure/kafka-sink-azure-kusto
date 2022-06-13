@@ -59,6 +59,7 @@ public class FileWriter implements Closeable {
     private final IngestionProperties.DataFormat format;
     private BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
+    private boolean stopped = false;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -131,6 +132,11 @@ public class FileWriter implements Closeable {
             recordWriter.commit();
             GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
             gzip.finish();
+
+            // It could be we were waiting on the lock when task suddenly stops and we should not ingest anymore
+            if (stopped) {
+                return;
+            }
             try {
                 onRollCallback.accept(currentFile);
               } catch (ConnectException e) {
@@ -148,6 +154,7 @@ public class FileWriter implements Closeable {
             }
         } else {
             outputStream.close();
+            currentFile = null;
         }
     }
 
@@ -162,16 +169,19 @@ public class FileWriter implements Closeable {
     }
 
     private void dumpFile() throws IOException {
-        countingStream.close();
-        currentFileDescriptor = null;
-        boolean deleted = currentFile.file.delete();
-        if (!deleted) {
-            log.warn("couldn't delete temporary file. File exists: " + currentFile.file.exists());
-        }
+        SourceFile temp = currentFile;
         currentFile = null;
+        if (temp != null) {
+            countingStream.close();
+            currentFileDescriptor = null;
+            boolean deleted = temp.file.delete();
+            if (!deleted) {
+                log.warn("couldn't delete temporary file. File exists: " + temp.file.exists());
+            }
+        }
     }
 
-    public void rollback() throws IOException {
+    public synchronized void rollback() throws IOException {
         if (countingStream != null) {
             countingStream.close();
             if (currentFile != null && currentFile.file != null) {
@@ -180,16 +190,19 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public void close() throws IOException, DataException {
+    @Override
+    public synchronized void close() throws IOException {
+        stop();
+    }
+
+    public synchronized void stop() throws DataException {
+        stopped = true;
+
         if (timer != null) {
-            timer.cancel();
+            Timer temp = timer;
+            timer = null;
+            temp.cancel();
         }
-
-        // Flush last file, updating index
-        finishFile(true);
-
-        // Setting to null so subsequent calls to close won't write it again
-        currentFile = null;
     }
 
     // Set shouldDestroyTimer to true if the current running task should be cancelled
@@ -218,10 +231,15 @@ public class FileWriter implements Closeable {
     void flushByTimeImpl() {
         // Flush time interval gets the write lock so that it won't starve
         try(AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.writeLock())) {
+            if (stopped) {
+                return;
+            }
+
             // Lock before the check so that if a writing process just flushed this won't ingest empty files
             if (isDirty()) {
                 finishFile(true);
             }
+
             resetFlushTimer(false);
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
@@ -231,7 +249,7 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public synchronized void writeData(SinkRecord record) throws IOException, DataException {
+    public void writeData(SinkRecord record) throws IOException, DataException {
         if (flushError != null) {
             throw new ConnectException(flushError);
         }

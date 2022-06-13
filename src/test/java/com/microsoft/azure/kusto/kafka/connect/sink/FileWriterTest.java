@@ -106,15 +106,15 @@ public class FileWriterTest {
         Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
 
         // close current file
-        fileWriter.close();
+        fileWriter.rotate(54L);
         Assertions.assertEquals(5, files.size());
 
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
         Assertions.assertEquals(sortedFiles, Arrays.asList((long) 108, (long) 108, (long) 108, (long) 108, (long) 54));
 
-        // make sure folder is clear once done
-        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
+        // make sure folder is clear once done - with only the new file
+        Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     @Test
@@ -142,7 +142,8 @@ public class FileWriterTest {
         Thread.sleep(1000);
 
         Assertions.assertEquals(0, files.size());
-        fileWriter.close();
+        fileWriter.rotate(10L);
+        fileWriter.stop();
         Assertions.assertEquals(1, files.size());
 
         String path2 = Paths.get(currentDirectory.getPath(), "testGzipFileWriter2_2").toString();
@@ -151,7 +152,7 @@ public class FileWriterTest {
         Assertions.assertTrue(mkdirs);
 
         Function<Long, String> generateFileName2 = (Long l) -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
-        // Expect one file to be ingested as flushInterval had changed
+        // Expect one file to be ingested as flushInterval had changed and is shorter than sleep time
         FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, new ReentrantReadWriteLock(), ingestionProps.getDataFormat(), BehaviorOnError.FAIL);
 
         String msg2 = "Second Message";
@@ -167,7 +168,7 @@ public class FileWriterTest {
 
         // make sure folder is clear once done
         fileWriter2.close();
-        Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
+        Assertions.assertEquals(1, Objects.requireNonNull(folder.listFiles()).length);
     }
 
     @Test
@@ -244,7 +245,7 @@ public class FileWriterTest {
         }});
 
         // make sure folder is clear once done
-        fileWriter2.close();
+        fileWriter2.stop();
         Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
     }
 

@@ -239,7 +239,7 @@ class TopicPartitionWriter {
     void close() {
         try {
             fileWriter.rollback();
-            // fileWriter.close(); TODO ?
+            fileWriter.close();
         } catch (IOException e) {
             log.error("Failed to rollback with exception={}", e);
         }
@@ -255,6 +255,10 @@ class TopicPartitionWriter {
         } catch (IOException e) {
             log.error("Unable to delete temporary connector folder {}", basePath);
         }
+    }
+
+    void stop() {
+        fileWriter.stop();
     }
 
     static String getTempDirectoryName(String tempDirPath) {

@@ -30,22 +30,24 @@ public class TopicPartitionWriterTest {
     private static final String KUSTO_CLUSTER_URL = "https://cluster.kusto.windows.net";
     private static final String DATABASE = "testdb1";
     private static final String TABLE = "testtable1";
-    private static final String basePath = "somepath";
+    private static final String basePath = "./";
     private String basePathCurrent;
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> kafkaProducer;
     private static final long fileThreshold = 100;
-    private static final long flushInterval = 300000;
+    private static final long flushInterval = 5000;
     private static final IngestClient mockClient = mock(IngestClient.class);
     private static final TopicIngestionProperties propsCsv = new TopicIngestionProperties();
     private static final TopicPartition tp = new TopicPartition("testPartition", 11);
     private static KustoSinkConfig config;
+    private static final long contextSwitchInterval = 200;
+    private static final IngestionProperties.DataFormat dataFormat = IngestionProperties.DataFormat.CSV;
 
     @BeforeAll
     public static void beforeClass() {
         propsCsv.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        propsCsv.ingestionProperties.setDataFormat(IngestionProperties.DataFormat.CSV);
+        propsCsv.ingestionProperties.setDataFormat(dataFormat);
     }
 
     @BeforeEach
@@ -245,6 +247,29 @@ public class TopicPartitionWriterTest {
         Assertions.assertTrue(new File(currentFileName).exists());
         Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 10, IngestionProperties.DataFormat.AVRO.name()), (new File(currentFileName)).getName());
         writer.close();
+    }
+
+    @Test
+    public void testClose() throws InterruptedException {
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        TopicPartitionWriter spyWriter = spy(writer);
+
+        spyWriter.open();
+        List<SinkRecord> records = new ArrayList<>();
+
+        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "another,stringy,message", 5));
+        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "{'also':'stringy','sortof':'message'}", 4));
+
+        for (SinkRecord record : records) {
+            spyWriter.writeRecord(record);
+        }
+        // 2 records are waiting to be ingested - expect close to revoke them so that even after 5 seconds it won't ingest
+        Assertions.assertNull(spyWriter.lastCommittedOffset);
+        spyWriter.close();
+        Assertions.assertNull(spyWriter.lastCommittedOffset);
+
+        Thread.sleep(flushInterval + contextSwitchInterval);
+        Assertions.assertNull(spyWriter.lastCommittedOffset);
     }
 
     private Map<String, String> getKustoConfigs(String basePath, long fileThreshold, long flushInterval) {
