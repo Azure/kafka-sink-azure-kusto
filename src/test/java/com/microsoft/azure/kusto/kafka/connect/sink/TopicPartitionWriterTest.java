@@ -3,8 +3,6 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import com.google.common.base.Function;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
-import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -14,7 +12,6 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
-import org.mockito.stubbing.Answer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -45,7 +42,7 @@ public class TopicPartitionWriterTest {
     private static final TopicPartition tp = new TopicPartition("testPartition", 11);
     private static KustoSinkConfig config;
     private static final long contextSwitchInterval = 200;
-    private static final IngestionProperties.DATA_FORMAT dataFormat = IngestionProperties.DATA_FORMAT.csv;
+    private static final IngestionProperties.DataFormat dataFormat = IngestionProperties.DataFormat.CSV;
 
     @BeforeAll
     public static void beforeClass() {
@@ -112,7 +109,7 @@ public class TopicPartitionWriterTest {
     public void testGetFilename() {
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
 
-        Assertions.assertEquals("kafka_testPartition_11_0.csv.gz", (new File(writer.getFilePath(null))).getName());
+        Assertions.assertEquals("kafka_testPartition_11_0.CSV.gz", (new File(writer.getFilePath(null))).getName());
     }
 
     @Test
@@ -129,7 +126,7 @@ public class TopicPartitionWriterTest {
         }
 
         Assertions.assertTrue((new File(writer.getFilePath(null))).exists());
-        Assertions.assertEquals("kafka_testPartition_11_5.csv.gz", (new File(writer.getFilePath(null))).getName());
+        Assertions.assertEquals("kafka_testPartition_11_5.CSV.gz", (new File(writer.getFilePath(null))).getName());
     }
 
     @Test
@@ -176,7 +173,7 @@ public class TopicPartitionWriterTest {
         }
 
         Assertions.assertTrue((new File(writer.fileWriter.currentFile.path)).exists());
-        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DATA_FORMAT.csv.name()), (new File(writer.fileWriter.currentFile.path)).getName());
+        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DataFormat.CSV.name()), (new File(writer.fileWriter.currentFile.path)).getName());
         writer.close();
     }
 
@@ -207,7 +204,7 @@ public class TopicPartitionWriterTest {
 
         String currentFileName = writer.fileWriter.currentFile.path;
         Assertions.assertTrue(new File(currentFileName).exists());
-        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 15, IngestionProperties.DATA_FORMAT.csv.name()), (new File(currentFileName)).getName());
+        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 15, IngestionProperties.DataFormat.CSV.name()), (new File(currentFileName)).getName());
 
         // Read
         writer.fileWriter.finishFile(false);
@@ -229,7 +226,7 @@ public class TopicPartitionWriterTest {
         long fileThreshold2 = 128;
         TopicIngestionProperties propsAvro = new TopicIngestionProperties();
         propsAvro.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        propsAvro.ingestionProperties.setDataFormat(IngestionProperties.DATA_FORMAT.avro);
+        propsAvro.ingestionProperties.setDataFormat(IngestionProperties.DataFormat.AVRO);
         Map<String, String> settings2 = getKustoConfigs(basePathCurrent, fileThreshold2, flushInterval);
         KustoSinkConfig config2 = new KustoSinkConfig(settings2);
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsAvro, config2, isDlqEnabled, dlqTopicName, kafkaProducer);
@@ -248,7 +245,7 @@ public class TopicPartitionWriterTest {
         String currentFileName = writer.fileWriter.currentFile.path;
 
         Assertions.assertTrue(new File(currentFileName).exists());
-        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 10, IngestionProperties.DATA_FORMAT.avro.name()), (new File(currentFileName)).getName());
+        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 10, IngestionProperties.DataFormat.AVRO.name()), (new File(currentFileName)).getName());
         writer.close();
     }
 

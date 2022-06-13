@@ -5,7 +5,7 @@ import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
-import com.microsoft.azure.kusto.data.exceptions.KustoDataException;
+import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
@@ -163,7 +163,7 @@ public class KustoSinkTask extends SinkTask {
 
                 if (format != null && !format.isEmpty()) {
                     if (isDataFormatAnyTypeOfJson(format)) {
-                        props.setDataFormat(IngestionProperties.DATA_FORMAT.multijson);
+                        props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
                     } else {
                         props.setDataFormat(format);
                     }
@@ -173,13 +173,13 @@ public class KustoSinkTask extends SinkTask {
 
                 if (mappingRef != null && !mappingRef.isEmpty() && format != null) {
                     if (isDataFormatAnyTypeOfJson(format)) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Json);
-                    } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.avro.toString())) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Avro);
-                    } else if (format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.apacheavro.toString())) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.ApacheAvro);
+                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
+                    } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.AVRO.toString())) {
+                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.AVRO);
+                    } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.APACHEAVRO.toString())) {
+                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.APACHEAVRO);
                     } else {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.Csv);
+                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.CSV);
                     }
                 }
                 TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
@@ -247,9 +247,9 @@ public class KustoSinkTask extends SinkTask {
     }
 
     private static boolean isDataFormatAnyTypeOfJson(String format) {
-        return format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.json.name())
-                || format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.singlejson.name())
-                || format.equalsIgnoreCase(IngestionProperties.DATA_FORMAT.multijson.name());
+        return format.equalsIgnoreCase(IngestionProperties.DataFormat.JSON.name())
+                || format.equalsIgnoreCase(IngestionProperties.DataFormat.SINGLEJSON.name())
+                || format.equalsIgnoreCase(IngestionProperties.DataFormat.MULTIJSON.name());
     }
 
     /**
@@ -267,7 +267,7 @@ public class KustoSinkTask extends SinkTask {
         String mappingName = mapping.getString(MAPPING);
         boolean streamingEnabled = mapping.optBoolean(STREAMING);
         if (isDataFormatAnyTypeOfJson(format)) {
-            format = IngestionProperties.DATA_FORMAT.json.name();
+            format = IngestionProperties.DataFormat.JSON.name();
         }
         boolean hasAccess = false;
         boolean shouldCheckStreaming = streamingEnabled;
@@ -286,7 +286,7 @@ public class KustoSinkTask extends SinkTask {
             }
             if (hasAccess) {
                 try {
-                    engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table, format, mappingName));
+                    engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table, format.toLowerCase(Locale.ROOT), mappingName));
                 } catch (DataServiceException e) {
                     hasAccess = false;
                     databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'", database, table, format, mappingName, ExceptionUtils.getStackTrace(e)));
@@ -318,7 +318,7 @@ public class KustoSinkTask extends SinkTask {
                   " ingestion policy was not found on either database '%s' or table '%s'", database, table));
             }
 
-        } catch (KustoDataException e) {
+        } catch (KustoDataExceptionBase e) {
             throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
         }
     }
