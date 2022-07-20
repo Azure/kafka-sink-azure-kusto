@@ -75,13 +75,14 @@ Integration mode to Azure Data Explorer is queued or streaming ingestion leverag
 ### 3.7.  Kafka Connect converters
 - The connector supports the following converters:
 
-| # | Converter | Details | 
-| :--- | :--- | :--- | 
-| 1 | org.apache.kafka.connect.storage.StringConverter | Use with csv/json |
-| 2 | org.apache.kafka.connect.json.JsonConverter | Use with schemaless json |
-| 3 | io.confluent.connect.avro.AvroConverter | Use with avro |
-| 4 | io.confluent.connect.json.JsonSchemaConverter | Use with json with schema registry |
-| 5 | org.apache.kafka.connect.converters.ByteArrayConverter | Use with ORC, Parquet files written as messages to Kafka |
+| #   | Converter | Details                                                  | 
+|:----| :--- |:---------------------------------------------------------| 
+| 1   | org.apache.kafka.connect.storage.StringConverter | Use with csv/json                                        |
+| 2   | org.apache.kafka.connect.json.JsonConverter | Use with schemaless json                                 |
+| 3   | io.confluent.connect.avro.AvroConverter | Use with avro                                            |
+| 4   | io.confluent.connect.json.JsonSchemaConverter | Use with json with schema registry                       |
+| 5   | org.apache.kafka.connect.converters.ByteArrayConverter | Use with ORC, Parquet files written as messages to Kafka |
+| 6   | io.confluent.connect.protobuf.ProtobufConverter | Use with protobuf format with schema registry            |
 
 ### 3.8.  Kafka Connect transformers
 - The connector does not support transformers. Prefer transformation on the server side in Kafka or ingestion time in Azure Data Explorer with [update policies](https://docs.microsoft.com/azure/data-explorer/kusto/management/updatepolicy).
@@ -107,7 +108,7 @@ Therefore the connector supports "At least once" delivery guarantees.
 - As with all Kafka Connect connectors, parallelism comes through the setting of connector tasks count, a sink property
 
 ### 3.15. Authentication & Authroization to Azure Data Explorer
-- Azure Data Explorer supports Azure Active Directory authentication.  For the Kusto Kafka connector, we need an Azure Active Directory Service Principal created and "admin" permissions granted to the Azure Data Explorer database. 
+- Azure Data Explorer supports Azure Active Directory authentication.  For the Kusto Kafka connector, we need an Azure Active Directory Service Principal created and "admin" permissions granted to the Azure Data Explorer database.
 
 ### 3.16. Security related
 - Kafka Connect supports all security protocols supported by Kafka, as does our connector
@@ -271,7 +272,7 @@ Requirements: Streaming enabled on the cluster. [Streaming policy](https://docs.
 configured on the table or database.
 
 Additional configurations: flush.size.bytes and flush.interval.ms are still used to batch
-records together before ingestion - flush.size.bytes should not be over 4MB, flush.interval.ms 
+records together before ingestion - flush.size.bytes should not be over 4MB, flush.interval.ms
 is suggested to be low (hundreds of milliseconds).
 We still recommend configuring ingestion batching policy at the table or database level, as the client falls back to
 queued ingestion in case of failure and retry-exhaustion.
@@ -283,7 +284,6 @@ The following is the roadmap-<br>
 | # | Roadmap item| 
 | :--- | :--- |
 | 1 | Schema evolution support |
-| 2 | Protobuf support*  - converter, schema registry<br>*This item is based on demand AND availability of native Protobuf ingestion support*|
 
 
 
@@ -534,16 +534,16 @@ For information about what changes are included in each release, please see the 
 
 
 ## 17. Release History
-| Release Version | Release Date | Changes Included |
-| --------------- | ------------ | ---------------- |
-| 0.1.0           | 2020-03-05   | <ul><li>Initial release</li></ul>  |
+| Release Version | Release Date | Changes Included                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+|-----------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0.1.0           | 2020-03-05   | <ul><li>Initial release</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 1.0.1           | 2020-08-04   | <ul><li>New feature: flush interval - stop aggregation by timer</li><li>New feature: Support orc avro and parquet via 1 file per message. kusto java sdk version</li><li>Bug fix: Connector didn't work well with the New java version</li><li>Bug fix: Fixed usage of compressed files and binary types</li><li>Bug fix: Client was closed when kafka task was called close() certain partitions. Now closing only on stop. Issue resulted in no refresh of the ingestion resources and caused failure on ingest when trying to add message to the azure queue.</li><li>Bug fix: In certain kafka pipelines - the connector files were deleted before ingestion.</li><li>New feature: Support for dlq</li><li>New feature: Support json and avro schema registry</li><li>New feature: Support json and avro converters</li><li>Bug fix: Correct committed offset value to be (+ 1) so as not to ingest last record twice</li></ul> |
-| 1.0.2           | 2020-10-06   | <ul><li>Bug fix: Cast of count of records to long instead of int, to accommodate larger databases.</li></ul>  |
-| 1.0.3           | 2020-10-13   | <ul><li>Bug fix: Fix Multijson usage</li></ul>  |
-| 2.0.0           | 2020-11-12   | <ul><li>Bug fix: Trying to create a new directory failed probably because it was already created due to a race condition.</li><li>Bug fix: Resetting the timer was not behind lock, which could result in a race condition of it being destroyed by other code.</li><li>New feature: Added required kusto.query.url parameter so that we can now specify a Kusto Query URL that isn't simply the default of the Kusto Ingestion URL prepended with "ingest-".</li><li>New feature: Renamed the kusto.url parameter to kusto.ingestion.url for clarity and consistency.</li></ul>  |
-| 2.1.0           | 2021-07-11   | <ul><li>Upgrade Kusto Java SDK to 2.8.2.</li></ul>  |
-| 2.2.0           | 2021-09-13   | <ul><li>New feature: Streaming ingestion has been added</li></ul>  |
-
+| 1.0.2           | 2020-10-06   | <ul><li>Bug fix: Cast of count of records to long instead of int, to accommodate larger databases.</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 1.0.3           | 2020-10-13   | <ul><li>Bug fix: Fix Multijson usage</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2.0.0           | 2020-11-12   | <ul><li>Bug fix: Trying to create a new directory failed probably because it was already created due to a race condition.</li><li>Bug fix: Resetting the timer was not behind lock, which could result in a race condition of it being destroyed by other code.</li><li>New feature: Added required kusto.query.url parameter so that we can now specify a Kusto Query URL that isn't simply the default of the Kusto Ingestion URL prepended with "ingest-".</li><li>New feature: Renamed the kusto.url parameter to kusto.ingestion.url for clarity and consistency.</li></ul>                                                                                                                                                                                                                                                                                                                                                    |
+| 2.1.0           | 2021-07-11   | <ul><li>Upgrade Kusto Java SDK to 2.8.2.</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2.2.0           | 2021-09-13   | <ul><li>New feature: Streaming ingestion has been added</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 3.0.2           | 2022-07-20   | <ul><li>New feature: Changes to support protobuf data ingestion</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## 17. Contributing
 
