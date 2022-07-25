@@ -277,7 +277,7 @@ public class FileWriter implements Closeable {
             recordWriterProvider = new JsonRecordWriterProvider();
         }
         else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
-            if (format.equals(IngestionProperties.DataFormat.JSON)) {
+            if (format.equals(IngestionProperties.DataFormat.JSON) || format.equals(IngestionProperties.DataFormat.MULTIJSON)) {
                 recordWriterProvider = new JsonRecordWriterProvider();
             } else if(format.equals(IngestionProperties.DataFormat.AVRO)) {
                 recordWriterProvider = new AvroRecordWriterProvider();
