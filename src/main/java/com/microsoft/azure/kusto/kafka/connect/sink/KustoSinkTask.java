@@ -264,7 +264,6 @@ public class KustoSinkTask extends SinkTask {
         String database = mapping.getString(MAPPING_DB);
         String table = mapping.getString(MAPPING_TABLE);
         String format = mapping.getString(MAPPING_FORMAT);
-        String mappingName = mapping.getString(MAPPING);
         boolean streamingEnabled = mapping.optBoolean(STREAMING);
         if (isDataFormatAnyTypeOfJson(format)) {
             format = IngestionProperties.DataFormat.JSON.name();
@@ -283,14 +282,6 @@ public class KustoSinkTask extends SinkTask {
                 }
             } catch (DataServiceException e) {
                 databaseTableErrorList.add(String.format("Couldn't validate access to Database '%s' Table '%s', with exception '%s'", database, table, ExceptionUtils.getStackTrace(e)));
-            }
-            if (hasAccess) {
-                try {
-                    engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table, format.toLowerCase(Locale.ROOT), mappingName));
-                } catch (DataServiceException e) {
-                    hasAccess = false;
-                    databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'", database, table, format, mappingName, ExceptionUtils.getStackTrace(e)));
-                }
             }
             if (hasAccess) {
                 String authenticateWith = String.format("aadapp=%s;%s", config.getAuthAppid(), config.getAuthAuthority());
