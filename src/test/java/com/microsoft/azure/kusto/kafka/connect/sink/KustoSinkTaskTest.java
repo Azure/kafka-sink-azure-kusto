@@ -1,5 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -17,10 +18,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -174,6 +172,49 @@ public class KustoSinkTaskTest {
         long l3 = System.currentTimeMillis();
         System.out.println("l3-l2 " + (l3-l2));
         assertTrue(l3-l2 > sleepTime  && l3-l2 < sleepTime + 1000);
+    }
+
+    @Test
+    public void testCreateKustoEngineClient(){
+
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        kustoSinkTaskSpy.start(configs);
+
+
+        KustoSinkConfig kustoSinkConfig = new KustoSinkConfig(configs);
+
+
+        Client client = KustoSinkTask.createKustoEngineClient(kustoSinkConfig);
+        Assertions.assertNotNull(client);
+
+    }
+
+    @Test
+    public void testValidateTableMappingsConeectError(){
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        kustoSinkTaskSpy.start(configs);
+
+        KustoSinkConfig kustoSinkConfig = new KustoSinkConfig(configs);
+
+        assertThrows(ConnectException.class,()->{kustoSinkTask.validateTableMappings(kustoSinkConfig);});
+
+    }
+
+
+
+
+    @Test
+    public void testStop(){
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        kustoSinkTask.stop();
     }
 
     @Test

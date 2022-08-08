@@ -7,22 +7,25 @@ import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.*;
+
 import org.mockito.ArgumentCaptor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
-
 public class TopicPartitionWriterTest {
     // TODO: should probably find a better way to mock internal class (FileWriter)...
     private File currentDirectory;
@@ -83,12 +86,14 @@ public class TopicPartitionWriterTest {
         IngestClient mockedClient = mock(IngestClient.class);
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
+        props.streaming = true;
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
 
         SourceFile descriptor = new SourceFile();
         descriptor.rawBytes = 1024;
         descriptor.path = "somepath/somefile";
         descriptor.file = new File("C://myfile.txt");
+
         writer.handleRollFile(descriptor);
 
         ArgumentCaptor<FileSourceInfo> fileSourceInfoArgument = ArgumentCaptor.forClass(FileSourceInfo.class);
@@ -270,6 +275,28 @@ public class TopicPartitionWriterTest {
 
         Thread.sleep(flushInterval + contextSwitchInterval);
         Assertions.assertNull(spyWriter.lastCommittedOffset);
+    }
+
+
+    @Test
+    public void testSendFailedRecordToDlqError() {
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, true, "dlq.topic.name", kafkaProducer);
+        TopicPartitionWriter spyWriter = spy(writer);
+
+        kafkaProducer = spy(Producer.class);
+
+        spyWriter.open();
+        List<SinkRecord> records = new ArrayList<>();
+
+        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "another,stringy,message", 5));
+        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "{'also':'stringy','sortof':'message'}", 4));
+
+        when(kafkaProducer.send(anyObject(),anyObject())).thenReturn(null);
+
+        assertThrows(KafkaException.class,() -> {
+            spyWriter.sendFailedRecordToDlq(records.get(0));
+        });
+
     }
 
     private Map<String, String> getKustoConfigs(String basePath, long fileThreshold, long flushInterval) {
