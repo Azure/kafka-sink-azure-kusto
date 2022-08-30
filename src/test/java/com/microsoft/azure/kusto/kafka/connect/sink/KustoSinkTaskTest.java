@@ -232,7 +232,7 @@ public class KustoSinkTaskTest {
 
     @Test
     public void testStop(){
-        KustoSinkTask kustoSinkTask = mock(KustoSinkTask.class);
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
         kustoSinkTask.stop();
         verify(kustoSinkTask,times(1)).stop();
     }
