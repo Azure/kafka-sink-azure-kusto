@@ -119,10 +119,29 @@ public class KustoSinkTaskTest {
             Assertions.assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());
             Assertions.assertEquals("table1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getTableName());
             Assertions.assertEquals(IngestionProperties.DataFormat.CSV, kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
+            Assertions.assertEquals("Mapping", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference());
             Assertions.assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
             Assertions.assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
-            Assertions.assertEquals(IngestionProperties.DataFormat.MULTIJSON,
-                    kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
+            Assertions.assertEquals(IngestionProperties.DataFormat.MULTIJSON, kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
+            Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
+        }
+    }
+
+    @Test
+    public void getTableWithoutMapping() {
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        kustoSinkTaskSpy.start(configs);
+        {
+            // single table mapping should cause all topics to be mapped to a single table
+            Assertions.assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());
+            Assertions.assertEquals("table1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getTableName());
+            Assertions.assertEquals(IngestionProperties.DataFormat.CSV, kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
+            Assertions.assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
+            Assertions.assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
+            Assertions.assertEquals(IngestionProperties.DataFormat.MULTIJSON, kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
             Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
         }
     }
@@ -194,7 +213,7 @@ public class KustoSinkTaskTest {
     }
 
     @Test
-    public void testValidateTableMappingsConeectError(){
+    public void testValidateTableMappingsConnectError(){
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
@@ -213,8 +232,9 @@ public class KustoSinkTaskTest {
 
     @Test
     public void testStop(){
-        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTask = mock(KustoSinkTask.class);
         kustoSinkTask.stop();
+        verify(kustoSinkTask,times(1)).stop();
     }
 
     @Test
