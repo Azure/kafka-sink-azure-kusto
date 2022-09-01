@@ -118,6 +118,10 @@ public class KustoSinkConfig extends AbstractConfig {
         + "the Connector makes to ingest records into Kusto table.";
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
 
+    static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION = "kusto.validation.table.enable";
+    private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DOC = "Enable table access validation at task start.";
+    private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DISPLAY = "Enable table validation";
+
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
     }
@@ -301,7 +305,17 @@ public class KustoSinkConfig extends AbstractConfig {
                 connectionGroupName,
                 connectionGroupOrder++,
                 Width.MEDIUM,
-                KUSTO_AUTH_AUTHORITY_DISPLAY);
+                KUSTO_AUTH_AUTHORITY_DISPLAY)
+            .define(
+                KUSTO_SINK_ENABLE_TABLE_VALIDATION,
+                Type.BOOLEAN,
+                Boolean.FALSE,
+                Importance.LOW,
+                KUSTO_SINK_ENABLE_TABLE_VALIDATION_DOC,
+                connectionGroupName,
+                connectionGroupOrder++,
+                Width.SHORT,
+                KUSTO_SINK_ENABLE_TABLE_VALIDATION_DISPLAY);
     }
 
     public String getKustoIngestUrl() {
@@ -381,6 +395,10 @@ public class KustoSinkConfig extends AbstractConfig {
     
     public long getRetryBackOffTimeMs() {
         return this.getLong(KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF);
+    }
+
+    public boolean getEnableTableValidation() {
+        return this.getBoolean(KUSTO_SINK_ENABLE_TABLE_VALIDATION);
     }
 
     public static void main(String[] args) {

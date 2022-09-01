@@ -200,11 +200,12 @@ public class KustoSinkTask extends SinkTask {
     void validateTableMappings(KustoSinkConfig config) {
         List<String> databaseTableErrorList = new ArrayList<>();
         List<String> accessErrorList = new ArrayList<>();
+        boolean enableTableValidation = config.getEnableTableValidation();
         try {
             Client engineClient = createKustoEngineClient(config);
             if (config.getTopicToTableMapping() != null) {
                 JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
-                if ((mappings.length() > 0) && (isIngestorRole(mappings.getJSONObject(0), engineClient))) {
+                if (enableTableValidation && mappings.length() > 0 && (isIngestorRole(mappings.getJSONObject(0), engineClient))) {
                     for (int i = 0; i < mappings.length(); i++) {
                         JSONObject mapping = mappings.getJSONObject(i);
                         validateTableAccess(engineClient, mapping, config, databaseTableErrorList, accessErrorList);
