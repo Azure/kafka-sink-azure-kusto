@@ -248,7 +248,6 @@ public class KustoSinkTaskTest {
 
 
 
-
     @Test
     public void testStopSuccess() throws IOException {
         //set-up
@@ -274,7 +273,7 @@ public class KustoSinkTaskTest {
     }
 
     @Test
-    public void testStopWriterFailure() throws IOException {
+    public void testStopFailure() throws IOException {
         //set-up
 
         final TestAppender appender = new TestAppender();
@@ -291,40 +290,7 @@ public class KustoSinkTaskTest {
         // easy to set it this way than mock
         TopicPartition mockPartition = new TopicPartition("test-topic",1);
         TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
-        doThrow(IOException.class).when(mockPartitionWriter).close();
-        IngestClient mockClient = mock(IngestClient.class);
-        doNothing().when(mockClient).close();
-        KustoSinkTask kustoSinkTask = new KustoSinkTask();
-        // There is no mutate constructor
-        kustoSinkTask.writers = Collections.singletonMap(mockPartition,mockPartitionWriter);
-        kustoSinkTask.kustoIngestClient = mockClient;
-
-        final List<LoggingEvent> log = appender.getLog();
-        final LoggingEvent firstLogEntry = log.get(0);
-        assertEquals(firstLogEntry.getLevel().toString(), Level.ERROR.toString());
-        assertEquals(firstLogEntry.getMessage(), "Error closing kusto client");
-
-    }
-
-    @Test
-    public void testStopSinkTaskFailure() throws IOException {
-        //set-up
-
-        final TestAppender appender = new TestAppender();
-        final Logger logger = Logger.getRootLogger();
-        logger.addAppender(appender);
-        try {
-            Logger.getLogger(KustoSinkTask.class).error("Error closing kusto client");
-        }
-        finally {
-            logger.removeAppender(appender);
-            logger.removeAllAppenders();
-        }
-
-        // easy to set it this way than mock
-        TopicPartition mockPartition = new TopicPartition("test-topic",2);
-        TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
-        doNothing().when(mockPartitionWriter).close();
+        doNothing().when(mockPartitionWriter).stop();
         IngestClient mockClient = mock(IngestClient.class);
         doThrow(IOException.class).when(mockClient).close();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
@@ -332,14 +298,14 @@ public class KustoSinkTaskTest {
         kustoSinkTask.writers = Collections.singletonMap(mockPartition,mockPartitionWriter);
         kustoSinkTask.kustoIngestClient = mockClient;
 
+        kustoSinkTask.stop();
+
         final List<LoggingEvent> log = appender.getLog();
         final LoggingEvent firstLogEntry = log.get(0);
         assertEquals(firstLogEntry.getLevel().toString(), Level.ERROR.toString());
         assertEquals(firstLogEntry.getMessage(), "Error closing kusto client");
 
     }
-
-
 
 
     @Test
