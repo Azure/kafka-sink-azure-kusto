@@ -60,6 +60,7 @@ public class FileWriter implements Closeable {
     private BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
     private boolean stopped = false;
+    private boolean isDlqEnabled = false;
 
     /**
      * @param basePath       - This is path to which to write the files to.
@@ -75,13 +76,15 @@ public class FileWriter implements Closeable {
                       long flushInterval,
                       ReentrantReadWriteLock reentrantLock,
                       IngestionProperties.DataFormat format,
-                      BehaviorOnError behaviorOnError) {
+                      BehaviorOnError behaviorOnError,
+                      boolean isDlqEnabled) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
         this.onRollCallback = onRollCallback;
         this.flushInterval = flushInterval;
         this.behaviorOnError = behaviorOnError;
+        this.isDlqEnabled = isDlqEnabled;
 
         // This is a fair lock so that we flush close to the time intervals
         this.reentrantReadWriteLock = reentrantLock;
@@ -263,7 +266,9 @@ public class FileWriter implements Closeable {
             resetFlushTimer(true);
         }
         recordWriter.write(record);
-        currentFile.records.add(record);
+        if(this.isDlqEnabled) {
+            currentFile.records.add(record);
+        }
         currentFile.rawBytes = countingStream.numBytes;
         currentFile.numRecords++;
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes) {

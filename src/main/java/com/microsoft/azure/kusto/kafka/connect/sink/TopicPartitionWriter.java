@@ -233,7 +233,9 @@ class TopicPartitionWriter {
                 flushInterval,
                 reentrantReadWriteLock,
                 ingestionProps.ingestionProperties.getDataFormat(),
-                behaviorOnError);
+                behaviorOnError,
+                isDlqEnabled
+            );
     }
 
     void close() {
