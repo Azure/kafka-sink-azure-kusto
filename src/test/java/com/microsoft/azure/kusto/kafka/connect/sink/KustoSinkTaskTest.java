@@ -1,11 +1,16 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.kafka.connect.sink.appender.TestAppender;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggingEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,10 +19,12 @@ import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,8 +33,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
 
 public class KustoSinkTaskTest {
     File currentDirectory;
@@ -39,6 +55,7 @@ public class KustoSinkTaskTest {
                 FileWriter.class.getName(),
                 String.valueOf(Instant.now().toEpochMilli())
         ).toString());
+
     }
 
     @AfterEach
@@ -118,14 +135,32 @@ public class KustoSinkTaskTest {
         kustoSinkTaskSpy.start(configs);
         {
             // single table mapping should cause all topics to be mapped to a single table
-            Assertions.assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());
-            Assertions.assertEquals("table1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getTableName());
-            Assertions.assertEquals(IngestionProperties.DataFormat.CSV, kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
-            Assertions.assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
-            Assertions.assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
-            Assertions.assertEquals(IngestionProperties.DataFormat.MULTIJSON,
-                    kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
-            Assertions.assertEquals("Mapping", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference());
+            assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());
+            assertEquals("table1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getTableName());
+            assertEquals(IngestionProperties.DataFormat.CSV, kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
+            assertEquals("Mapping", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference());
+            assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
+            assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
+            assertEquals(IngestionProperties.DataFormat.MULTIJSON, kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
+            Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
+        }
+    }
+
+    @Test
+    public void getTableWithoutMapping() {
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        kustoSinkTaskSpy.start(configs);
+        {
+            // single table mapping should cause all topics to be mapped to a single table
+            assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());
+            assertEquals("table1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getTableName());
+            assertEquals(IngestionProperties.DataFormat.CSV, kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
+            assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
+            assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
+            assertEquals(IngestionProperties.DataFormat.MULTIJSON, kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
             Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
         }
     }
@@ -178,6 +213,136 @@ public class KustoSinkTaskTest {
     }
 
     @Test
+    public void testCreateKustoEngineClient(){
+
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        kustoSinkTaskSpy.start(configs);
+
+
+        KustoSinkConfig kustoSinkConfig = new KustoSinkConfig(configs);
+
+
+        Client client = KustoSinkTask.createKustoEngineClient(kustoSinkConfig);
+        Assertions.assertNotNull(client);
+
+    }
+
+    @Test
+    public void testValidateTableMappingsConnectError(){
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        kustoSinkTaskSpy.start(configs);
+
+        KustoSinkConfig kustoSinkConfig = new KustoSinkConfig(configs);
+
+        assertThrows(ConnectException.class,()->{kustoSinkTask.validateTableMappings(kustoSinkConfig);});
+
+    }
+
+
+
+
+    @Test
+    public void testStopSuccess() throws IOException {
+        //set-up
+
+        // easy to set it this way than mock
+        TopicPartition mockPartition = new TopicPartition("test-topic",0);
+        TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
+        doNothing().when(mockPartitionWriter).close();
+        IngestClient mockClient = mock(IngestClient.class);
+        doNothing().when(mockClient).close();
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        // There is no mutate constructor
+        kustoSinkTask.writers = Collections.singletonMap(mockPartition,mockPartitionWriter);
+        kustoSinkTask.kustoIngestClient = mockClient;
+
+        // when
+        kustoSinkTask.stop();
+
+        // then
+        verify(mockClient,times(1)).close();
+        verify(mockPartitionWriter,times(1)).close();
+
+    }
+
+    @Test
+    public void testStopWriterFailure() throws IOException {
+        //set-up
+
+        final TestAppender appender = new TestAppender();
+        final Logger logger = Logger.getRootLogger();
+        logger.addAppender(appender);
+        try {
+            Logger.getLogger(KustoSinkTask.class).error("Error closing kusto client");
+        }
+        finally {
+            logger.removeAppender(appender);
+            logger.removeAllAppenders();
+        }
+
+        // easy to set it this way than mock
+        TopicPartition mockPartition = new TopicPartition("test-topic",1);
+        TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
+        doThrow(IOException.class).when(mockPartitionWriter).close();
+        IngestClient mockClient = mock(IngestClient.class);
+        doNothing().when(mockClient).close();
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        // There is no mutate constructor
+        kustoSinkTask.writers = Collections.singletonMap(mockPartition,mockPartitionWriter);
+        kustoSinkTask.kustoIngestClient = mockClient;
+
+        final List<LoggingEvent> log = appender.getLog();
+        final LoggingEvent firstLogEntry = log.get(0);
+        assertEquals(firstLogEntry.getLevel().toString(), Level.ERROR.toString());
+        assertEquals(firstLogEntry.getMessage(), "Error closing kusto client");
+
+    }
+
+    @Test
+    public void testStopSinkTaskFailure() throws IOException {
+        //set-up
+
+        final TestAppender appender = new TestAppender();
+        final Logger logger = Logger.getRootLogger();
+        logger.addAppender(appender);
+        try {
+            Logger.getLogger(KustoSinkTask.class).error("Error closing kusto client");
+        }
+        finally {
+            logger.removeAppender(appender);
+            logger.removeAllAppenders();
+        }
+
+        // easy to set it this way than mock
+        TopicPartition mockPartition = new TopicPartition("test-topic",2);
+        TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
+        doNothing().when(mockPartitionWriter).close();
+        IngestClient mockClient = mock(IngestClient.class);
+        doThrow(IOException.class).when(mockClient).close();
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        // There is no mutate constructor
+        kustoSinkTask.writers = Collections.singletonMap(mockPartition,mockPartitionWriter);
+        kustoSinkTask.kustoIngestClient = mockClient;
+
+        final List<LoggingEvent> log = appender.getLog();
+        final LoggingEvent firstLogEntry = log.get(0);
+        assertEquals(firstLogEntry.getLevel().toString(), Level.ERROR.toString());
+        assertEquals(firstLogEntry.getMessage(), "Error closing kusto client");
+
+    }
+
+
+
+
+    @Test
     public void precommitDoesntCommitNewerOffsets() throws InterruptedException {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
@@ -224,13 +389,15 @@ public class KustoSinkTaskTest {
         kustoSinkTaskSpy.close(tps);
 
         // Decrease one cause preCommit adds one
-        Assertions.assertEquals(returnedOffsets.get(topic1).offset() - 1,topicPartitionWriterSpy.lastCommittedOffset);
+        assertEquals(returnedOffsets.get(topic1).offset() - 1,topicPartitionWriterSpy.lastCommittedOffset);
         Thread.sleep(500);
         // No ingestion occur even after waiting
-        Assertions.assertEquals(returnedOffsets.get(topic1).offset() - 1,topicPartitionWriterSpy.lastCommittedOffset);
+        assertEquals(returnedOffsets.get(topic1).offset() - 1,topicPartitionWriterSpy.lastCommittedOffset);
     }
 
     static class Stopped {
         boolean stopped;
     }
+
+
 }

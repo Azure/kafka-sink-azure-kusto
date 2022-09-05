@@ -6,23 +6,31 @@ import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.*;
+
 import org.mockito.ArgumentCaptor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
-
 public class TopicPartitionWriterTest {
     // TODO: should probably find a better way to mock internal class (FileWriter)...
     private File currentDirectory;
@@ -35,6 +43,8 @@ public class TopicPartitionWriterTest {
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> kafkaProducer;
+
+    private MockProducer<byte[], byte[]> dlqMockProducer;
     private static final long fileThreshold = 100;
     private static final long flushInterval = 5000;
     private static final IngestClient mockClient = mock(IngestClient.class);
@@ -64,6 +74,8 @@ public class TopicPartitionWriterTest {
                 FileWriter.class.getSimpleName(),
                 String.valueOf(Instant.now().toEpochMilli())
         ).toString());
+        dlqMockProducer = new MockProducer<byte[], byte[]>(
+                    true, new ByteArraySerializer(), new ByteArraySerializer());
         basePathCurrent = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         Map<String, String> settings = getKustoConfigs(basePathCurrent, fileThreshold, flushInterval);
         config = new KustoSinkConfig(settings);
@@ -89,6 +101,36 @@ public class TopicPartitionWriterTest {
         descriptor.rawBytes = 1024;
         descriptor.path = "somepath/somefile";
         descriptor.file = new File("C://myfile.txt");
+
+        writer.handleRollFile(descriptor);
+
+        ArgumentCaptor<FileSourceInfo> fileSourceInfoArgument = ArgumentCaptor.forClass(FileSourceInfo.class);
+        ArgumentCaptor<IngestionProperties> ingestionPropertiesArgumentCaptor = ArgumentCaptor.forClass(IngestionProperties.class);
+        try {
+            verify(mockedClient, only()).ingestFromFile(fileSourceInfoArgument.capture(), ingestionPropertiesArgumentCaptor.capture());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        Assertions.assertEquals(fileSourceInfoArgument.getValue().getFilePath(), descriptor.path);
+        Assertions.assertEquals(TABLE, ingestionPropertiesArgumentCaptor.getValue().getTableName());
+        Assertions.assertEquals(DATABASE, ingestionPropertiesArgumentCaptor.getValue().getDatabaseName());
+        Assertions.assertEquals(1024, fileSourceInfoArgument.getValue().getRawSizeInBytes());
+    }
+
+    @Test
+    public void testHandleRollFileWithStreamingEnabled(){
+        IngestClient mockedClient = mock(IngestClient.class);
+        TopicIngestionProperties props = new TopicIngestionProperties();
+        props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
+        props.streaming = true;
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+
+        SourceFile descriptor = new SourceFile();
+        descriptor.rawBytes = 1024;
+        descriptor.path = "somepath/somefile";
+        descriptor.file = new File("C://myfile.txt");
+
         writer.handleRollFile(descriptor);
 
         ArgumentCaptor<FileSourceInfo> fileSourceInfoArgument = ArgumentCaptor.forClass(FileSourceInfo.class);
@@ -270,6 +312,59 @@ public class TopicPartitionWriterTest {
 
         Thread.sleep(flushInterval + contextSwitchInterval);
         Assertions.assertNull(spyWriter.lastCommittedOffset);
+    }
+
+
+    @Test
+    public void testSendFailedRecordToDlqError() {
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, true, "dlq.topic.name", kafkaProducer);
+        TopicPartitionWriter spyWriter = spy(writer);
+
+        kafkaProducer = mock(Producer.class);
+
+
+        spyWriter.open();
+        List<SinkRecord> records = new ArrayList<>();
+
+        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "another,stringy,message", 5));
+        records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "{'also':'stringy','sortof':'message'}", 4));
+
+        when(kafkaProducer.send(anyObject(),anyObject())).thenReturn(null);
+
+        assertThrows(KafkaException.class,() -> {
+            spyWriter.sendFailedRecordToDlq(records.get(0));
+        });
+
+    }
+
+    @Test
+    public void testSendFailedRecordToDlqSuccess() {
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, true, "dlq.topic.name", dlqMockProducer);
+        TopicPartitionWriter spyWriter = spy(writer);
+
+
+        spyWriter.open();
+
+        SinkRecord testSinkRecord = new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "{'also':'stringy','sortof':'message'}", 4);
+
+        byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
+                        + "topic=%s, partition=%s, offset=%s.",
+                testSinkRecord.topic(),
+                testSinkRecord.kafkaPartition(),
+                testSinkRecord.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
+        byte[] recordValue = testSinkRecord.value().toString().getBytes(StandardCharsets.UTF_8);
+        ProducerRecord<byte[], byte[]> dlqRecord = new ProducerRecord<>("dlq.topic.name", recordKey, recordValue);
+
+        //when(kafkaProducer.send(dlqRecord,anyObject())).thenReturn(null);
+
+        dlqMockProducer.send(dlqRecord);
+
+        List<ProducerRecord<byte[], byte[]>> history = dlqMockProducer.history();
+
+        List<ProducerRecord<byte[], byte[]>> expected = Arrays.asList(dlqRecord);
+
+        Assertions.assertEquals(expected,history);
+
     }
 
     private Map<String, String> getKustoConfigs(String basePath, long fileThreshold, long flushInterval) {
