@@ -1,8 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.microsoft.azure.kusto.data.Client;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.appender.TestAppender;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -23,27 +23,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 public class KustoSinkTaskTest {
     File currentDirectory;
@@ -53,8 +40,7 @@ public class KustoSinkTaskTest {
         currentDirectory = new File(Paths.get(
                 System.getProperty("java.io.tmpdir"),
                 FileWriter.class.getName(),
-                String.valueOf(Instant.now().toEpochMilli())
-        ).toString());
+                String.valueOf(Instant.now().toEpochMilli())).toString());
 
     }
 
@@ -183,7 +169,7 @@ public class KustoSinkTaskTest {
         kustoSinkTaskSpy.close(tps);
         long l2 = System.currentTimeMillis();
 
-        assertTrue(l2-l1 < 1000);
+        assertTrue(l2 - l1 < 1000);
 
         // Check close time when one close takes time to close
         TopicPartition tp = new TopicPartition("topic2", 4);
@@ -208,12 +194,12 @@ public class KustoSinkTaskTest {
 
         kustoSinkTaskSpy.close(tps);
         long l3 = System.currentTimeMillis();
-        System.out.println("l3-l2 " + (l3-l2));
-        assertTrue(l3-l2 > sleepTime  && l3-l2 < sleepTime + 1000);
+        System.out.println("l3-l2 " + (l3 - l2));
+        assertTrue(l3 - l2 > sleepTime && l3 - l2 < sleepTime + 1000);
     }
 
     @Test
-    public void testCreateKustoEngineClient(){
+    public void testCreateKustoEngineClient() {
 
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
@@ -222,9 +208,7 @@ public class KustoSinkTaskTest {
         doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
         kustoSinkTaskSpy.start(configs);
 
-
         KustoSinkConfig kustoSinkConfig = new KustoSinkConfig(configs);
-
 
         Client client = KustoSinkTask.createKustoEngineClient(kustoSinkConfig);
         Assertions.assertNotNull(client);
@@ -232,71 +216,66 @@ public class KustoSinkTaskTest {
     }
 
     @Test
-    public void testValidateTableMappingsConnectError(){
+    public void testValidateTableMappingsConnectError() {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
         doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
         kustoSinkTaskSpy.start(configs);
-
         KustoSinkConfig kustoSinkConfig = new KustoSinkConfig(configs);
-
-        assertThrows(ConnectException.class,()->{kustoSinkTask.validateTableMappings(kustoSinkConfig);});
-
+        assertThrows(ConnectException.class, () -> {
+            kustoSinkTask.validateTableMappings(kustoSinkConfig);
+        });
     }
-
-
-
 
     @Test
     public void testStopSuccess() throws IOException {
-        //set-up
+        // set-up
 
         // easy to set it this way than mock
-        TopicPartition mockPartition = new TopicPartition("test-topic",0);
+        TopicPartition mockPartition = new TopicPartition("test-topic", 0);
         TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
         doNothing().when(mockPartitionWriter).close();
         IngestClient mockClient = mock(IngestClient.class);
         doNothing().when(mockClient).close();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         // There is no mutate constructor
-        kustoSinkTask.writers = Collections.singletonMap(mockPartition,mockPartitionWriter);
+        kustoSinkTask.writers = Collections.singletonMap(mockPartition, mockPartitionWriter);
         kustoSinkTask.kustoIngestClient = mockClient;
 
         // when
         kustoSinkTask.stop();
 
         // then
-        verify(mockClient,times(1)).close();
-        verify(mockPartitionWriter,times(1)).close();
+        verify(mockClient, times(1)).close();
+        verify(mockPartitionWriter, times(1)).close();
 
     }
 
     @Test
     public void testStopWriterFailure() throws IOException {
-        //set-up
+        // set-up
 
         final TestAppender appender = new TestAppender();
         final Logger logger = Logger.getRootLogger();
         logger.addAppender(appender);
         try {
             Logger.getLogger(KustoSinkTask.class).error("Error closing kusto client");
-        }
-        finally {
+        } finally {
             logger.removeAppender(appender);
             logger.removeAllAppenders();
         }
 
         // easy to set it this way than mock
-        TopicPartition mockPartition = new TopicPartition("test-topic",1);
+        TopicPartition mockPartition = new TopicPartition("test-topic", 1);
         TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
         doThrow(IOException.class).when(mockPartitionWriter).close();
         IngestClient mockClient = mock(IngestClient.class);
         doNothing().when(mockClient).close();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         // There is no mutate constructor
-        kustoSinkTask.writers = Collections.singletonMap(mockPartition,mockPartitionWriter);
+        kustoSinkTask.writers = Collections.singletonMap(mockPartition, mockPartitionWriter);
         kustoSinkTask.kustoIngestClient = mockClient;
 
         final List<LoggingEvent> log = appender.getLog();
@@ -308,28 +287,27 @@ public class KustoSinkTaskTest {
 
     @Test
     public void testStopSinkTaskFailure() throws IOException {
-        //set-up
+        // set-up
 
         final TestAppender appender = new TestAppender();
         final Logger logger = Logger.getRootLogger();
         logger.addAppender(appender);
         try {
             Logger.getLogger(KustoSinkTask.class).error("Error closing kusto client");
-        }
-        finally {
+        } finally {
             logger.removeAppender(appender);
             logger.removeAllAppenders();
         }
 
         // easy to set it this way than mock
-        TopicPartition mockPartition = new TopicPartition("test-topic",2);
+        TopicPartition mockPartition = new TopicPartition("test-topic", 2);
         TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
         doNothing().when(mockPartitionWriter).close();
         IngestClient mockClient = mock(IngestClient.class);
         doThrow(IOException.class).when(mockClient).close();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         // There is no mutate constructor
-        kustoSinkTask.writers = Collections.singletonMap(mockPartition,mockPartitionWriter);
+        kustoSinkTask.writers = Collections.singletonMap(mockPartition, mockPartitionWriter);
         kustoSinkTask.kustoIngestClient = mockClient;
 
         final List<LoggingEvent> log = appender.getLog();
@@ -338,9 +316,6 @@ public class KustoSinkTaskTest {
         assertEquals(firstLogEntry.getMessage(), "Error closing kusto client");
 
     }
-
-
-
 
     @Test
     public void precommitDoesntCommitNewerOffsets() throws InterruptedException {
@@ -358,13 +333,14 @@ public class KustoSinkTaskTest {
         IngestClient mockedClient = mock(IngestClient.class);
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties;
-        TopicPartitionWriter topicPartitionWriterSpy = spy(new TopicPartitionWriter(topic1, mockedClient, props, new KustoSinkConfig(configs), false, null, null));
+        TopicPartitionWriter topicPartitionWriterSpy = spy(
+                new TopicPartitionWriter(topic1, mockedClient, props, new KustoSinkConfig(configs), false, null, null));
         topicPartitionWriterSpy.open();
-        kustoSinkTaskSpy.writers.put(topic1,topicPartitionWriterSpy);
+        kustoSinkTaskSpy.writers.put(topic1, topicPartitionWriterSpy);
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         final Stopped stoppedObj = new Stopped();
-        AtomicInteger offset =  new AtomicInteger(1);
+        AtomicInteger offset = new AtomicInteger(1);
         Runnable insertExec = () -> {
             while (!stoppedObj.stopped) {
                 List<SinkRecord> records = new ArrayList<>();
@@ -389,15 +365,14 @@ public class KustoSinkTaskTest {
         kustoSinkTaskSpy.close(tps);
 
         // Decrease one cause preCommit adds one
-        assertEquals(returnedOffsets.get(topic1).offset() - 1,topicPartitionWriterSpy.lastCommittedOffset);
+        assertEquals(returnedOffsets.get(topic1).offset() - 1, topicPartitionWriterSpy.lastCommittedOffset);
         Thread.sleep(500);
         // No ingestion occur even after waiting
-        assertEquals(returnedOffsets.get(topic1).offset() - 1,topicPartitionWriterSpy.lastCommittedOffset);
+        assertEquals(returnedOffsets.get(topic1).offset() - 1, topicPartitionWriterSpy.lastCommittedOffset);
     }
 
     static class Stopped {
         boolean stopped;
     }
-
 
 }

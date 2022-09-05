@@ -12,36 +12,37 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 public class StringRecordWriterProvider implements RecordWriterProvider {
-  private static final Logger log = LoggerFactory.getLogger(StringRecordWriterProvider.class);
-  @Override
-  public RecordWriter getRecordWriter(String filename, OutputStream out) {
-    return new RecordWriter() {
+    private static final Logger log = LoggerFactory.getLogger(StringRecordWriterProvider.class);
 
-      @Override
-      public void write(SinkRecord record) throws IOException {
-        byte[] value = null;
-        value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
-        out.write(value);
-      }
+    @Override
+    public RecordWriter getRecordWriter(String filename, OutputStream out) {
+        return new RecordWriter() {
 
-      @Override
-      public void close() {
-        try {
-          out.close();
-        } catch (IOException e) {
-          throw new DataException(e);
-        }
-      }
+            @Override
+            public void write(SinkRecord record) throws IOException {
+                byte[] value = null;
+                value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
+                out.write(value);
+            }
 
-      @Override
-      public void commit() {
-        try {
-          out.flush();
-        } catch (IOException e) {
-          throw new DataException(e);
-        }
-      }
-    };
-  }
+            @Override
+            public void close() {
+                try {
+                    out.close();
+                } catch (IOException e) {
+                    throw new DataException(e);
+                }
+            }
+
+            @Override
+            public void commit() {
+                try {
+                    out.flush();
+                } catch (IOException e) {
+                    throw new DataException(e);
+                }
+            }
+        };
+    }
 
 }

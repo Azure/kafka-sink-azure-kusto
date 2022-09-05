@@ -21,9 +21,66 @@ import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 
 public class FileWriterTest {
+    IngestionProperties ingestionProps;
     private File currentDirectory;
     private KustoSinkConfig config;
-    IngestionProperties ingestionProps;
+
+    static Function<SourceFile, String> getAssertFileConsumerFunction(String msg) {
+        return (SourceFile f) -> {
+            try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
+                byte[] bytes = IOUtils.toByteArray(fileInputStream);
+                try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
+                        GZIPInputStream gzipper = new GZIPInputStream(bin)) {
+
+                    byte[] buffer = new byte[1024];
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+                    int len;
+                    while ((len = gzipper.read(buffer)) > 0) {
+                        out.write(buffer, 0, len);
+                    }
+
+                    gzipper.close();
+                    out.close();
+                    String s = new String(out.toByteArray());
+
+                    Assertions.assertEquals(s, msg);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                Assertions.fail(e.getMessage());
+            }
+            return null;
+        };
+    }
+
+    static Consumer<SourceFile> getAssertFileConsumer(String msg) {
+        return (SourceFile f) -> {
+            try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
+                byte[] bytes = IOUtils.toByteArray(fileInputStream);
+                try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
+                        GZIPInputStream gzipper = new GZIPInputStream(bin)) {
+
+                    byte[] buffer = new byte[1024];
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+                    int len;
+                    while ((len = gzipper.read(buffer)) > 0) {
+                        out.write(buffer, 0, len);
+                    }
+
+                    gzipper.close();
+                    out.close();
+                    String s = new String(out.toByteArray());
+
+                    Assertions.assertEquals(s, msg);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                Assertions.fail(e.getMessage());
+            }
+        };
+    }
 
     @BeforeEach
     public final void before() {
@@ -31,8 +88,7 @@ public class FileWriterTest {
         currentDirectory = new File(Paths.get(
                 System.getProperty("java.io.tmpdir"),
                 FileWriter.class.getSimpleName(),
-                String.valueOf(Instant.now().toEpochMilli())
-        ).toString());
+                String.valueOf(Instant.now().toEpochMilli())).toString());
         ingestionProps = new IngestionProperties("db", "table");
         ingestionProps.setDataFormat(IngestionProperties.DataFormat.CSV);
     }
@@ -63,7 +119,8 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName = (Long l) -> FILE_PATH;
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(),
+                ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
         String msg = "Line number 1: This is a message from the other size";
         SinkRecord record = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg.getBytes(), 10);
         fileWriter.initializeRecordWriter(record);
@@ -92,7 +149,8 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())).toString() + "csv.gz";
 
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(),
+                ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
 
         for (int i = 0; i < 9; i++) {
             String msg = String.format("Line number %d : This is a message from the other size", i);
@@ -133,7 +191,8 @@ public class FileWriterTest {
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, java.util.UUID.randomUUID().toString()).toString() + "csv.gz";
 
         // Expect no files to be ingested as size is small and flushInterval is big
-        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(), ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
+        FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(),
+                ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
 
         String msg = "Message";
         SinkRecord record = new SinkRecord("topic", 1, null, null, null, msg, 10);
@@ -153,7 +212,8 @@ public class FileWriterTest {
 
         Function<Long, String> generateFileName2 = (Long l) -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed and is shorter than sleep time
-        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, new ReentrantReadWriteLock(), ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
+        FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, new ReentrantReadWriteLock(),
+                ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
 
         String msg2 = "Second Message";
         SinkRecord record1 = new SinkRecord("topic", 1, null, null, null, msg2, 10);
@@ -189,7 +249,7 @@ public class FileWriterTest {
         Consumer<SourceFile> trackFiles = (SourceFile f) -> {
             committedOffsets.add(offsets.currentOffset);
             files.add(new AbstractMap.SimpleEntry<>(f.path, f.rawBytes));
-            //return null;
+            // return null;
         };
 
         String path = Paths.get(currentDirectory.getPath(), "offsetCheckByInterval").toString();
@@ -202,7 +262,8 @@ public class FileWriterTest {
             }
             return Paths.get(path, Long.toString(offset)).toString();
         };
-        FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, reentrantReadWriteLock, ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
+        FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, reentrantReadWriteLock, ingestionProps.getDataFormat(),
+                BehaviorOnError.FAIL, true);
         String msg2 = "Second Message";
         reentrantReadWriteLock.readLock().lock();
         long recordOffset = 1;
@@ -239,43 +300,16 @@ public class FileWriterTest {
         Assertions.assertEquals(15L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[1]);
         Assertions.assertEquals("1", files.stream().map((s) -> s.getKey().substring(path.length() + 1)).toArray(String[]::new)[0]);
         Assertions.assertEquals("3", files.stream().map((s) -> s.getKey().substring(path.length() + 1)).toArray(String[]::new)[1]);
-        Assertions.assertEquals(committedOffsets, new ArrayList<Long>() {{
-            add(2L);
-            add(3L);
-        }});
+        Assertions.assertEquals(committedOffsets, new ArrayList<Long>() {
+            {
+                add(2L);
+                add(3L);
+            }
+        });
 
         // make sure folder is clear once done
         fileWriter2.stop();
         Assertions.assertEquals(0, Objects.requireNonNull(folder.listFiles()).length);
-    }
-
-    static Function<SourceFile, String> getAssertFileConsumerFunction(String msg) {
-        return (SourceFile f) -> {
-            try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
-                byte[] bytes = IOUtils.toByteArray(fileInputStream);
-                try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
-                     GZIPInputStream gzipper = new GZIPInputStream(bin)) {
-
-                    byte[] buffer = new byte[1024];
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-                    int len;
-                    while ((len = gzipper.read(buffer)) > 0) {
-                        out.write(buffer, 0, len);
-                    }
-
-                    gzipper.close();
-                    out.close();
-                    String s = new String(out.toByteArray());
-
-                    Assertions.assertEquals(s, msg);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                Assertions.fail(e.getMessage());
-            }
-            return null;
-        };
     }
 
     protected Map<String, String> getProperties() {
@@ -287,33 +321,5 @@ public class FileWriterTest {
         settings.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
         settings.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
         return settings;
-    }
-
-    static Consumer<SourceFile> getAssertFileConsumer(String msg) {
-        return (SourceFile f) -> {
-            try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
-                byte[] bytes = IOUtils.toByteArray(fileInputStream);
-                try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
-                     GZIPInputStream gzipper = new GZIPInputStream(bin)) {
-
-                    byte[] buffer = new byte[1024];
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-                    int len;
-                    while ((len = gzipper.read(buffer)) > 0) {
-                        out.write(buffer, 0, len);
-                    }
-
-                    gzipper.close();
-                    out.close();
-                    String s = new String(out.toByteArray());
-
-                    Assertions.assertEquals(s, msg);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                Assertions.fail(e.getMessage());
-            }
-        };
     }
 }

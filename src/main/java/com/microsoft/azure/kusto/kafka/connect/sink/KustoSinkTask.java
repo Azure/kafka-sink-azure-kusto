@@ -29,8 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.*;
-
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Kusto sink uses file system to buffer records.
@@ -38,8 +37,6 @@ import java.util.concurrent.*;
  * Currently only ingested files are "committed" in the sense that we can advance the offset according to it.
  */
 public class KustoSinkTask extends SinkTask {
-
-    private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
 
     public static final String FETCH_TABLE_COMMAND = "%s | count";
     public static final String FETCH_TABLE_MAPPING_COMMAND = ".show table %s ingestion %s mapping '%s'";
@@ -53,17 +50,17 @@ public class KustoSinkTask extends SinkTask {
     public static final String MAPPING_DB = "db";
     public static final String VALIDATION_OK = "OK";
     public static final String STREAMING = "streaming";
-
+    private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
+    private static final ClientRequestProperties validateOnlyClientRequestProperties = new ClientRequestProperties();
     private final Set<TopicPartition> assignment;
-    private Map<String, TopicIngestionProperties> topicsToIngestionProps;
-    private KustoSinkConfig config;
     protected IngestClient kustoIngestClient;
     protected IngestClient streamingIngestClient;
     protected Map<TopicPartition, TopicPartitionWriter> writers;
+    private Map<String, TopicIngestionProperties> topicsToIngestionProps;
+    private KustoSinkConfig config;
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> dlqProducer;
-    private static final ClientRequestProperties validateOnlyClientRequestProperties = new ClientRequestProperties();
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
@@ -83,42 +80,6 @@ public class KustoSinkTask extends SinkTask {
         return false;
     }
 
-    public void createKustoIngestClient(KustoSinkConfig config) {
-        try {
-            if (!Strings.isNullOrEmpty(config.getAuthAppid())) {
-                if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
-                    throw new ConfigException("Kusto authentication missing App Key.");
-                }
-
-                ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        config.getKustoIngestUrl(),
-                        config.getAuthAppid(),
-                        config.getAuthAppkey(),
-                        config.getAuthAuthority()
-                );
-                kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
-                if (isStreamingEnabled(config)){
-                    ConnectionStringBuilder engineKcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                            config.getKustoEngineUrl(),
-                            config.getAuthAppid(),
-                            config.getAuthAppkey(),
-                            config.getAuthAuthority()
-                    );
-                    streamingIngestClient = IngestClientFactory.createManagedStreamingIngestClient(kcsb, engineKcsb);
-                }
-
-                kustoIngestClient = IngestClientFactory.createClient(kcsb);
-                return;
-            }
-
-            throw new ConfigException("Failed to initialize KustoIngestClient, please " +
-                    "provide valid credentials. Either Kusto username and password or " +
-                    "Kusto appId, appKey, and authority should be configured.");
-        } catch (Exception e) {
-            throw new ConnectException("Failed to initialize KustoIngestClient", e);
-        }
-    }
-
     public static Client createKustoEngineClient(KustoSinkConfig config) {
         try {
             String engineClientURL = config.getKustoEngineUrl();
@@ -130,8 +91,7 @@ public class KustoSinkTask extends SinkTask {
                         engineClientURL,
                         config.getAuthAppid(),
                         config.getAuthAppkey(),
-                        config.getAuthAuthority()
-                );
+                        config.getAuthAuthority());
                 kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
 
                 return ClientFactory.createClient(kcsb);
@@ -194,6 +154,131 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
+    private static boolean isDataFormatAnyTypeOfJson(String format) {
+        return format.equalsIgnoreCase(IngestionProperties.DataFormat.JSON.name())
+                || format.equalsIgnoreCase(IngestionProperties.DataFormat.SINGLEJSON.name())
+                || format.equalsIgnoreCase(IngestionProperties.DataFormat.MULTIJSON.name());
+    }
+
+    /**
+     * This function validates whether the user has the read and write access to the intended table
+     * before starting to sink records into ADX.
+     *
+     * @param engineClient Client connection to run queries.
+     * @param mapping      JSON Object containing a Table mapping.
+     * @param config       Kusto Sink configuration
+     */
+    private static void validateTableAccess(Client engineClient, JSONObject mapping, KustoSinkConfig config, List<String> databaseTableErrorList,
+            List<String> accessErrorList) throws JSONException {
+        String database = mapping.getString(MAPPING_DB);
+        String table = mapping.getString(MAPPING_TABLE);
+        String format = mapping.getString(MAPPING_FORMAT);
+        // used optString instead of getString since mapping is not mandatory
+        String mappingName = mapping.optString(MAPPING);
+        boolean streamingEnabled = mapping.optBoolean(STREAMING);
+        if (isDataFormatAnyTypeOfJson(format)) {
+            format = IngestionProperties.DataFormat.JSON.name();
+        }
+        boolean hasAccess = false;
+        boolean shouldCheckStreaming = streamingEnabled;
+
+        try {
+            if (shouldCheckStreaming && isStreamingPolicyEnabled(DATABASE, database, engineClient, database)) {
+                shouldCheckStreaming = false;
+            }
+            try {
+                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_COMMAND, table), validateOnlyClientRequestProperties);
+                if (VALIDATION_OK.equals(rs.getPrimaryResults().getData().get(0).get(0))) {
+                    hasAccess = true;
+                }
+            } catch (DataServiceException e) {
+                databaseTableErrorList.add(String.format("Couldn't validate access to Database '%s' Table '%s', with exception '%s'", database, table,
+                        ExceptionUtils.getStackTrace(e)));
+            }
+
+            if (hasAccess && StringUtils.isNotEmpty(mappingName)) {
+                try {
+                    engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table, format.toLowerCase(Locale.ROOT), mappingName));
+                } catch (DataServiceException e) {
+                    hasAccess = false;
+                    databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'", database, table, format,
+                            mappingName, ExceptionUtils.getStackTrace(e)));
+                }
+            }
+
+            if (hasAccess) {
+                String authenticateWith = String.format("aadapp=%s;%s", config.getAuthAppid(), config.getAuthAuthority());
+                String query = String.format(FETCH_PRINCIPAL_ROLES_COMMAND, authenticateWith, database, table);
+                try {
+                    KustoOperationResult rs = engineClient.execute(database, query);
+                    hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
+                    if (hasAccess) {
+                        log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
+                    } else {
+                        accessErrorList.add(String.format("User does not have appropriate permissions " +
+                                "to sink data into the Kusto database %s", database));
+                    }
+                } catch (DataServiceException e) {
+                    // Logging the error so that the trace is not lost.
+                    if (!e.getCause().toString().contains("Forbidden")) {
+                        databaseTableErrorList.add(
+                                String.format("Fetching principal roles using query '%s' resulted in exception '%s'", query, ExceptionUtils.getStackTrace(e)));
+                    } else {
+                        log.warn("Failed to check permissions with query '{}', will continue the run as the principal might still be able to ingest", query, e);
+                    }
+                }
+            }
+            if (hasAccess && shouldCheckStreaming && !isStreamingPolicyEnabled(MAPPING_TABLE, table, engineClient, database)) {
+                databaseTableErrorList.add(String.format("Ingestion is configured as streaming, but a streaming" +
+                        " ingestion policy was not found on either database '%s' or table '%s'", database, table));
+            }
+
+        } catch (KustoDataExceptionBase e) {
+            throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
+        }
+    }
+
+    private static boolean isStreamingPolicyEnabled(
+            String entityType, String entityName, Client engineClient, String database) throws DataClientException, DataServiceException {
+        KustoResultSetTable res = engineClient.execute(database, String.format(STREAMING_POLICY_SHOW_COMMAND, entityType, entityName)).getPrimaryResults();
+        res.next();
+        return res.getString("Policy") != null;
+    }
+
+    public void createKustoIngestClient(KustoSinkConfig config) {
+        try {
+            if (!Strings.isNullOrEmpty(config.getAuthAppid())) {
+                if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
+                    throw new ConfigException("Kusto authentication missing App Key.");
+                }
+
+                ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                        config.getKustoIngestUrl(),
+                        config.getAuthAppid(),
+                        config.getAuthAppkey(),
+                        config.getAuthAuthority());
+                kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+                if (isStreamingEnabled(config)) {
+                    ConnectionStringBuilder engineKcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                            config.getKustoEngineUrl(),
+                            config.getAuthAppid(),
+                            config.getAuthAppkey(),
+                            config.getAuthAuthority());
+                    streamingIngestClient = IngestClientFactory.createManagedStreamingIngestClient(kcsb, engineKcsb);
+                }
+
+                kustoIngestClient = IngestClientFactory.createClient(kcsb);
+                return;
+            }
+
+            throw new ConfigException("Failed to initialize KustoIngestClient, please " +
+                    "provide valid credentials. Either Kusto username and password or " +
+                    "Kusto appId, appKey, and authority should be configured.");
+        } catch (Exception e) {
+            throw new ConnectException("Failed to initialize KustoIngestClient", e);
+        }
+    }
+
     public TopicIngestionProperties getIngestionProps(String topic) {
         return topicsToIngestionProps.get(topic);
     }
@@ -246,86 +331,6 @@ public class KustoSinkTask extends SinkTask {
             }
         }
         return true;
-    }
-
-    private static boolean isDataFormatAnyTypeOfJson(String format) {
-        return format.equalsIgnoreCase(IngestionProperties.DataFormat.JSON.name())
-                || format.equalsIgnoreCase(IngestionProperties.DataFormat.SINGLEJSON.name())
-                || format.equalsIgnoreCase(IngestionProperties.DataFormat.MULTIJSON.name());
-    }
-
-    /**
-     * This function validates whether the user has the read and write access to the intended table
-     * before starting to sink records into ADX.
-     *
-     * @param engineClient Client connection to run queries.
-     * @param mapping      JSON Object containing a Table mapping.
-     * @param config       Kusto Sink configuration
-     */
-    private static void validateTableAccess(Client engineClient, JSONObject mapping, KustoSinkConfig config, List<String> databaseTableErrorList, List<String> accessErrorList) throws JSONException {
-        String database = mapping.getString(MAPPING_DB);
-        String table = mapping.getString(MAPPING_TABLE);
-        String format = mapping.getString(MAPPING_FORMAT);
-        //used optString instead of getString since mapping is not mandatory
-        String mappingName = mapping.optString(MAPPING);
-        boolean streamingEnabled = mapping.optBoolean(STREAMING);
-        if (isDataFormatAnyTypeOfJson(format)) {
-            format = IngestionProperties.DataFormat.JSON.name();
-        }
-        boolean hasAccess = false;
-        boolean shouldCheckStreaming = streamingEnabled;
-
-        try {
-            if (shouldCheckStreaming && isStreamingPolicyEnabled(DATABASE, database, engineClient, database)){
-                shouldCheckStreaming = false;
-            }
-            try {
-                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_COMMAND, table), validateOnlyClientRequestProperties);
-                if (VALIDATION_OK.equals(rs.getPrimaryResults().getData().get(0).get(0))) {
-                    hasAccess = true;
-                }
-            } catch (DataServiceException e) {
-                databaseTableErrorList.add(String.format("Couldn't validate access to Database '%s' Table '%s', with exception '%s'", database, table, ExceptionUtils.getStackTrace(e)));
-            }
-
-            if (hasAccess && StringUtils.isNotEmpty(mappingName)) {
-                try {
-                    engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table, format.toLowerCase(Locale.ROOT), mappingName));
-                } catch (DataServiceException e) {
-                    hasAccess = false;
-                    databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'", database, table, format, mappingName, ExceptionUtils.getStackTrace(e)));
-                }
-            }
-
-            if (hasAccess) {
-                String authenticateWith = String.format("aadapp=%s;%s", config.getAuthAppid(), config.getAuthAuthority());
-                String query = String.format(FETCH_PRINCIPAL_ROLES_COMMAND, authenticateWith, database, table);
-                try {
-                    KustoOperationResult rs = engineClient.execute(database, query);
-                    hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
-                    if (hasAccess) {
-                                log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
-                    } else {
-                        accessErrorList.add(String.format("User does not have appropriate permissions " +
-                                "to sink data into the Kusto database %s", database));
-                    }
-                } catch (DataServiceException e) {
-                    // Logging the error so that the trace is not lost.
-                    if (!e.getCause().toString().contains("Forbidden")){
-                        databaseTableErrorList.add(String.format("Fetching principal roles using query '%s' resulted in exception '%s'", query, ExceptionUtils.getStackTrace(e)));
-                    } else {
-                        log.warn("Failed to check permissions with query '{}', will continue the run as the principal might still be able to ingest", query, e);
-                    }
-                }
-            }
-            if (hasAccess && shouldCheckStreaming && !isStreamingPolicyEnabled(MAPPING_TABLE, table, engineClient, database)) {
-                databaseTableErrorList.add(String.format("Ingestion is configured as streaming, but a streaming" +
-                  " ingestion policy was not found on either database '%s' or table '%s'", database, table));
-            }
-
-        } catch (KustoDataExceptionBase e) {
-            throw new ConnectException("Unable to connect to ADX(Kusto) instance", e);
-        }
     }
 
     @Override
@@ -407,14 +412,6 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
-    private static boolean isStreamingPolicyEnabled (
-            String entityType, String entityName, Client engineClient, String database
-    ) throws DataClientException, DataServiceException {
-        KustoResultSetTable res = engineClient.execute(database, String.format(STREAMING_POLICY_SHOW_COMMAND, entityType, entityName)).getPrimaryResults();
-        res.next();
-        return res.getString("Policy") != null;
-    }
-
     @Override
     public void stop() {
         log.warn("Stopping KustoSinkTask");
@@ -464,8 +461,7 @@ public class KustoSinkTask extends SinkTask {
     // from what kafka expects. So basically this is to re-sync topic-partition offsets with our sink.
     @Override
     public Map<TopicPartition, OffsetAndMetadata> preCommit(
-            Map<TopicPartition, OffsetAndMetadata> offsets
-    ) {
+            Map<TopicPartition, OffsetAndMetadata> offsets) {
         Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>();
         for (TopicPartition tp : assignment) {
             if (writers.get(tp) == null) {

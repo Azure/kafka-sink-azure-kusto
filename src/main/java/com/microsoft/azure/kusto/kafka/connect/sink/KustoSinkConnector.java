@@ -14,7 +14,7 @@ import java.util.Map;
 public class KustoSinkConnector extends SinkConnector {
 
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConnector.class);
-    
+
     private KustoSinkConfig config;
 
     @Override
@@ -33,16 +33,16 @@ public class KustoSinkConnector extends SinkConnector {
         Map<String, String> taskProps = new HashMap<>();
         taskProps.putAll(config.originalsStrings());
         for (int i = 0; i < maxTasks; i++) {
-          configs.add(taskProps);
+            configs.add(taskProps);
         }
         return configs;
     }
-    
+
     @Override
     public void stop() {
         log.info("Shutting down KustoSinkConnector");
     }
-    
+
     @Override
     public ConfigDef config() {
         return KustoSinkConfig.getConfig();
@@ -52,7 +52,7 @@ public class KustoSinkConnector extends SinkConnector {
     public Class<? extends Task> taskClass() {
         return KustoSinkTask.class;
     }
-    
+
     @Override
     public String version() {
         return Version.getVersion();

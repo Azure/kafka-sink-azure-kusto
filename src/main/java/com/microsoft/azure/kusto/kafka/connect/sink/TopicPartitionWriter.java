@@ -6,11 +6,13 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
-import com.microsoft.azure.kusto.ingest.result.*;
+import com.microsoft.azure.kusto.ingest.result.IngestionResult;
+import com.microsoft.azure.kusto.ingest.result.IngestionStatus;
+import com.microsoft.azure.kusto.ingest.result.IngestionStatusResult;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
-
 import com.microsoft.azure.storage.StorageException;
+import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
@@ -18,7 +20,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,20 +46,19 @@ class TopicPartitionWriter {
     private final String basePath;
     private final long flushInterval;
     private final long fileThreshold;
-    FileWriter fileWriter;
-    long currentOffset;
-    Long lastCommittedOffset;
-    private ReentrantReadWriteLock reentrantReadWriteLock;
     private final long maxRetryAttempts;
     private final long retryBackOffTime;
     private final boolean isDlqEnabled;
     private final String dlqTopicName;
     private final Producer<byte[], byte[]> dlqProducer;
     private final BehaviorOnError behaviorOnError;
+    FileWriter fileWriter;
+    long currentOffset;
+    Long lastCommittedOffset;
+    private ReentrantReadWriteLock reentrantReadWriteLock;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-        KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer)
-    {
+            KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -75,17 +75,21 @@ class TopicPartitionWriter {
         this.dlqProducer = dlqProducer;
     }
 
+    static String getTempDirectoryName(String tempDirPath) {
+        String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
+        Path path = Paths.get(tempDirPath, tempDir);
+
+        return path.toString();
+    }
+
     public void handleRollFile(SourceFile fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
         /*
-         * Since retries can be for a longer duration the Kafka Consumer may leave the group.
-         * This will result in a new Consumer reading records from the last committed offset
-         * leading to duplication of records in KustoDB. Also, if the error persists, it might also
-         * result in duplicate records being written into DLQ topic.
-         * Recommendation is to set the following worker configuration as `connector.client.config.override.policy=All`
-         * and set the `consumer.override.max.poll.interval.ms` config to a high enough value to
-         * avoid consumer leaving the group while the Connector is retrying.
+         * Since retries can be for a longer duration the Kafka Consumer may leave the group. This will result in a new Consumer reading records from the last
+         * committed offset leading to duplication of records in KustoDB. Also, if the error persists, it might also result in duplicate records being written
+         * into DLQ topic. Recommendation is to set the following worker configuration as `connector.client.config.override.policy=All` and set the
+         * `consumer.override.max.poll.interval.ms` config to a high enough value to avoid consumer leaving the group while the Connector is retrying.
          */
         for (int retryAttempts = 0; true; retryAttempts++) {
             try {
@@ -94,19 +98,20 @@ class TopicPartitionWriter {
                     // If IngestionStatusResult returned then the ingestion status is from streaming ingest
                     IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
                     if (!hasStreamingSucceeded(ingestionStatus)) {
-                       retryAttempts += ManagedStreamingIngestClient.ATTEMPT_COUNT;
-                       backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
-                       continue;
+                        retryAttempts += ManagedStreamingIngestClient.ATTEMPT_COUNT;
+                        backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
+                        continue;
                     }
                 }
-                log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes, currentOffset));
+                log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes,
+                        currentOffset));
                 this.lastCommittedOffset = currentOffset;
                 return;
             } catch (IngestionServiceException | StorageException exception) {
-                if (ingestionProps.streaming && exception instanceof IngestionServiceException){
+                if (ingestionProps.streaming && exception instanceof IngestionServiceException) {
                     Throwable innerException = exception.getCause();
                     if (innerException instanceof KustoDataExceptionBase &&
-                            ((KustoDataExceptionBase) innerException).isPermanent()){
+                            ((KustoDataExceptionBase) innerException).isPermanent()) {
                         throw new ConnectException(exception);
                     }
                 }
@@ -120,7 +125,7 @@ class TopicPartitionWriter {
     }
 
     private boolean hasStreamingSucceeded(IngestionStatus status) throws URISyntaxException, StorageException {
-        switch (status.status){
+        switch (status.status) {
             case Succeeded:
             case Queued:
             case Pending:
@@ -159,7 +164,8 @@ class TopicPartitionWriter {
                     log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
-                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts+1), exce);
+                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts + 1),
+                        exce);
             }
         } else {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
@@ -172,23 +178,23 @@ class TopicPartitionWriter {
 
     public void sendFailedRecordToDlq(SinkRecord record) {
         byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
-            + "topic=%s, partition=%s, offset=%s.",
-            record.topic(),
-            record.kafkaPartition(),
-            record.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
+                + "topic=%s, partition=%s, offset=%s.",
+                record.topic(),
+                record.kafkaPartition(),
+                record.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
         byte[] recordValue = record.value().toString().getBytes(StandardCharsets.UTF_8);
         ProducerRecord<byte[], byte[]> dlqRecord = new ProducerRecord<>(dlqTopicName, recordKey, recordValue);
         try {
             dlqProducer.send(dlqRecord, (recordMetadata, exception) -> {
-                  if (exception != null) {
-                      throw new KafkaException(
-                          String.format("Failed to write records to miscellaneous dead-letter queue topic=%s.", dlqTopicName),
-                          exception);
-                  }
-              });
+                if (exception != null) {
+                    throw new KafkaException(
+                            String.format("Failed to write records to miscellaneous dead-letter queue topic=%s.", dlqTopicName),
+                            exception);
+                }
+            });
         } catch (IllegalStateException e) {
             log.error("Failed to write records to miscellaneous dead-letter queue topic, "
-                + "kafka producer has already been closed. Exception={}", e);
+                    + "kafka producer has already been closed. Exception={}", e);
         }
     }
 
@@ -197,18 +203,19 @@ class TopicPartitionWriter {
         offset = offset == null ? currentOffset : offset;
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? offset + 1 : offset;
 
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset, ingestionProps.ingestionProperties.getDataFormat(), COMPRESSION_EXTENSION)).toString();
+        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset,
+                ingestionProps.ingestionProperties.getDataFormat(), COMPRESSION_EXTENSION)).toString();
     }
 
     void writeRecord(SinkRecord record) throws ConnectException {
-      if (record != null) {
-        try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.readLock())) {
-          this.currentOffset = record.kafkaOffset();
-          fileWriter.writeData(record);
-        } catch (IOException | DataException ex) {
-          handleErrors(record, ex);
+        if (record != null) {
+            try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.readLock())) {
+                this.currentOffset = record.kafkaOffset();
+                fileWriter.writeData(record);
+            } catch (IOException | DataException ex) {
+                handleErrors(record, ex);
+            }
         }
-      }
     }
 
     private void handleErrors(SinkRecord record, Exception ex) {
@@ -234,8 +241,7 @@ class TopicPartitionWriter {
                 reentrantReadWriteLock,
                 ingestionProps.ingestionProperties.getDataFormat(),
                 behaviorOnError,
-                isDlqEnabled
-            );
+                isDlqEnabled);
     }
 
     void close() {
@@ -261,12 +267,5 @@ class TopicPartitionWriter {
 
     void stop() {
         fileWriter.stop();
-    }
-
-    static String getTempDirectoryName(String tempDirPath) {
-        String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
-        Path path = Paths.get(tempDirPath, tempDir);
-
-        return path.toString();
     }
 }
