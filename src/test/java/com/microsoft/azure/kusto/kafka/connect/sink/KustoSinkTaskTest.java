@@ -235,6 +235,7 @@ public class KustoSinkTaskTest {
     public void testValidateTableMappingsConnectError(){
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
+        configs.put(KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION, "true");
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
         doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
