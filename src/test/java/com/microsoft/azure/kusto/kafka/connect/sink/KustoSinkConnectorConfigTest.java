@@ -7,7 +7,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
+
+import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
 
 public class KustoSinkConnectorConfigTest {
     private static final String DM_URL = "https://ingest-cluster_name.kusto.windows.net";
@@ -98,6 +101,22 @@ public class KustoSinkConnectorConfigTest {
 
         Assertions.assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
         Assertions.assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
+    }
+
+    @Test
+    public void shouldPerformTableValidationByDefault() {
+        KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
+        Assertions.assertTrue(config.getEnableTableValidation());
+    }
+
+    @Test
+    public void shouldPerformTableValidationBasedOnParameter() {
+        Arrays.asList(Boolean.valueOf("true"),Boolean.valueOf("false")).forEach(enableValidation->{
+            HashMap<String, String> settings = setupConfigs();
+            settings.put(KUSTO_SINK_ENABLE_TABLE_VALIDATION,enableValidation.toString());
+            KustoSinkConfig config = new KustoSinkConfig(settings);
+            Assertions.assertEquals(enableValidation,config.getEnableTableValidation());
+        });
     }
 
     public static HashMap<String, String> setupConfigs() {
