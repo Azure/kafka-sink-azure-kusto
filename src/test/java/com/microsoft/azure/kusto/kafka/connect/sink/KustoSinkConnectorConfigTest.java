@@ -111,19 +111,29 @@ public class KustoSinkConnectorConfigTest {
 
     @Test
     public void shouldPerformTableValidationBasedOnParameter() {
-        Arrays.asList(Boolean.valueOf("true"),Boolean.valueOf("false")).forEach(enableValidation->{
+        Arrays.asList(Boolean.valueOf("true"), Boolean.valueOf("false")).forEach(enableValidation -> {
             HashMap<String, String> settings = setupConfigs();
-            settings.put(KUSTO_SINK_ENABLE_TABLE_VALIDATION,enableValidation.toString());
+            settings.put(KUSTO_SINK_ENABLE_TABLE_VALIDATION, enableValidation.toString());
             KustoSinkConfig config = new KustoSinkConfig(settings);
-            Assertions.assertEquals(enableValidation,config.getEnableTableValidation());
+            Assertions.assertEquals(enableValidation, config.getEnableTableValidation());
         });
+    }
+
+    @Test
+    public void shouldAllowNoPasswordIfManagedIdentityEnabled() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.remove(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF);
+        settings.put(KustoSinkConfig.KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_CONF, "true");
+        KustoSinkConfig config = new KustoSinkConfig(settings);
+        Assertions.assertNotNull(config);
     }
 
     public static HashMap<String, String> setupConfigs() {
         HashMap<String, String> configs = new HashMap<>();
         configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, DM_URL);
         configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URL);
-        configs.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
+        configs.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
         configs.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
         configs.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
         configs.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");

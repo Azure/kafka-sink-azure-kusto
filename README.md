@@ -146,7 +146,7 @@ Therefore the connector supports "At least once" delivery guarantees.
 
 - As with all Kafka Connect connectors, parallelism comes through the setting of connector tasks count, a sink property
 
-### 3.15. Authentication & Authroization to Azure Data Explorer
+### 3.15. Authentication & Authorization to Azure Data Explorer
 
 - Azure Data Explorer supports Azure Active Directory authentication. For the Kusto Kafka connector, we need an Azure
   Active Directory Service Principal created and "admin" permissions granted to the Azure Data Explorer database.
@@ -275,74 +275,75 @@ ENV CONNECT_SASL_JAAS_CONFIG="com.sun.security.auth.module.Krb5LoginModule requi
 The following is complete set of connector sink properties-
 
 | # | Property | Purpose | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 
-| :--- | :--- | :--- |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| 
+| :-- | :--- | :--- |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| 
 | 1 | connector.class | Classname of the Kusto sink | Hard code to ``` com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector ```<br>*
-Required*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+Required*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 2 | topics | Kafka topic specification | List of topics separated by commas<br>*Required*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 3 | kusto.ingestion.url | Kusto ingestion endpoint URL | Provide the ingest URL of your ADX cluster<br>Use the following construct for the private URL - https://ingest-private-[cluster].kusto.windows.net<br>*
-Required*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+Required*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 4 | kusto.query.url | Kusto query endpoint URL | Provide the engine URL of your ADX cluster<br>*Optional*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 5 | aad.auth.authority | Credentials for Kusto | Provide the tenant ID of your Azure Active Directory<br>*Required*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 6 | aad.auth.appid | Credentials for Kusto  | Provide Azure Active Directory Service Principal Name<br>*Required*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 7 | aad.auth.appkey | Credentials for Kusto  | Provide Azure Active Directory Service Principal secret<br>*
-Required*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| 8 | kusto.tables.topics.mapping | Mapping of topics to tables  | Provide 1..many topic-table comma-separated mappings as follows-<br>[{'topic': '\<topicName1\>','db': '\<datebaseName\>', 'table': '\<tableName1\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName1\>','streaming':'false'},{'topic': '\<topicName2\>','db': '\<datebaseName\>', 'table': '\<tableName2\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName2\>','streaming':'false'}]<br>*
+Required if managed identity is disabled*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 8 | aad.auth.managedidentity.enabled | Credentials for Kusto | Enable authentication using Managed Identities against Azure Active Directory<br>*Optional, disabled by default*  |
+| 9 | kusto.tables.topics.mapping | Mapping of topics to tables  | Provide 1..many topic-table comma-separated mappings as follows-<br>[{'topic': '\<topicName1\>','db': '\<datebaseName\>', 'table': '\<tableName1\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName1\>','streaming':'false'},{'topic': '\<topicName2\>','db': '\<datebaseName\>', 'table': '\<tableName2\>','format': '<format-e.g.avro/csv/json>', 'mapping':'\<tableMappingName2\>','streaming':'false'}]<br>*
 Required* <br> Note : The attribute mapping (Ex:'mapping':''tableMappingName1') is an optional attribute. During ingestion, Azure Data Explorer automatically maps column according to the ingestion format |
-| 9 | key.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*
-Required*  |
-| 10 | value.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*
-Required*  |
-| 11 | value.converter.schema.registry.url | Schema validation | URI of the Kafka schema registry<br>*Optional*  |
-| 12 | value.converter.schemas.enable | Schema validation | Set to true if you have embedded schema with payload but are not leveraging the schema registry<br>Applicable for avro and json<br><br>*
-Optional*  |
-| 13 | tasks.max | connector parallelism | Specify the number of connector copy/sink tasks<br>*Required*  |
-| 14 | flush.size.bytes | Performance knob for batching | Maximum bufer byte size per topic+partition combination that in combination with flush.interval.ms (whichever is reached first) should result in sinking to Kusto<br>*
-Default - 1 MB*<br>*Required*  |
-| 15 | flush.interval.ms | Performance knob for batching | Minimum time interval per topic+partition combo that in combination with flush.size.bytes (whichever is reached first) should result in sinking to Kusto<br>*
-Default - 30 seconds*<br>*Required*  |
-| 16 | tempdir.path | Local directory path on Kafka Connect worker to buffer files to before shipping to Kusto | Default is value returned by ```System.getProperty("java.io.tmpdir")``` with a GUID attached to it<br><br>*
-Optional*  |
-| 17 | behavior.on.error | Configurable behavior in response to errors encountered | Possible values - log, ignore, fail<br><br>log - log the error, send record to dead letter queue, and continue processing<br>ignore - log the error, send record to dead letter queue, proceed with processing despite errors encountered<br>fail - shut down connector task upon encountering<br><br>*
-Default - fail*<br>*Optional*  |
-| 18 | errors.retry.max.time.ms | Configurable retries for transient errors | Period of time in milliseconds to retry for transient errors<br><br>*
-Default - 300 ms*<br>*Optional*  |
-| 19 | errors.retry.backoff.time.ms | Configurable retries for transient errors | Period of time in milliseconds to backoff before retry for transient errors<br><br>*
-Default - 10 ms*<br>*Optional*  |
-| 20 | errors.deadletterqueue.bootstrap.servers | Channel to write records that failed deserialization | CSV or kafkaBroker:port <br>*
-Optional*  |
-| 21 | errors.deadletterqueue.topic.name | Channel to write records that failed deserialization | Pre-created topic name <br>*
-Optional*  |
-| 22 | errors.deadletterqueue.security.protocol | Channel to write records that failed deserialization  | Securitry protocol of secure Kafka cluster <br>*
-Optional but when feature is used with secure cluster, is required*  |
-| 23 | errors.deadletterqueue.sasl.mechanism | Channel to write records that failed deserialization | SASL mechanism of secure Kafka cluster<br>*
-Optional but when feature is used with secure cluster, is required*  |
-| 24 | errors.deadletterqueue.sasl.jaas.config | Channel to write records that failed deserialization | JAAS config of secure Kafka cluster<br>*
-Optional but when feature is used with secure cluster, is required*  |
-| 25 | misc.deadletterqueue.bootstrap.servers | Channel to write records that due to reasons other than deserialization | CSV of kafkaBroker:port <br>*
-Optional*  |
-| 26 | misc.deadletterqueue.topic.name | Channel to write records that due to reasons other than deserialization | Pre-created topic name <br>*
-Optional*  |
-| 27 | misc.deadletterqueue.security.protocol | Channel to write records that due to reasons other than deserialization  | Securitry protocol of secure Kafka cluster <br>*
-Optional but when feature is used with secure cluster, is required*  |
-| 28 | misc.deadletterqueue.sasl.mechanism | Channel to write records that due to reasons other than deserialization | SASL mechanism of secure Kafka cluster<br>*
-Optional but when feature is used with secure cluster, is required*  |
-| 29 | misc.deadletterqueue.sasl.jaas.config | Channel to write records that due to reasons other than deserialization | JAAS config of secure Kafka cluster<br>*
-Optional but when feature is used with secure cluster, is required*  |
-| 30 | consumer.override.bootstrap.servers | Security details explicitly required for secure Kafka clusters  | Bootstrap server:port CSV of secure Kafka cluster <br>*
-Required for secure Kafka clusters*  |
-| 31 | consumer.override.security.protocol | Security details explicitly required for secure Kafka clusters  | Security protocol of secure Kafka cluster <br>*
-Required for secure Kafka clusters*  |
-| 32 | consumer.override.sasl.mechanism | Security details explicitly required for secure Kafka clusters | SASL mechanism of secure Kafka cluster<br>*
-Required for secure Kafka clusters*  |
-| 33 | consumer.override.sasl.jaas.config | Security details explicitly required for secure Kafka clusters | JAAS config of secure Kafka cluster<br>*
-Required for secure Kafka clusters*  |
-| 34 | consumer.override.sasl.kerberos.service.name | Security details explicitly required for secure Kafka clusters, specifically kerberized Kafka | Kerberos service name of kerberized Kafka cluster<br>*
-Required for kerberized Kafka clusters*  |
-| 35 | consumer.override.auto.offset.reset | Configurable consuming from offset | Possible values are - earliest or latest<br>*
-Optional*  |
-| 36 | consumer.override.max.poll.interval.ms| Config to prevent duplication | Set to a value to avoid consumer leaving the group while the Connector is retrying <br>*
-Optional*  |
-| 37 | kusto.validation.table.enable| Validation config to verify the target table exists & the role of user has ingestion privileges | If true , validates existence of table & the princpal has ingestor role. Defaults to true , has to be explicitly set to false to disable this check (future release will make this opt-in as opposed to opt-out)   <br>*Optional*                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 10 | key.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*
+Required* |
+| 11 | value.converter | Deserialization | One of the below supported-<br>org.apache.kafka.connect.storage.StringConverter<br> org.apache.kafka.connect.json.JsonConverter<br>io.confluent.connect.avro.AvroConverter<br>io.confluent.connect.json.JsonSchemaConverter<br> org.apache.kafka.connect.converters.ByteArrayConverter<br><br>*
+Required* |
+| 12 | value.converter.schema.registry.url | Schema validation | URI of the Kafka schema registry<br>*Optional*  |
+| 13 | value.converter.schemas.enable | Schema validation | Set to true if you have embedded schema with payload but are not leveraging the schema registry<br>Applicable for avro and json<br><br>*
+Optional* |
+| 14 | tasks.max | connector parallelism | Specify the number of connector copy/sink tasks<br>*Required*  |
+| 15 | flush.size.bytes | Performance knob for batching | Maximum bufer byte size per topic+partition combination that in combination with flush.interval.ms (whichever is reached first) should result in sinking to Kusto<br>*
+Default - 1 MB*<br>*Required* |
+| 16 | flush.interval.ms | Performance knob for batching | Minimum time interval per topic+partition combo that in combination with flush.size.bytes (whichever is reached first) should result in sinking to Kusto<br>*
+Default - 30 seconds*<br>*Required* |
+| 17 | tempdir.path | Local directory path on Kafka Connect worker to buffer files to before shipping to Kusto | Default is value returned by ```System.getProperty("java.io.tmpdir")``` with a GUID attached to it<br><br>*
+Optional* |
+| 18 | behavior.on.error | Configurable behavior in response to errors encountered | Possible values - log, ignore, fail<br><br>log - log the error, send record to dead letter queue, and continue processing<br>ignore - log the error, send record to dead letter queue, proceed with processing despite errors encountered<br>fail - shut down connector task upon encountering<br><br>*
+Default - fail*<br>*Optional* |
+| 19 | errors.retry.max.time.ms | Configurable retries for transient errors | Period of time in milliseconds to retry for transient errors<br><br>*
+Default - 300 ms*<br>*Optional* |
+| 20 | errors.retry.backoff.time.ms | Configurable retries for transient errors | Period of time in milliseconds to backoff before retry for transient errors<br><br>*
+Default - 10 ms*<br>*Optional* |
+| 21 | errors.deadletterqueue.bootstrap.servers | Channel to write records that failed deserialization | CSV or kafkaBroker:port <br>*
+Optional* |
+| 22 | errors.deadletterqueue.topic.name | Channel to write records that failed deserialization | Pre-created topic name <br>*
+Optional* |
+| 23 | errors.deadletterqueue.security.protocol | Channel to write records that failed deserialization  | Securitry protocol of secure Kafka cluster <br>*
+Optional but when feature is used with secure cluster, is required* |
+| 24 | errors.deadletterqueue.sasl.mechanism | Channel to write records that failed deserialization | SASL mechanism of secure Kafka cluster<br>*
+Optional but when feature is used with secure cluster, is required* |
+| 25 | errors.deadletterqueue.sasl.jaas.config | Channel to write records that failed deserialization | JAAS config of secure Kafka cluster<br>*
+Optional but when feature is used with secure cluster, is required* |
+| 26 | misc.deadletterqueue.bootstrap.servers | Channel to write records that due to reasons other than deserialization | CSV of kafkaBroker:port <br>*
+Optional* |
+| 27 | misc.deadletterqueue.topic.name | Channel to write records that due to reasons other than deserialization | Pre-created topic name <br>*
+Optional* |
+| 28 | misc.deadletterqueue.security.protocol | Channel to write records that due to reasons other than deserialization  | Securitry protocol of secure Kafka cluster <br>*
+Optional but when feature is used with secure cluster, is required* |
+| 29 | misc.deadletterqueue.sasl.mechanism | Channel to write records that due to reasons other than deserialization | SASL mechanism of secure Kafka cluster<br>*
+Optional but when feature is used with secure cluster, is required* |
+| 30 | misc.deadletterqueue.sasl.jaas.config | Channel to write records that due to reasons other than deserialization | JAAS config of secure Kafka cluster<br>*
+Optional but when feature is used with secure cluster, is required* |
+| 31 | consumer.override.bootstrap.servers | Security details explicitly required for secure Kafka clusters  | Bootstrap server:port CSV of secure Kafka cluster <br>*
+Required for secure Kafka clusters* |
+| 32 | consumer.override.security.protocol | Security details explicitly required for secure Kafka clusters  | Security protocol of secure Kafka cluster <br>*
+Required for secure Kafka clusters* |
+| 33 | consumer.override.sasl.mechanism | Security details explicitly required for secure Kafka clusters | SASL mechanism of secure Kafka cluster<br>*
+Required for secure Kafka clusters* |
+| 34 | consumer.override.sasl.jaas.config | Security details explicitly required for secure Kafka clusters | JAAS config of secure Kafka cluster<br>*
+Required for secure Kafka clusters* |
+| 35 | consumer.override.sasl.kerberos.service.name | Security details explicitly required for secure Kafka clusters, specifically kerberized Kafka | Kerberos service name of kerberized Kafka cluster<br>*
+Required for kerberized Kafka clusters* |
+| 36 | consumer.override.auto.offset.reset | Configurable consuming from offset | Possible values are - earliest or latest<br>*
+Optional* |
+| 37 | consumer.override.max.poll.interval.ms| Config to prevent duplication | Set to a value to avoid consumer leaving the group while the Connector is retrying <br>*
+Optional* |
+| 38 | kusto.validation.table.enable| Validation config to verify the target table exists & the role of user has ingestion privileges | If true , validates existence of table & the princpal has ingestor role. Defaults to true , has to be explicitly set to false to disable this check (future release will make this opt-in as opposed to opt-out)   <br>*Optional*                                                                                                                                                                                                                                                                                                                                                                                                                 |
 <hr>
 
 ## 6. Streaming ingestion
@@ -704,6 +705,8 @@ the [Release History](README.md#16-release-history) section of this document.
 | 3.0.2           | 2022-07-20   | <ul><li>New feature: Changes to support protobuf data ingestion</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | 3.0.3           | 2022-08-09   | <ul><li>Bug fix: Library upgrade to fix CVE-2020-36518 Out-of-bounds Write</li></ul>
 | 3.0.4           | 2022-09-05   | <ul><li>New feature: Make mapping optional , fixes Issue#76</li><li>New feature: Make table validation optional when the connector starts up (Refer: kusto.validation.table.enable)</li><li>Bug fix: Stop collecting messages when DLQ is not enabled. Provides better scaling & reduces GC pressure</li></ul>
+| 3.0.5           | 2022-09-07   | <ul><li>New feature: Support authentication with Managed Identities</li></ul>
+
 ## 17. Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a
