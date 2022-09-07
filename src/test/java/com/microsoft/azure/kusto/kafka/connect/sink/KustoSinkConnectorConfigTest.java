@@ -16,6 +16,18 @@ public class KustoSinkConnectorConfigTest {
     private static final String DM_URL = "https://ingest-cluster_name.kusto.windows.net";
     private static final String ENGINE_URL = "https://cluster_name.kusto.windows.net";
 
+    public static HashMap<String, String> setupConfigs() {
+        HashMap<String, String> configs = new HashMap<>();
+        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, DM_URL);
+        configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URL);
+        configs.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+        return configs;
+    }
+
     @Test
     public void shouldAcceptValidConfig() {
         // Adding required Configuration with no default value.

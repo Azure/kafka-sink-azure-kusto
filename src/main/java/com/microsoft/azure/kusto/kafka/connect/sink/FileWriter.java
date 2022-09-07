@@ -1,8 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Function;
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
@@ -17,13 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
-import java.io.FilterOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -39,11 +33,11 @@ import java.util.zip.GZIPOutputStream;
 public class FileWriter implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
-
+    private final long flushInterval;
+    private final IngestionProperties.DataFormat format;
     SourceFile currentFile;
     private Timer timer;
     private Consumer<SourceFile> onRollCallback;
-    private final long flushInterval;
     private Function<Long, String> getFilePath;
     private OutputStream outputStream;
     private String basePath;
@@ -56,28 +50,27 @@ public class FileWriter implements Closeable {
     private String flushError;
     private RecordWriterProvider recordWriterProvider;
     private RecordWriter recordWriter;
-    private final IngestionProperties.DataFormat format;
     private BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
     private boolean stopped = false;
     private boolean isDlqEnabled = false;
 
     /**
-     * @param basePath       - This is path to which to write the files to.
-     * @param fileThreshold  - Max size, uncompressed bytes.
-     * @param onRollCallback - Callback to allow code to execute when rolling a file. Blocking code.
-     * @param getFilePath    - Allow external resolving of file name.
+     * @param basePath        - This is path to which to write the files to.
+     * @param fileThreshold   - Max size, uncompressed bytes.
+     * @param onRollCallback  - Callback to allow code to execute when rolling a file. Blocking code.
+     * @param getFilePath     - Allow external resolving of file name.
      * @param behaviorOnError - Either log, fail or ignore errors based on the mode.
      */
     public FileWriter(String basePath,
-                      long fileThreshold,
-                      Consumer<SourceFile> onRollCallback,
-                      Function<Long, String> getFilePath,
-                      long flushInterval,
-                      ReentrantReadWriteLock reentrantLock,
-                      IngestionProperties.DataFormat format,
-                      BehaviorOnError behaviorOnError,
-                      boolean isDlqEnabled) {
+            long fileThreshold,
+            Consumer<SourceFile> onRollCallback,
+            Function<Long, String> getFilePath,
+            long flushInterval,
+            ReentrantReadWriteLock reentrantLock,
+            IngestionProperties.DataFormat format,
+            BehaviorOnError behaviorOnError,
+            boolean isDlqEnabled) {
         this.getFilePath = getFilePath;
         this.basePath = basePath;
         this.fileThreshold = fileThreshold;
@@ -142,17 +135,15 @@ public class FileWriter implements Closeable {
             }
             try {
                 onRollCallback.accept(currentFile);
-              } catch (ConnectException e) {
+            } catch (ConnectException e) {
                 /*
-                 * Swallow the exception and continue to process subsequent records
-                 * when behavior.on.error is not set to fail mode.
+                 * Swallow the exception and continue to process subsequent records when behavior.on.error is not set to fail mode.
                  *
-                 * Also, throwing/logging the exception with just a message to
-                 * avoid polluting logs with duplicate trace.
+                 * Also, throwing/logging the exception with just a message to avoid polluting logs with duplicate trace.
                  */
                 handleErrors("Failed to write records to KustoDB.", e);
             }
-            if (delete){
+            if (delete) {
                 dumpFile();
             }
         } else {
@@ -233,7 +224,7 @@ public class FileWriter implements Closeable {
 
     void flushByTimeImpl() {
         // Flush time interval gets the write lock so that it won't starve
-        try(AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.writeLock())) {
+        try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.writeLock())) {
             if (stopped) {
                 return;
             }
@@ -256,7 +247,8 @@ public class FileWriter implements Closeable {
         if (flushError != null) {
             throw new ConnectException(flushError);
         }
-        if (record == null) return;
+        if (record == null)
+            return;
         if (recordWriterProvider == null) {
             initializeRecordWriter(record);
         }
@@ -266,7 +258,7 @@ public class FileWriter implements Closeable {
             resetFlushTimer(true);
         }
         recordWriter.write(record);
-        if(this.isDlqEnabled) {
+        if (this.isDlqEnabled) {
             currentFile.records.add(record);
         }
         currentFile.rawBytes = countingStream.numBytes;
@@ -280,28 +272,27 @@ public class FileWriter implements Closeable {
     public void initializeRecordWriter(SinkRecord record) {
         if (record.value() instanceof Map) {
             recordWriterProvider = new JsonRecordWriterProvider();
-        }
-        else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
+        } else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
             if (format.equals(IngestionProperties.DataFormat.JSON) || format.equals(IngestionProperties.DataFormat.MULTIJSON)) {
                 recordWriterProvider = new JsonRecordWriterProvider();
-            } else if(format.equals(IngestionProperties.DataFormat.AVRO)) {
+            } else if (format.equals(IngestionProperties.DataFormat.AVRO)) {
                 recordWriterProvider = new AvroRecordWriterProvider();
             } else {
                 throw new ConnectException(String.format("Invalid Kusto table mapping, Kafka records of type "
-                   + "Avro and JSON can only be ingested to Kusto table having Avro or JSON mapping. "
-                   + "Currently, it is of type %s.", format));
+                        + "Avro and JSON can only be ingested to Kusto table having Avro or JSON mapping. "
+                        + "Currently, it is of type %s.", format));
             }
-        }
-        else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)){
+        } else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)) {
             recordWriterProvider = new StringRecordWriterProvider();
-        }
-        else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.BYTES)){
+        } else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.BYTES)) {
             recordWriterProvider = new ByteRecordWriterProvider();
-            if(format.equals(IngestionProperties.DataFormat.AVRO)) {
+            if (format.equals(IngestionProperties.DataFormat.AVRO)) {
                 shouldWriteAvroAsBytes = true;
             }
         } else {
-            throw new ConnectException(String.format("Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ",record.valueSchema().type()));
+            throw new ConnectException(String.format(
+                    "Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ",
+                    record.valueSchema().type()));
         }
     }
 
@@ -337,5 +328,3 @@ public class FileWriter implements Closeable {
         }
     }
 }
-
-

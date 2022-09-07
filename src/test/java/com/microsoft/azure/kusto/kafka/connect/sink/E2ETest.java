@@ -15,7 +15,10 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -38,6 +41,7 @@ public class E2ETest {
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> kafkaProducer;
+
     @BeforeEach
     public void setUp() {
         Properties properties = new Properties();
@@ -54,8 +58,8 @@ public class E2ETest {
         String dataFormat = "csv";
         IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.CSV;
         String mapping = "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"transform\":\"SourceLocation\"}}," +
-                         "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Ordinal\":\"1\"}},";
-        String[] messages = new String[]{"first field a,11", "first field b,22"};
+                "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Ordinal\":\"1\"}},";
+        String[] messages = new String[] {"first field a,11", "first field b,22"};
         List<byte[]> messagesBytes = new ArrayList<>();
         messagesBytes.add(messages[0].getBytes());
         messagesBytes.add(messages[1].getBytes());
@@ -71,8 +75,8 @@ public class E2ETest {
         String dataFormat = "json";
         IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.JSON;
         String mapping = "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"Path\":\"$.ColA\"}}," +
-                         "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Path\":\"$.ColB\"}},";
-        String[] messages = new String[]{"{'ColA': 'first field a', 'ColB': '11'}", "{'ColA': 'first field b', 'ColB': '22'}"};
+                "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Path\":\"$.ColB\"}},";
+        String[] messages = new String[] {"{'ColA': 'first field a', 'ColB': '11'}", "{'ColA': 'first field b', 'ColB': '22'}"};
         List<byte[]> messagesBytes = new ArrayList<>();
         messagesBytes.add(messages[0].getBytes());
         messagesBytes.add(messages[1].getBytes());
@@ -88,7 +92,7 @@ public class E2ETest {
         String dataFormat = "avro";
         IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.AVRO;
         String mapping = "{\"column\": \"ColA\", \"Properties\":{\"Field\":\"XText\"}}," +
-                         "{\"column\": \"ColB\", \"Properties\":{\"Field\":\"RowNumber\"}}";
+                "{\"column\": \"ColB\", \"Properties\":{\"Field\":\"RowNumber\"}}";
         byte[] message = new byte[1184];
         try {
             FileInputStream fs = new FileInputStream("src/test/resources/data.avro");
@@ -108,17 +112,18 @@ public class E2ETest {
     }
 
     private boolean executeTest(String dataFormat, IngestionMapping.IngestionMappingKind ingestionMappingKind, String mapping,
-                                List<byte[]> messagesBytes, long flushInterval, boolean streaming)
+            List<byte[]> messagesBytes, long flushInterval, boolean streaming)
             throws URISyntaxException, DataServiceException, DataClientException {
         String table = tableBaseName + dataFormat;
         String mappingReference = dataFormat + "Mapping";
-        ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net/", cluster), appId, appKey, authority);
+        ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://%s.kusto.windows.net/", cluster),
+                appId, appKey, authority);
         Client engineClient = ClientFactory.createClient(engineCsb);
 
         try {
             if (tableBaseName.startsWith(testPrefix)) {
                 engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
-                if (streaming){
+                if (streaming) {
                     engineClient.execute(database, ".clear database cache streamingingestion schema");
                 }
             }
@@ -126,8 +131,9 @@ public class E2ETest {
                     "'[" + mapping + "]'", table, dataFormat, mappingReference));
 
             TopicPartition tp = new TopicPartition("testPartition" + dataFormat, 11);
-            ConnectionStringBuilder csb = ConnectionStringBuilder.createWithAadApplicationCredentials(String.format("https://ingest-%s.kusto.windows.net", cluster), appId, appKey, authority);
-            IngestClient ingestClient = IngestClientFactory.createManagedStreamingIngestClient(csb,engineCsb);
+            ConnectionStringBuilder csb = ConnectionStringBuilder
+                    .createWithAadApplicationCredentials(String.format("https://ingest-%s.kusto.windows.net", cluster), appId, appKey, authority);
+            IngestClient ingestClient = IngestClientFactory.createManagedStreamingIngestClient(csb, engineCsb);
             IngestionProperties ingestionProperties = new IngestionProperties(database, table);
 
             long fileThreshold = 100;
@@ -146,7 +152,11 @@ public class E2ETest {
             writer.open();
             KustoSinkTask kustoSinkTask = new KustoSinkTask();
             kustoSinkTask.start(settings);
-            kustoSinkTask.open(new ArrayList<TopicPartition>(){ {add(tp);}});
+            kustoSinkTask.open(new ArrayList<TopicPartition>() {
+                {
+                    add(tp);
+                }
+            });
             List<SinkRecord> records = new ArrayList<>();
             for (byte[] messageBytes : messagesBytes) {
                 records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, messageBytes, 10));
@@ -168,7 +178,8 @@ public class E2ETest {
         return true;
     }
 
-    private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table, int timeoutMs) throws InterruptedException, DataClientException, DataServiceException {
+    private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table, int timeoutMs)
+            throws InterruptedException, DataClientException, DataServiceException {
         String query = String.format("%s | count", table);
 
         KustoResultSetTable res = engineClient.execute(database, query).getPrimaryResults();
@@ -189,8 +200,8 @@ public class E2ETest {
     }
 
     private Map<String, String> getKustoConfigs(String clusterUrl, String engineUrl, String basePath, String tableMapping,
-                                                long fileThreshold, long flushInterval, TopicPartition topic, String format,
-                                                String table, boolean streaming) {
+            long fileThreshold, long flushInterval, TopicPartition topic, String format,
+            String table, boolean streaming) {
         Map<String, String> settings = new HashMap<>();
         settings.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, clusterUrl);
         settings.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, engineUrl);
