@@ -279,7 +279,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 .define(
                         KUSTO_SINK_ENABLE_TABLE_VALIDATION,
                         Type.BOOLEAN,
-                        Boolean.FALSE,
+                        Boolean.TRUE,
                         Importance.LOW,
                         KUSTO_SINK_ENABLE_TABLE_VALIDATION_DOC,
                         connectionGroupName,

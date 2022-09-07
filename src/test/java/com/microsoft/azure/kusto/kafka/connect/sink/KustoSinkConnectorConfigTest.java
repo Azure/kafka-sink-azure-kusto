@@ -7,7 +7,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
+
+import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
 
 public class KustoSinkConnectorConfigTest {
     private static final String DM_URL = "https://ingest-cluster_name.kusto.windows.net";
@@ -110,5 +113,32 @@ public class KustoSinkConnectorConfigTest {
 
         Assertions.assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
         Assertions.assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
+    }
+
+    @Test
+    public void shouldPerformTableValidationByDefault() {
+        KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
+        Assertions.assertTrue(config.getEnableTableValidation());
+    }
+
+    @Test
+    public void shouldPerformTableValidationBasedOnParameter() {
+        Arrays.asList(Boolean.valueOf("true"),Boolean.valueOf("false")).forEach(enableValidation->{
+            HashMap<String, String> settings = setupConfigs();
+            settings.put(KUSTO_SINK_ENABLE_TABLE_VALIDATION,enableValidation.toString());
+            KustoSinkConfig config = new KustoSinkConfig(settings);
+            Assertions.assertEquals(enableValidation,config.getEnableTableValidation());
+        });
+    }
+
+    public static HashMap<String, String> setupConfigs() {
+        HashMap<String, String> configs = new HashMap<>();
+        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, DM_URL);
+        configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, ENGINE_URL);
+        configs.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF, "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': 'topic2','db': 'db2', 'table': 'table2','format': 'json','mapping': 'Mapping'}]");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_APPID_CONF, "some-appid");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF, "some-appkey");
+        configs.put(KustoSinkConfig.KUSTO_AUTH_AUTHORITY_CONF, "some-authority");
+        return configs;
     }
 }
