@@ -123,7 +123,7 @@ public class KustoSinkConnectorConfigTest {
     public void shouldAllowNoPasswordIfManagedIdentityEnabled() {
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF);
-        settings.put(KustoSinkConfig.KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_CONF, "true");
+        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF, KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase());
         KustoSinkConfig config = new KustoSinkConfig(settings);
         Assertions.assertNotNull(config);
     }

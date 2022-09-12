@@ -24,7 +24,7 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_AUTH_APPID_CONF = "aad.auth.appid";
     static final String KUSTO_AUTH_APPKEY_CONF = "aad.auth.appkey";
     static final String KUSTO_AUTH_AUTHORITY_CONF = "aad.auth.authority";
-    static final String KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_CONF = "aad.auth.managedidentity.enabled";
+    static final String KUSTO_AUTH_STRATEGY_CONF = "aad.auth.strategy";
     static final String KUSTO_TABLES_MAPPING_CONF = "kusto.tables.topics.mapping";
     static final String KUSTO_SINK_TEMP_DIR_CONF = "tempdir.path";
     static final String KUSTO_SINK_FLUSH_SIZE_BYTES_CONF = "flush.size.bytes";
@@ -47,8 +47,8 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_AUTH_APPKEY_DISPLAY = "Kusto Auth AppKey";
     private static final String KUSTO_AUTH_AUTHORITY_DOC = "Azure Active Directory tenant.";
     private static final String KUSTO_AUTH_AUTHORITY_DISPLAY = "Kusto Auth Authority";
-    private static final String KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_DOC = "If true, managed identity are used to authenticate against Azure Active Directory.";
-    private static final String KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_DISPLAY = "Kusto Auth Managed Identity Enabled";
+    private static final String KUSTO_AUTH_STRATEGY_DOC = "Strategy to authenticate against Azure Active Directory, either ``application`` (default) or ``managed_identity``.";
+    private static final String KUSTO_AUTH_STRATEGY_DISPLAY = "Kusto Auth Strategy";
     private static final String KUSTO_TABLES_MAPPING_DOC = "A JSON array mapping ingestion from topic to table, e.g: "
             + "[{'topic1':'t1','db':'kustoDb', 'table': 'table1', 'format': 'csv', 'mapping': 'csvMapping', 'streaming': 'false'}..].\n"
             + "Streaming is optional, defaults to false. Mind usage and cogs of streaming ingestion, read here: https://docs.microsoft.com/en-us/azure/data-explorer/ingest-data-streaming.\n"
@@ -262,7 +262,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 .define(
                         KUSTO_AUTH_APPID_CONF,
                         Type.STRING,
-                        ConfigDef.NO_DEFAULT_VALUE,
+                        null,
                         Importance.HIGH,
                         KUSTO_AUTH_APPID_DOC,
                         connectionGroupName,
@@ -272,7 +272,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 .define(
                         KUSTO_AUTH_AUTHORITY_CONF,
                         Type.STRING,
-                        ConfigDef.NO_DEFAULT_VALUE,
+                        null,
                         Importance.HIGH,
                         KUSTO_AUTH_AUTHORITY_DOC,
                         connectionGroupName,
@@ -290,15 +290,19 @@ public class KustoSinkConfig extends AbstractConfig {
                         Width.SHORT,
                         KUSTO_SINK_ENABLE_TABLE_VALIDATION_DISPLAY)
                 .define(
-                        KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_CONF,
-                        Type.BOOLEAN,
-                        Boolean.FALSE,
+                        KUSTO_AUTH_STRATEGY_CONF,
+                        Type.STRING,
+                        KustoAuthenticationStrategy.APPLICATION.name(),
+                        ConfigDef.ValidString.in(
+                                KustoAuthenticationStrategy.APPLICATION.name(), KustoAuthenticationStrategy.MANAGED_IDENTITY.name(),
+                                KustoAuthenticationStrategy.APPLICATION.name().toLowerCase(),
+                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase()),
                         Importance.HIGH,
-                        KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_DOC,
+                        KUSTO_AUTH_STRATEGY_DOC,
                         connectionGroupName,
                         connectionGroupOrder++,
                         Width.MEDIUM,
-                        KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_DISPLAY);
+                        KUSTO_AUTH_STRATEGY_DISPLAY);
     }
 
     public static void main(String[] args) {
@@ -325,8 +329,8 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getString(KUSTO_AUTH_AUTHORITY_CONF);
     }
 
-    public boolean getManagedIdentityEnabled() {
-        return this.getBoolean(KUSTO_AUTH_MANAGED_IDENTITY_ENABLED_CONF);
+    public KustoAuthenticationStrategy getAuthStrategy() {
+        return KustoAuthenticationStrategy.valueOf(getString(KUSTO_AUTH_STRATEGY_CONF).toUpperCase());
     }
 
     public String getTopicToTableMapping() {
@@ -406,5 +410,9 @@ public class KustoSinkConfig extends AbstractConfig {
                     .map(Enum::name)
                     .toArray(String[]::new);
         }
+    }
+
+    enum KustoAuthenticationStrategy {
+        APPLICATION, MANAGED_IDENTITY;
     }
 }

@@ -82,28 +82,31 @@ public class KustoSinkTask extends SinkTask {
     }
 
     public static ConnectionStringBuilder createKustoEngineConnectionString(KustoSinkConfig config, String clusterUrl) {
-        ConnectionStringBuilder kcsb = null;
+        final ConnectionStringBuilder kcsb;
 
-        if (!Strings.isNullOrEmpty(config.getAuthAppId())) {
-            if (!Strings.isNullOrEmpty(config.getAuthAppKey())) {
-                kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        clusterUrl,
-                        config.getAuthAppId(),
-                        config.getAuthAppKey(),
-                        config.getAuthAuthority());
-            } else if (config.getManagedIdentityEnabled()) {
+        switch (config.getAuthStrategy()) {
+            case APPLICATION:
+                if (!Strings.isNullOrEmpty(config.getAuthAppId()) && !Strings.isNullOrEmpty(config.getAuthAppKey())) {
+                    kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                            clusterUrl,
+                            config.getAuthAppId(),
+                            config.getAuthAppKey(),
+                            config.getAuthAuthority());
+                } else {
+                    throw new ConfigException("Kusto authentication missing App Key.");
+                }
+                break;
+
+            case MANAGED_IDENTITY:
                 kcsb = ConnectionStringBuilder.createWithAadManagedIdentity(
                         clusterUrl,
                         config.getAuthAppId());
-            } else {
-                throw new ConfigException("Kusto authentication missing App Key or Managed Identity enabled.");
-            }
-        }
+                break;
 
-        if (kcsb == null) {
-            throw new ConfigException("Failed to initialize KustoIngestClient, please " +
-                    "provide valid credentials. Either Kusto managed identity or " +
-                    "Kusto appId, appKey, and authority should be configured.");
+            default:
+                throw new ConfigException("Failed to initialize KustoIngestClient, please " +
+                        "provide valid credentials. Either Kusto managed identity or " +
+                        "Kusto appId, appKey, and authority should be configured.");
         }
 
         kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
@@ -223,6 +226,10 @@ public class KustoSinkTask extends SinkTask {
             }
 
             if (hasAccess) {
+                if (Strings.isNullOrEmpty(config.getAuthAppId()) || Strings.isNullOrEmpty(config.getAuthAuthority())) {
+                    throw new ConfigException("Authority ID and Application ID must be provided to validate table accesses.");
+                }
+
                 String authenticateWith = String.format("aadapp=%s;%s", config.getAuthAppId(),
                         config.getAuthAuthority());
                 String query = String.format(FETCH_PRINCIPAL_ROLES_COMMAND, authenticateWith, database, table);
