@@ -34,7 +34,8 @@ import java.util.concurrent.CountDownLatch;
 /**
  * Kusto sink uses file system to buffer records.
  * Every time a file is rolled, we used the kusto client to ingest it.
- * Currently only ingested files are "committed" in the sense that we can advance the offset according to it.
+ * Currently only ingested files are "committed" in the sense that we can
+ * advance the offset according to it.
  */
 public class KustoSinkTask extends SinkTask {
 
@@ -80,26 +81,41 @@ public class KustoSinkTask extends SinkTask {
         return false;
     }
 
-    public static Client createKustoEngineClient(KustoSinkConfig config) {
-        try {
-            String engineClientURL = config.getKustoEngineUrl();
-            if (!Strings.isNullOrEmpty(config.getAuthAppid())) {
-                if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
+    public static ConnectionStringBuilder createKustoEngineConnectionString(KustoSinkConfig config, String clusterUrl) {
+        final ConnectionStringBuilder kcsb;
+
+        switch (config.getAuthStrategy()) {
+            case APPLICATION:
+                if (!Strings.isNullOrEmpty(config.getAuthAppId()) && !Strings.isNullOrEmpty(config.getAuthAppKey())) {
+                    kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                            clusterUrl,
+                            config.getAuthAppId(),
+                            config.getAuthAppKey(),
+                            config.getAuthAuthority());
+                } else {
                     throw new ConfigException("Kusto authentication missing App Key.");
                 }
-                ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        engineClientURL,
-                        config.getAuthAppid(),
-                        config.getAuthAppkey(),
-                        config.getAuthAuthority());
-                kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+                break;
 
-                return ClientFactory.createClient(kcsb);
-            }
+            case MANAGED_IDENTITY:
+                kcsb = ConnectionStringBuilder.createWithAadManagedIdentity(
+                        clusterUrl,
+                        config.getAuthAppId());
+                break;
 
-            throw new ConfigException("Failed to initialize KustoEngineClient, please " +
-                    "provide valid credentials. Either Kusto username and password or " +
-                    "Kusto appId, appKey, and authority should be configured.");
+            default:
+                throw new ConfigException("Failed to initialize KustoIngestClient, please " +
+                        "provide valid credentials. Either Kusto managed identity or " +
+                        "Kusto appId, appKey, and authority should be configured.");
+        }
+
+        kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+        return kcsb;
+    }
+
+    public static Client createKustoEngineClient(KustoSinkConfig config) {
+        try {
+            return ClientFactory.createClient(createKustoEngineConnectionString(config, config.getKustoEngineUrl()));
         } catch (Exception e) {
             throw new ConnectException("Failed to initialize KustoEngineClient", e);
         }
@@ -161,7 +177,8 @@ public class KustoSinkTask extends SinkTask {
     }
 
     /**
-     * This function validates whether the user has the read and write access to the intended table
+     * This function validates whether the user has the read and write access to the
+     * intended table
      * before starting to sink records into ADX.
      *
      * @param engineClient Client connection to run queries.
@@ -187,7 +204,8 @@ public class KustoSinkTask extends SinkTask {
                 shouldCheckStreaming = false;
             }
             try {
-                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_COMMAND, table), validateOnlyClientRequestProperties);
+                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_COMMAND, table),
+                        validateOnlyClientRequestProperties);
                 if (VALIDATION_OK.equals(rs.getPrimaryResults().getData().get(0).get(0))) {
                     hasAccess = true;
                 }
@@ -198,7 +216,8 @@ public class KustoSinkTask extends SinkTask {
 
             if (hasAccess && StringUtils.isNotEmpty(mappingName)) {
                 try {
-                    engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table, format.toLowerCase(Locale.ROOT), mappingName));
+                    engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table,
+                            format.toLowerCase(Locale.ROOT), mappingName));
                 } catch (DataServiceException e) {
                     hasAccess = false;
                     databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'", database, table, format,
@@ -207,7 +226,12 @@ public class KustoSinkTask extends SinkTask {
             }
 
             if (hasAccess) {
-                String authenticateWith = String.format("aadapp=%s;%s", config.getAuthAppid(), config.getAuthAuthority());
+                if (Strings.isNullOrEmpty(config.getAuthAppId()) || Strings.isNullOrEmpty(config.getAuthAuthority())) {
+                    throw new ConfigException("Authority ID and Application ID must be provided to validate table accesses.");
+                }
+
+                String authenticateWith = String.format("aadapp=%s;%s", config.getAuthAppId(),
+                        config.getAuthAuthority());
                 String query = String.format(FETCH_PRINCIPAL_ROLES_COMMAND, authenticateWith, database, table);
                 try {
                     KustoOperationResult rs = engineClient.execute(database, query);
@@ -224,11 +248,14 @@ public class KustoSinkTask extends SinkTask {
                         databaseTableErrorList.add(
                                 String.format("Fetching principal roles using query '%s' resulted in exception '%s'", query, ExceptionUtils.getStackTrace(e)));
                     } else {
-                        log.warn("Failed to check permissions with query '{}', will continue the run as the principal might still be able to ingest", query, e);
+                        log.warn(
+                                "Failed to check permissions with query '{}', will continue the run as the principal might still be able to ingest",
+                                query, e);
                     }
                 }
             }
-            if (hasAccess && shouldCheckStreaming && !isStreamingPolicyEnabled(MAPPING_TABLE, table, engineClient, database)) {
+            if (hasAccess && shouldCheckStreaming
+                    && !isStreamingPolicyEnabled(MAPPING_TABLE, table, engineClient, database)) {
                 databaseTableErrorList.add(String.format("Ingestion is configured as streaming, but a streaming" +
                         " ingestion policy was not found on either database '%s' or table '%s'", database, table));
             }
@@ -247,33 +274,13 @@ public class KustoSinkTask extends SinkTask {
 
     public void createKustoIngestClient(KustoSinkConfig config) {
         try {
-            if (!Strings.isNullOrEmpty(config.getAuthAppid())) {
-                if (Strings.isNullOrEmpty(config.getAuthAppkey())) {
-                    throw new ConfigException("Kusto authentication missing App Key.");
-                }
+            ConnectionStringBuilder ingestConnectionStringBuilder = createKustoEngineConnectionString(config, config.getKustoIngestUrl());
+            kustoIngestClient = IngestClientFactory.createClient(ingestConnectionStringBuilder);
 
-                ConnectionStringBuilder kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                        config.getKustoIngestUrl(),
-                        config.getAuthAppid(),
-                        config.getAuthAppkey(),
-                        config.getAuthAuthority());
-                kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
-                if (isStreamingEnabled(config)) {
-                    ConnectionStringBuilder engineKcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                            config.getKustoEngineUrl(),
-                            config.getAuthAppid(),
-                            config.getAuthAppkey(),
-                            config.getAuthAuthority());
-                    streamingIngestClient = IngestClientFactory.createManagedStreamingIngestClient(kcsb, engineKcsb);
-                }
-
-                kustoIngestClient = IngestClientFactory.createClient(kcsb);
-                return;
+            if (isStreamingEnabled(config)) {
+                ConnectionStringBuilder streamingConnectionStringBuilder = createKustoEngineConnectionString(config, config.getKustoEngineUrl());
+                streamingIngestClient = IngestClientFactory.createManagedStreamingIngestClient(ingestConnectionStringBuilder, streamingConnectionStringBuilder);
             }
-
-            throw new ConfigException("Failed to initialize KustoIngestClient, please " +
-                    "provide valid credentials. Either Kusto username and password or " +
-                    "Kusto appId, appKey, and authority should be configured.");
         } catch (Exception e) {
             throw new ConnectException("Failed to initialize KustoIngestClient", e);
         }
@@ -349,7 +356,8 @@ public class KustoSinkTask extends SinkTask {
                         "for the topic: %s. please check your configuration.", tp.topic()));
             } else {
                 IngestClient client = ingestionProps.streaming ? streamingIngestClient : kustoIngestClient;
-                TopicPartitionWriter writer = new TopicPartitionWriter(tp, client, ingestionProps, config, isDlqEnabled, dlqTopicName, dlqProducer);
+                TopicPartitionWriter writer = new TopicPartitionWriter(tp, client, ingestionProps, config, isDlqEnabled,
+                        dlqTopicName, dlqProducer);
                 writer.open();
                 writers.put(tp, writer);
             }
@@ -365,7 +373,8 @@ public class KustoSinkTask extends SinkTask {
         for (TopicPartition tp : partitions) {
             try {
                 writers.get(tp).close();
-                // TODO: if we still get duplicates from rebalance - consider keeping writers aside - we might
+                // TODO: if we still get duplicates from rebalance - consider keeping writers
+                // aside - we might
                 // just get the same topic partition again
                 writers.remove(tp);
                 assignment.remove(tp);
@@ -387,7 +396,8 @@ public class KustoSinkTask extends SinkTask {
             isDlqEnabled = true;
             dlqTopicName = config.getDlqTopicName();
             Properties properties = config.getDlqProps();
-            log.info("Initializing miscellaneous dead-letter queue producer with the following properties: {}", properties.keySet());
+            log.info("Initializing miscellaneous dead-letter queue producer with the following properties: {}",
+                    properties.keySet());
             try {
                 dlqProducer = new KafkaProducer<>(properties);
             } catch (Exception e) {
@@ -405,7 +415,8 @@ public class KustoSinkTask extends SinkTask {
         // this should be read properly from settings
         createKustoIngestClient(config);
 
-        log.info("Started KustoSinkTask with target cluster: ({}), source topics: ({})", url, topicsToIngestionProps.keySet());
+        log.info("Started KustoSinkTask with target cluster: ({}), source topics: ({})", url,
+                topicsToIngestionProps.keySet());
         // Adding this check to make code testable
         if (context != null) {
             open(context.assignment());
@@ -457,8 +468,10 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
-    // This is a neat trick, since our rolling files commit whenever they like, offsets may drift
-    // from what kafka expects. So basically this is to re-sync topic-partition offsets with our sink.
+    // This is a neat trick, since our rolling files commit whenever they like,
+    // offsets may drift
+    // from what kafka expects. So basically this is to re-sync topic-partition
+    // offsets with our sink.
     @Override
     public Map<TopicPartition, OffsetAndMetadata> preCommit(
             Map<TopicPartition, OffsetAndMetadata> offsets) {
@@ -472,7 +485,8 @@ public class KustoSinkTask extends SinkTask {
 
             if (lastCommittedOffset != null) {
                 long offset = lastCommittedOffset + 1L;
-                log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset, tp, offsets.get(tp));
+                log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset,
+                        tp, offsets.get(tp));
                 offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
             }
         }
