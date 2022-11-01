@@ -372,7 +372,10 @@ public class KustoSinkTask extends SinkTask {
         partitions.forEach((TopicPartition tp) -> writers.get(tp).stop());
         for (TopicPartition tp : partitions) {
             try {
-                writers.get(tp).close();
+                TopicPartitionWriter writer = writers.get(tp);
+                if (writer != null) {
+                    writer.close();
+                }
                 // TODO: if we still get duplicates from rebalance - consider keeping writers
                 // aside - we might
                 // just get the same topic partition again
