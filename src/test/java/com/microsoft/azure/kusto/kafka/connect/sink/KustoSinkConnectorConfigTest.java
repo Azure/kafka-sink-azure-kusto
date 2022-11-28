@@ -1,5 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import org.apache.kafka.common.config.ConfigException;
 import org.junit.jupiter.api.Assertions;
@@ -54,13 +55,28 @@ public class KustoSinkConnectorConfigTest {
     }
 
     @Test
-    public void shouldThrowExceptionWhenAppIdNotGiven() {
+    public void shouldThrowExceptionWhenAppIdNotGivenForApplicationAuth() {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
+        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF, KustoSinkConfig.KustoAuthenticationStrategy.APPLICATION.name());
         settings.remove(KustoSinkConfig.KUSTO_AUTH_APPID_CONF);
+        KustoSinkConfig config = new KustoSinkConfig(settings);
+        // In the previous PR this behavior was changed. The default was to use APPLICATION auth, but it also permits
+        // MI. In case of MI the App-ID/App-KEY became optional
         Assertions.assertThrows(ConfigException.class, () -> {
-            new KustoSinkConfig(settings);
+            KustoSinkTask.createKustoEngineConnectionString(config,config.getKustoEngineUrl());
         });
+    }
+
+    @Test
+    public void shouldNotThrowExceptionWhenAppIdNotGivenForManagedIdentity() {
+        // Same test as above. In this case since the Auth method is MI AppId/Key becomes optional.
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF, KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name());
+        settings.remove(KustoSinkConfig.KUSTO_AUTH_APPID_CONF);
+        KustoSinkConfig config = new KustoSinkConfig(settings);
+        ConnectionStringBuilder kcsb = KustoSinkTask.createKustoEngineConnectionString(config,config.getKustoEngineUrl());
+        Assertions.assertNotNull(kcsb);
     }
 
     @Test
@@ -80,7 +96,6 @@ public class KustoSinkConnectorConfigTest {
         settings.put(KustoSinkConfig.KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF, "localhost:8081,localhost:8082");
         settings.put(KustoSinkConfig.KUSTO_DLQ_TOPIC_NAME_CONF, "dlq-error-topic");
         KustoSinkConfig config = new KustoSinkConfig(settings);
-
         Assertions.assertTrue(config.isDlqEnabled());
         Assertions.assertEquals(Arrays.asList("localhost:8081", "localhost:8082"), config.getDlqBootstrapServers());
         Assertions.assertEquals("dlq-error-topic", config.getDlqTopicName());
@@ -92,13 +107,9 @@ public class KustoSinkConnectorConfigTest {
         HashMap<String, String> settings = setupConfigs();
         settings.put("misc.deadletterqueue.security.protocol", "SASL_PLAINTEXT");
         settings.put("misc.deadletterqueue.sasl.mechanism", "PLAIN");
-
         KustoSinkConfig config = new KustoSinkConfig(settings);
-
         Assertions.assertNotNull(config);
-
         Properties dlqProps = config.getDlqProps();
-
         Assertions.assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
         Assertions.assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
     }
