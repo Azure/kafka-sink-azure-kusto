@@ -105,11 +105,9 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public static ConfigDef getConfig() {
         ConfigDef result = new ConfigDef();
-
         defineConnectionConfigs(result);
         defineWriteConfigs(result);
         defineErrorHandlingAndRetriesConfigs(result);
-
         return result;
     }
 
@@ -294,7 +292,8 @@ public class KustoSinkConfig extends AbstractConfig {
                         Type.STRING,
                         KustoAuthenticationStrategy.APPLICATION.name(),
                         ConfigDef.ValidString.in(
-                                KustoAuthenticationStrategy.APPLICATION.name(), KustoAuthenticationStrategy.MANAGED_IDENTITY.name(),
+                                KustoAuthenticationStrategy.APPLICATION.name(),
+                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name(),
                                 KustoAuthenticationStrategy.APPLICATION.name().toLowerCase(),
                                 KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase()),
                         Importance.HIGH,
@@ -303,10 +302,6 @@ public class KustoSinkConfig extends AbstractConfig {
                         connectionGroupOrder++,
                         Width.MEDIUM,
                         KUSTO_AUTH_STRATEGY_DISPLAY);
-    }
-
-    public static void main(String[] args) {
-        System.out.println(getConfig().toEnrichedRst());
     }
 
     public String getKustoIngestUrl() {
