@@ -6,10 +6,12 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ByteArrayWriterProviderTest {
     @Test
@@ -20,19 +22,21 @@ public class ByteArrayWriterProviderTest {
         }
         File file = new File("abc.bin");
         ByteRecordWriterProvider writer = new ByteRecordWriterProvider();
-        OutputStream out = new FileOutputStream(file);
-        RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
-        for (SinkRecord record : records) {
-            rd.write(record);
+        try (OutputStream out = Files.newOutputStream(file.toPath())) {
+            RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
+            for (SinkRecord record : records) {
+                rd.write(record);
+            }
+            rd.commit();
         }
-        rd.commit();
-        BufferedReader br = new BufferedReader(new FileReader(file));
-        String st;
-        int i = 0;
-        while ((st = br.readLine()) != null) {
-            assertEquals(st, String.format("hello-%s", i));
-            i++;
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String st;
+            int i = 0;
+            while ((st = br.readLine()) != null) {
+                assertEquals(st, String.format("hello-%s", i));
+                i++;
+            }
         }
-        file.delete();
+        assertTrue(file.delete());
     }
 }

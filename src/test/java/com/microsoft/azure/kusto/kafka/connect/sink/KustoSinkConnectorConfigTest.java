@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Properties;
 
 import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
@@ -40,9 +39,7 @@ public class KustoSinkConnectorConfigTest {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
-        Assertions.assertThrows(ConfigException.class, () -> {
-            new KustoSinkConfig(settings);
-        });
+        Assertions.assertThrows(ConfigException.class, () -> new KustoSinkConfig(settings));
     }
 
     @Test
@@ -63,9 +60,7 @@ public class KustoSinkConnectorConfigTest {
         KustoSinkConfig config = new KustoSinkConfig(settings);
         // In the previous PR this behavior was changed. The default was to use APPLICATION auth, but it also permits
         // MI. In case of MI the App-ID/App-KEY became optional
-        Assertions.assertThrows(ConfigException.class, () -> {
-            KustoSinkTask.createKustoEngineConnectionString(config,config.getKustoEngineUrl());
-        });
+        Assertions.assertThrows(ConfigException.class, () -> KustoSinkTask.createKustoEngineConnectionString(config, config.getKustoEngineUrl()));
     }
 
     @Test
@@ -75,7 +70,7 @@ public class KustoSinkConnectorConfigTest {
         settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF, KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name());
         settings.remove(KustoSinkConfig.KUSTO_AUTH_APPID_CONF);
         KustoSinkConfig config = new KustoSinkConfig(settings);
-        ConnectionStringBuilder kcsb = KustoSinkTask.createKustoEngineConnectionString(config,config.getKustoEngineUrl());
+        ConnectionStringBuilder kcsb = KustoSinkTask.createKustoEngineConnectionString(config, config.getKustoEngineUrl());
         Assertions.assertNotNull(kcsb);
     }
 
@@ -85,9 +80,7 @@ public class KustoSinkConnectorConfigTest {
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
         settings.put(KustoSinkConfig.KUSTO_BEHAVIOR_ON_ERROR_CONF, "DummyValue");
-        Assertions.assertThrows(ConfigException.class, () -> {
-            new KustoSinkConfig(settings);
-        });
+        Assertions.assertThrows(ConfigException.class, () -> new KustoSinkConfig(settings));
     }
 
     @Test

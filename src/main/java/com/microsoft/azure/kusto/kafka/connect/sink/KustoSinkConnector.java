@@ -12,9 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 public class KustoSinkConnector extends SinkConnector {
-
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConnector.class);
-
     private KustoSinkConfig config;
 
     @Override
@@ -28,10 +26,8 @@ public class KustoSinkConnector extends SinkConnector {
         if (maxTasks == 0) {
             log.warn("No Connector tasks have been configured.");
         }
-
         List<Map<String, String>> configs = new ArrayList<>();
-        Map<String, String> taskProps = new HashMap<>();
-        taskProps.putAll(config.originalsStrings());
+        Map<String, String> taskProps = new HashMap<>(config.originalsStrings());
         for (int i = 0; i < maxTasks; i++) {
             configs.add(taskProps);
         }

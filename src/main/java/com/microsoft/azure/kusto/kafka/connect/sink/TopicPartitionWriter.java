@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 class TopicPartitionWriter {
-
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
     private static final String COMPRESSION_EXTENSION = ".gz";
     private static final String FILE_EXCEPTION_MESSAGE = "Failed to create file or write record into file for ingestion.";
@@ -55,7 +54,7 @@ class TopicPartitionWriter {
     FileWriter fileWriter;
     long currentOffset;
     Long lastCommittedOffset;
-    private ReentrantReadWriteLock reentrantReadWriteLock;
+    private final ReentrantReadWriteLock reentrantReadWriteLock;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
             KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
@@ -76,15 +75,13 @@ class TopicPartitionWriter {
     }
 
     static String getTempDirectoryName(String tempDirPath) {
-        String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
+        String tempDir = String.format("kusto-sink-connector-%s", UUID.randomUUID());
         Path path = Paths.get(tempDirPath, tempDir);
-
         return path.toString();
     }
 
     public void handleRollFile(SourceFile fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
-
         /*
          * Since retries can be for a longer duration the Kafka Consumer may leave the group. This will result in a new Consumer reading records from the last
          * committed offset leading to duplication of records in KustoDB. Also, if the error persists, it might also result in duplicate records being written
@@ -151,10 +148,8 @@ class TopicPartitionWriter {
         return false;
     }
 
-    private void backOffForRemainingAttempts(int retryAttempts, Exception exce, SourceFile fileDescriptor) {
+    private void backOffForRemainingAttempts(int retryAttempts, Exception ex, SourceFile fileDescriptor) {
         if (retryAttempts < maxRetryAttempts) {
-            // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
-            // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
             long sleepTimeMs = retryBackOffTime;
             log.error("Failed to ingest records into KustoDB, backing off and retrying ingesting records after {} milliseconds.", sleepTimeMs);
             try {
@@ -164,15 +159,15 @@ class TopicPartitionWriter {
                     log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
-                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts + 1),
-                        exce);
+                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interrupted after retryAttempts=%s", retryAttempts + 1),
+                        ex);
             }
         } else {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
                 log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                 fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             }
-            throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", exce);
+            throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", ex);
         }
     }
 
@@ -193,8 +188,7 @@ class TopicPartitionWriter {
                 }
             });
         } catch (IllegalStateException e) {
-            log.error("Failed to write records to miscellaneous dead-letter queue topic, "
-                    + "kafka producer has already been closed. Exception={}", e);
+            log.error("Failed to write records to miscellaneous dead-letter queue topic,kafka producer has already been closed. Exception", e);
         }
     }
 
@@ -222,10 +216,10 @@ class TopicPartitionWriter {
         if (BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(FILE_EXCEPTION_MESSAGE, ex);
         } else if (BehaviorOnError.LOG == behaviorOnError) {
-            log.error(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            log.error(FILE_EXCEPTION_MESSAGE, ex);
             sendFailedRecordToDlq(record);
         } else {
-            log.debug(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            log.debug(FILE_EXCEPTION_MESSAGE, ex);
             sendFailedRecordToDlq(record);
         }
     }
@@ -249,14 +243,14 @@ class TopicPartitionWriter {
             fileWriter.rollback();
             fileWriter.close();
         } catch (IOException e) {
-            log.error("Failed to rollback with exception={}", e);
+            log.error("Failed to rollback with exception ", e);
         }
         try {
             if (dlqProducer != null) {
                 dlqProducer.close();
             }
         } catch (Exception e) {
-            log.error("Failed to close kafka producer={}", e);
+            log.error("Failed to close kafka producer", e);
         }
         try {
             FileUtils.deleteDirectory(new File(basePath));

@@ -11,13 +11,14 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AvroRecordWriterTest {
     @Test
@@ -36,21 +37,21 @@ public class AvroRecordWriterTest {
         }
         File file = new File("abc.avro");
         AvroRecordWriterProvider writer = new AvroRecordWriterProvider();
-        OutputStream out = new FileOutputStream(file);
-        RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
-        for (SinkRecord record : records) {
-            rd.write(record);
+        try (OutputStream out = Files.newOutputStream(file.toPath())) {
+            RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
+            for (SinkRecord record : records) {
+                rd.write(record);
+            }
+            rd.commit();
+            validate(file.getPath());
         }
-        rd.commit();
-        validate(file.getPath());
-        file.delete();
+        assertTrue(file.delete());
     }
 
     public void validate(String path) throws IOException {
-        GenericDatumReader datum = new GenericDatumReader();
+        GenericDatumReader<GenericData.Record> datum = new GenericDatumReader<>();
         File file = new File(path);
-        DataFileReader reader = new DataFileReader(file, datum);
-
+        DataFileReader<GenericData.Record> reader = new DataFileReader<>(file, datum);
         GenericData.Record record = new GenericData.Record(reader.getSchema());
         int i = 0;
         while (reader.hasNext()) {

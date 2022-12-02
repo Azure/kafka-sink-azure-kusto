@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.google.common.base.Function;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
@@ -13,6 +12,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,37 +23,38 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.zip.GZIPOutputStream;
 
 /**
  * This class is used to write gzipped rolling files.
- * Currently supports size based rolling, where size is for *uncompressed* size,
+ * Currently, supports size based rolling, where size is for *uncompressed* size,
  * so final size can vary.
  */
 public class FileWriter implements Closeable {
-
     private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
     private final long flushInterval;
     private final IngestionProperties.DataFormat format;
     SourceFile currentFile;
     private Timer timer;
-    private Consumer<SourceFile> onRollCallback;
-    private Function<Long, String> getFilePath;
+    private final Consumer<SourceFile> onRollCallback;
+    private final Function<Long, String> getFilePath;
     private OutputStream outputStream;
-    private String basePath;
+    private final String basePath;
     private CountingOutputStream countingStream;
-    private long fileThreshold;
+    private final long fileThreshold;
     // Lock is given from TopicPartitionWriter to lock while ingesting
-    private ReentrantReadWriteLock reentrantReadWriteLock;
+    private final ReentrantReadWriteLock reentrantReadWriteLock;
     // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
     private FileDescriptor currentFileDescriptor;
     private String flushError;
     private RecordWriterProvider recordWriterProvider;
     private RecordWriter recordWriter;
-    private BehaviorOnError behaviorOnError;
+    private final BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
     private boolean stopped = false;
-    private boolean isDlqEnabled = false;
+    private final boolean isDlqEnabled;
+    private static final String errorString = "Failed to write records to KustoDB.";
 
     /**
      * @param basePath        - This is path to which to write the files to.
@@ -78,14 +79,11 @@ public class FileWriter implements Closeable {
         this.flushInterval = flushInterval;
         this.behaviorOnError = behaviorOnError;
         this.isDlqEnabled = isDlqEnabled;
-
         // This is a fair lock so that we flush close to the time intervals
         this.reentrantReadWriteLock = reentrantLock;
-
         // If we failed on flush we want to throw the error from the put() flow.
         flushError = null;
         this.format = format;
-
     }
 
     boolean isDirty() {
@@ -94,7 +92,6 @@ public class FileWriter implements Closeable {
 
     public void openFile(@Nullable Long offset) throws IOException {
         SourceFile fileProps = new SourceFile();
-
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
             if (!folder.exists()) {
@@ -102,11 +99,9 @@ public class FileWriter implements Closeable {
             }
             log.warn("Couldn't create the directory because it already exists (likely a race condition)");
         }
-
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
         File file = new File(filePath);
-
         file.createNewFile();
         FileOutputStream fos = new FileOutputStream(file);
         currentFileDescriptor = fos.getFD();
@@ -137,11 +132,10 @@ public class FileWriter implements Closeable {
                 onRollCallback.accept(currentFile);
             } catch (ConnectException e) {
                 /*
-                 * Swallow the exception and continue to process subsequent records when behavior.on.error is not set to fail mode.
-                 *
-                 * Also, throwing/logging the exception with just a message to avoid polluting logs with duplicate trace.
+                 * Swallow the exception and continue to process subsequent records when behavior.on.error is not set to fail mode. Also, throwing/logging the
+                 * exception with just a message to avoid polluting logs with duplicate trace.
                  */
-                handleErrors("Failed to write records to KustoDB.", e);
+                handleErrors(e);
             }
             if (delete) {
                 dumpFile();
@@ -152,13 +146,13 @@ public class FileWriter implements Closeable {
         }
     }
 
-    private void handleErrors(String message, Exception e) {
+    private void handleErrors(Exception e) {
         if (KustoSinkConfig.BehaviorOnError.FAIL == behaviorOnError) {
-            throw new ConnectException(message, e);
+            throw new ConnectException(errorString, e);
         } else if (KustoSinkConfig.BehaviorOnError.LOG == behaviorOnError) {
-            log.error("{}", message, e);
+            log.error("Exception ignored as the Behavior on error is set to Log.", e);
         } else {
-            log.debug("{}", message, e);
+            log.debug("Exception ignored as the Behavior on error is set to Ignore.", e);
         }
     }
 
@@ -191,7 +185,6 @@ public class FileWriter implements Closeable {
 
     public synchronized void stop() throws DataException {
         stopped = true;
-
         if (timer != null) {
             Timer temp = timer;
             timer = null;
@@ -209,7 +202,6 @@ public class FileWriter implements Closeable {
 
                 timer = new Timer(true);
             }
-
             TimerTask t = new TimerTask() {
                 @Override
                 public void run() {
@@ -228,12 +220,10 @@ public class FileWriter implements Closeable {
             if (stopped) {
                 return;
             }
-
             // Lock before the check so that if a writing process just flushed this won't ingest empty files
             if (isDirty()) {
                 finishFile(true);
             }
-
             resetFlushTimer(false);
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
@@ -252,7 +242,6 @@ public class FileWriter implements Closeable {
         if (recordWriterProvider == null) {
             initializeRecordWriter(record);
         }
-
         if (currentFile == null) {
             openFile(record.kafkaOffset());
             resetFlushTimer(true);
@@ -296,9 +285,9 @@ public class FileWriter implements Closeable {
         }
     }
 
-    private class CountingOutputStream extends FilterOutputStream {
+    static private class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;
-        private OutputStream outputStream;
+        private final OutputStream outputStream;
 
         CountingOutputStream(OutputStream out) {
             super(out);
@@ -312,15 +301,23 @@ public class FileWriter implements Closeable {
         }
 
         @Override
-        public void write(byte[] b) throws IOException {
+        public void write(byte @NotNull [] b) throws IOException {
             out.write(b);
             this.numBytes += b.length;
         }
 
         @Override
-        public void write(byte[] b, int off, int len) throws IOException {
+        public void write(byte @NotNull [] b, int off, int len) throws IOException {
             out.write(b, off, len);
             this.numBytes += len;
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (outputStream != null) {
+                outputStream.close();
+            }
+            super.close();
         }
 
         public OutputStream getOutputStream() {

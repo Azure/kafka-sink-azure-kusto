@@ -5,12 +5,14 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 // TODO: Significant duplication among these 4 classes
 public class JsonRecordWriterProviderTest {
@@ -24,19 +26,20 @@ public class JsonRecordWriterProviderTest {
         }
         File file = new File("abc.json");
         JsonRecordWriterProvider jsonWriter = new JsonRecordWriterProvider();
-        OutputStream out = new FileOutputStream(file);
-        RecordWriter rd = jsonWriter.getRecordWriter(file.getPath(), out);
-        for (SinkRecord record : records) {
-            rd.write(record);
+        try (OutputStream out = Files.newOutputStream(file.toPath());
+                BufferedReader br = new BufferedReader(new FileReader(file))) {
+            RecordWriter rd = jsonWriter.getRecordWriter(file.getPath(), out);
+            for (SinkRecord record : records) {
+                rd.write(record);
+            }
+            rd.commit();
+            String st;
+            int i = 0;
+            while ((st = br.readLine()) != null) {
+                assertEquals(st, String.format("{\"hello\":%s}", i));
+                i++;
+            }
         }
-        rd.commit();
-        BufferedReader br = new BufferedReader(new FileReader(file));
-        String st;
-        int i = 0;
-        while ((st = br.readLine()) != null) {
-            assertEquals(st, String.format("{\"hello\":%s}", i));
-            i++;
-        }
-        file.delete();
+        assertTrue(file.delete());
     }
 }

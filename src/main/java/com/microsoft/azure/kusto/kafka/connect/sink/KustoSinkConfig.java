@@ -2,16 +2,15 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.common.config.ConfigException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -35,7 +34,6 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION = "kusto.validation.table.enable";
-    private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
     private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
     private static final String KUSTO_INGEST_URL_DOC = "Kusto ingestion endpoint URL.";
     private static final String KUSTO_INGEST_URL_DISPLAY = "Kusto cluster ingestion URL";
@@ -176,7 +174,6 @@ public class KustoSinkConfig extends AbstractConfig {
     private static void defineWriteConfigs(ConfigDef result) {
         final String writeGroupName = "Writes";
         int writeGroupOrder = 0;
-
         result
                 .define(
                         KUSTO_TABLES_MAPPING_CONF,
@@ -225,7 +222,6 @@ public class KustoSinkConfig extends AbstractConfig {
     private static void defineConnectionConfigs(ConfigDef result) {
         final String connectionGroupName = "Connection";
         int connectionGroupOrder = 0;
-
         result
                 .define(
                         KUSTO_INGEST_URL_CONF,
@@ -369,12 +365,12 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public Properties getDlqProps() {
-        Map<String, Object> dlqconfigs = originalsWithPrefix(DLQ_PROPS_PREFIX);
+        Map<String, Object> dlqConfigs = originalsWithPrefix(DLQ_PROPS_PREFIX);
         Properties props = new Properties();
-        props.putAll(dlqconfigs);
-        props.put("bootstrap.servers", getDlqBootstrapServers());
-        props.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-        props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+        props.putAll(dlqConfigs);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, getDlqBootstrapServers());
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         return props;
     }
 
@@ -392,22 +388,10 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     enum BehaviorOnError {
-        FAIL, LOG, IGNORE;
-
-        /**
-         * Gets names of available behavior on error mode.
-         *
-         * @return array of available behavior on error mode names
-         */
-        public static String[] getNames() {
-            return Arrays
-                    .stream(BehaviorOnError.class.getEnumConstants())
-                    .map(Enum::name)
-                    .toArray(String[]::new);
-        }
+        FAIL, LOG, IGNORE
     }
 
     enum KustoAuthenticationStrategy {
-        APPLICATION, MANAGED_IDENTITY;
+        APPLICATION, MANAGED_IDENTITY
     }
 }
