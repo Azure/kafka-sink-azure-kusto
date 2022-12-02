@@ -9,13 +9,12 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>3.0.6</version>
+    <version>4.0.0</version>
     <properties>
-        <kafka.version>3.1.0</kafka.version>
-        <json.version>20220320</json.version>
-        <junit.version>5.8.2</junit.version>
+        <kafka.version>3.3.1</kafka.version>
+        <junit.version>5.9.0</junit.version>
         <commonio.version>2.11.0</commonio.version>
-        <kusto-sdk.version>3.2.1</kusto-sdk.version>
+        <kusto-sdk.version>4.0.0</kusto-sdk.version>
         <formatter.version>2.20.0</formatter.version>
         <jackson-version>2.13.3</jackson-version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -52,8 +51,8 @@
                 <version>3.5.1</version>
                 <inherited>true</inherited>
                 <configuration>
-                    <source>8</source>
-                    <target>8</target>
+                    <source>11</source>
+                    <target>11</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -111,9 +110,7 @@
             </resource>
         </resources>
     </build>
-
     <name>Kafka Connect Azure Data Explorer (Kusto) Sink</name>
-
     <licenses>
         <license>
             <name>The MIT License (MIT)</name>
@@ -178,11 +175,6 @@
             <artifactId>connect-json</artifactId>
             <version>${kafka.version}</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>${json.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>

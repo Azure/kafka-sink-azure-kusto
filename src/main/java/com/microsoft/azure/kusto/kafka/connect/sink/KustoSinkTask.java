@@ -1,5 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
@@ -21,9 +23,6 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.NotFoundException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +44,7 @@ public class KustoSinkTask extends SinkTask {
     public static final String STREAMING_POLICY_SHOW_COMMAND = ".show %s %s policy streamingingestion";
     public static final int INGESTION_ALLOWED_INDEX = 3;
     public static final String MAPPING = "mapping";
+    public static final String TOPIC = "topic";
     public static final String MAPPING_FORMAT = "format";
     public static final String MAPPING_TABLE = "table";
     public static final String DATABASE = "database";
@@ -53,6 +53,7 @@ public class KustoSinkTask extends SinkTask {
     public static final String STREAMING = "streaming";
     private static final Logger log = LoggerFactory.getLogger(KustoSinkTask.class);
     private static final ClientRequestProperties validateOnlyClientRequestProperties = new ClientRequestProperties();
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     private final Set<TopicPartition> assignment;
     protected IngestClient kustoIngestClient;
     protected IngestClient streamingIngestClient;
@@ -123,32 +124,26 @@ public class KustoSinkTask extends SinkTask {
 
     public static Map<String, TopicIngestionProperties> getTopicsToIngestionProps(KustoSinkConfig config) {
         Map<String, TopicIngestionProperties> result = new HashMap<>();
-
         try {
-            JSONArray mappings = new JSONArray(config.getTopicToTableMapping());
-
-            for (int i = 0; i < mappings.length(); i++) {
-                JSONObject mapping = mappings.getJSONObject(i);
-
-                String db = mapping.getString(MAPPING_DB);
-                String table = mapping.getString(MAPPING_TABLE);
-
-                String format = mapping.optString(MAPPING_FORMAT);
-                boolean streaming = mapping.optBoolean(STREAMING);
-
+            JsonNode mappings = objectMapper.readTree(config.getTopicToTableMapping());
+            for (final JsonNode mapping : mappings) {
+                if(!mapping.hasNonNull(TOPIC)) {
+                    throw new ConfigException("Mapping does not contain 'topic' attribute. Parsed mapping {}" , mapping.textValue());
+                }
+                String db = mapping.get(MAPPING_DB).textValue();
+                String table = mapping.get(MAPPING_TABLE).textValue();
+                String format = mapping.hasNonNull(MAPPING_FORMAT) ? mapping.get(MAPPING_FORMAT).textValue() : null;
+                boolean streaming = mapping.hasNonNull(STREAMING) && mapping.get(STREAMING).booleanValue();
                 IngestionProperties props = new IngestionProperties(db, table);
-
-                if (format != null && !format.isEmpty()) {
+                if (StringUtils.isNotEmpty(format)) {
                     if (isDataFormatAnyTypeOfJson(format)) {
                         props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
                     } else {
                         props.setDataFormat(format);
                     }
                 }
-
-                String mappingRef = mapping.optString(MAPPING);
-
-                if (mappingRef != null && !mappingRef.isEmpty() && format != null) {
+                String mappingRef = mapping.hasNonNull(MAPPING) ? mapping.get(MAPPING).textValue() : null;
+                if (StringUtils.isNotEmpty(mappingRef) && StringUtils.isNotEmpty(format)) {
                     if (isDataFormatAnyTypeOfJson(format)) {
                         props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
                     } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.AVRO.toString())) {
@@ -162,7 +157,7 @@ public class KustoSinkTask extends SinkTask {
                 TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
                 topicIngestionProperties.ingestionProperties = props;
                 topicIngestionProperties.streaming = streaming;
-                result.put(mapping.getString("topic"), topicIngestionProperties);
+                result.put(mapping.get(TOPIC).textValue(), topicIngestionProperties);
             }
             return result;
         } catch (Exception ex) {
@@ -198,7 +193,6 @@ public class KustoSinkTask extends SinkTask {
         }
         boolean hasAccess = false;
         boolean shouldCheckStreaming = streamingEnabled;
-
         try {
             if (shouldCheckStreaming && isStreamingPolicyEnabled(DATABASE, database, engineClient, database)) {
                 shouldCheckStreaming = false;
@@ -306,7 +300,6 @@ public class KustoSinkTask extends SinkTask {
                 }
             }
             String tableAccessErrorMessage = "";
-
             if (!databaseTableErrorList.isEmpty()) {
                 tableAccessErrorMessage = "\n\nError occurred while trying to access the following database:table\n" +
                         String.join("\n", databaseTableErrorList);
@@ -317,7 +310,6 @@ public class KustoSinkTask extends SinkTask {
                         "Verify your Kusto principals and roles before proceeding for the following: \n " +
                         String.join("\n", accessErrorList);
             }
-
             if (!tableAccessErrorMessage.isEmpty()) {
                 throw new ConnectException(tableAccessErrorMessage);
             }
@@ -390,7 +382,6 @@ public class KustoSinkTask extends SinkTask {
     public void start(Map<String, String> props) {
         config = new KustoSinkConfig(props);
         String url = config.getKustoIngestUrl();
-
         validateTableMappings(config);
         if (config.isDlqEnabled()) {
             isDlqEnabled = true;
@@ -403,18 +394,14 @@ public class KustoSinkTask extends SinkTask {
             } catch (Exception e) {
                 throw new ConnectException("Failed to initialize producer for miscellaneous dead-letter queue", e);
             }
-
         } else {
             dlqProducer = null;
             isDlqEnabled = false;
             dlqTopicName = null;
         }
-
         topicsToIngestionProps = getTopicsToIngestionProps(config);
-
         // this should be read properly from settings
         createKustoIngestClient(config);
-
         log.info("Started KustoSinkTask with target cluster: ({}), source topics: ({})", url,
                 topicsToIngestionProps.keySet());
         // Adding this check to make code testable
