@@ -57,7 +57,7 @@ public class E2ETest {
     public void testE2ECsv() throws URISyntaxException, DataClientException, DataServiceException {
         String dataFormat = "csv";
         IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.CSV;
-        String mapping = "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"transform\":\"SourceLocation\"}}," +
+        String mapping = "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"transform\":\"SourceLocation\", \"Ordinal\" : \"0\"}}," +
                 "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Ordinal\":\"1\"}},";
         String[] messages = new String[] {"first field a,11", "first field b,22"};
         List<byte[]> messagesBytes = new ArrayList<>();
