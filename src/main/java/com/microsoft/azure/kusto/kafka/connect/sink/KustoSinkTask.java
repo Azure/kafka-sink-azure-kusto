@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 /**
  * Kusto sink uses file system to buffer records.
@@ -459,10 +460,13 @@ public class KustoSinkTask extends SinkTask {
                 log.error("Error putting records: ", e);
                 throw e;
             }
-
-            writer.writeRecord(sinkRecord);
+            if(Objects.isNull(sinkRecord.value())) {
+                log.warn("Filtering null value (tombstone) records at offset {}, key {} and partition {} ",
+                        sinkRecord.kafkaOffset(), sinkRecord.key() , sinkRecord.kafkaPartition());
+            } else{
+                writer.writeRecord(sinkRecord);
+            }
         }
-
         if (lastRecord != null) {
             log.debug("Last record offset: {}", lastRecord.kafkaOffset());
         }

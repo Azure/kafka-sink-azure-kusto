@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
@@ -15,8 +16,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class JsonRecordWriterProvider implements RecordWriterProvider {
     private static final Logger log = LoggerFactory.getLogger(JsonRecordWriterProvider.class);
@@ -48,12 +51,14 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
                     try {
                         Object value = record.value();
                         if (value instanceof Struct) {
-                            byte[] rawJson = converter.fromConnectData(
-                                    record.topic(),
-                                    record.valueSchema(),
-                                    value);
-                            out.write(rawJson);
-                            out.write(LINE_SEPARATOR_BYTES);
+                            byte[] rawJson = converter.fromConnectData(record.topic(),record.valueSchema(),value);
+                            if(ArrayUtils.isEmpty(rawJson)) {
+                                log.warn("Filtering empty records post-serialization at offset {}, key {} and partition {} ",
+                                        record.kafkaOffset(), record.key() , record.kafkaPartition());
+                            } else{
+                                out.write(rawJson);
+                                out.write(LINE_SEPARATOR_BYTES);
+                            }
                         } else {
                             writer.writeObject(value);
                             writer.writeRaw(LINE_SEPARATOR);
