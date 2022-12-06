@@ -11,7 +11,8 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
@@ -220,7 +221,7 @@ public class KustoSinkTaskTest {
         // easy to set it this way than mock
         TopicPartition mockPartition = new TopicPartition("test-topic", 1);
         TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
-        doThrow(IOException.class).when(mockPartitionWriter).close();
+        doThrow(new RuntimeException(new IOException())).when(mockPartitionWriter).close();
         IngestClient mockClient = mock(IngestClient.class);
         doNothing().when(mockClient).close();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
