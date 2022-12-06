@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
@@ -48,12 +49,13 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
                     try {
                         Object value = record.value();
                         if (value instanceof Struct) {
-                            byte[] rawJson = converter.fromConnectData(
-                                    record.topic(),
-                                    record.valueSchema(),
-                                    value);
-                            out.write(rawJson);
-                            out.write(LINE_SEPARATOR_BYTES);
+                            byte[] rawJson = converter.fromConnectData(record.topic(), record.valueSchema(), value);
+                            if (ArrayUtils.isEmpty(rawJson)) {
+                                log.warn("Filtering empty records post-serialization. Record filtered {}",record); // prints everything
+                            } else {
+                                out.write(rawJson);
+                                out.write(LINE_SEPARATOR_BYTES);
+                            }
                         } else {
                             writer.writeObject(value);
                             writer.writeRaw(LINE_SEPARATOR);

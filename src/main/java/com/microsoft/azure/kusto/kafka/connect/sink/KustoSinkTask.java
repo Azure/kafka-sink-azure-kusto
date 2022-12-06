@@ -459,10 +459,13 @@ public class KustoSinkTask extends SinkTask {
                 log.error("Error putting records: ", e);
                 throw e;
             }
-
-            writer.writeRecord(sinkRecord);
+            if (sinkRecord.value() == null) {
+                log.warn("Filtering null value (tombstone) records at offset {}, key {} and partition {} ",
+                        sinkRecord.kafkaOffset(), sinkRecord.key(), sinkRecord.kafkaPartition());
+            } else {
+                writer.writeRecord(sinkRecord);
+            }
         }
-
         if (lastRecord != null) {
             log.debug("Last record offset: {}", lastRecord.kafkaOffset());
         }
