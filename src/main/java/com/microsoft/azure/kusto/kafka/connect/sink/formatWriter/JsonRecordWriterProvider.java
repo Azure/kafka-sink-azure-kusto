@@ -16,10 +16,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 public class JsonRecordWriterProvider implements RecordWriterProvider {
     private static final Logger log = LoggerFactory.getLogger(JsonRecordWriterProvider.class);
@@ -51,11 +49,10 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
                     try {
                         Object value = record.value();
                         if (value instanceof Struct) {
-                            byte[] rawJson = converter.fromConnectData(record.topic(),record.valueSchema(),value);
-                            if(ArrayUtils.isEmpty(rawJson)) {
-                                log.warn("Filtering empty records post-serialization at offset {}, key {} and partition {} ",
-                                        record.kafkaOffset(), record.key() , record.kafkaPartition());
-                            } else{
+                            byte[] rawJson = converter.fromConnectData(record.topic(), record.valueSchema(), value);
+                            if (ArrayUtils.isEmpty(rawJson)) {
+                                log.warn("Filtering empty records post-serialization. Record filtered {}",record); // prints everything
+                            } else {
                                 out.write(rawJson);
                                 out.write(LINE_SEPARATOR_BYTES);
                             }
