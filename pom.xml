@@ -17,7 +17,7 @@
         <commonio.version>2.11.0</commonio.version>
         <kusto-sdk.version>3.2.1</kusto-sdk.version>
         <formatter.version>2.20.0</formatter.version>
-        <jackson-version>2.13.3</jackson-version>
+        <jackson-version>2.13.4.2</jackson-version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <build>
@@ -142,6 +142,10 @@
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-databind</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.woodstox</groupId>
+                    <artifactId>woodstox-core</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
