@@ -684,7 +684,7 @@ the [Release History](README.md#16-release-history) section of this document.
 | 3.0.4           | 2022-09-05   | <ul><li>New feature: Make mapping optional , fixes Issue#76</li><li>New feature: Make table validation optional when the connector starts up (Refer: kusto.validation.table.enable)</li><li>Bug fix: Stop collecting messages when DLQ is not enabled. Provides better scaling & reduces GC pressure</li></ul>
 | 3.0.5           | 2022-09-07   | <ul><li>New feature: Support authentication with Managed Identities</li></ul>
 | 3.0.6           | 2022-11-28   | <ul><li>Upgrade Kusto Java SDK to 3.2.1 and fix failing unit test case (mitigate text4shell RCE vulnerability)</li></ul>
-
+| 3.0.7           | 2022-12-06   | <ul><li>Upgrade Jackson version to the latest security version</li><li>Filter tombstone records & records that fail JSON serialization</li></ul>
 ## 17. Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a
