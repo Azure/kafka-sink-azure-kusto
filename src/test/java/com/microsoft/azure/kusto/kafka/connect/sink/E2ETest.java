@@ -62,7 +62,7 @@ public class E2ETest {
         String[] messages = new String[] {"first field a,11", "first field b,22"};
         List<byte[]> messagesBytes = new ArrayList<>();
         messagesBytes.add(messages[0].getBytes());
-        messagesBytes.add(null);
+        messagesBytes.add(messages[1].getBytes());
         long flushInterval = 100;
 
         if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval, false)) {
