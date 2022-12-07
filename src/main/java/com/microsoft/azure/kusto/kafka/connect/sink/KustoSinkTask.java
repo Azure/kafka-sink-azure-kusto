@@ -12,6 +12,7 @@ import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.http.HttpHost;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -274,12 +275,16 @@ public class KustoSinkTask extends SinkTask {
 
     public void createKustoIngestClient(KustoSinkConfig config) {
         try {
+            HttpClientProperties httpClientProperties = null;
+            if(StringUtils.isNotEmpty(config.getConnectionProxyHost()) && StringUtils.isNotEmpty(config.getConnectionProxyPort())){
+                httpClientProperties= HttpClientProperties.builder().proxy(new HttpHost(config.getConnectionProxyHost(),Integer.parseInt(config.getConnectionProxyPort()))).build();
+            }
             ConnectionStringBuilder ingestConnectionStringBuilder = createKustoEngineConnectionString(config, config.getKustoIngestUrl());
-            kustoIngestClient = IngestClientFactory.createClient(ingestConnectionStringBuilder);
+            kustoIngestClient = IngestClientFactory.createClient(ingestConnectionStringBuilder,httpClientProperties);
 
             if (isStreamingEnabled(config)) {
                 ConnectionStringBuilder streamingConnectionStringBuilder = createKustoEngineConnectionString(config, config.getKustoEngineUrl());
-                streamingIngestClient = IngestClientFactory.createManagedStreamingIngestClient(ingestConnectionStringBuilder, streamingConnectionStringBuilder);
+                streamingIngestClient = IngestClientFactory.createManagedStreamingIngestClient(ingestConnectionStringBuilder, streamingConnectionStringBuilder,httpClientProperties);
             }
         } catch (Exception e) {
             throw new ConnectException("Failed to initialize KustoIngestClient", e);

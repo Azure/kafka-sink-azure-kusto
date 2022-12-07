@@ -32,6 +32,10 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_BEHAVIOR_ON_ERROR_CONF = "behavior.on.error";
     static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "misc.deadletterqueue.bootstrap.servers";
     static final String KUSTO_DLQ_TOPIC_NAME_CONF = "misc.deadletterqueue.topic.name";
+
+    static final String CONNECTION_PROXY_HOST = "proxy.host";
+
+    static final String CONNECTION_PROXY_PORT = "proxy.port";
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION = "kusto.validation.table.enable";
@@ -366,6 +370,14 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public String getDlqTopicName() {
         return getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+    }
+
+    public String getConnectionProxyHost() {
+        return getString(CONNECTION_PROXY_HOST);
+    }
+
+    public String getConnectionProxyPort() {
+        return getString(CONNECTION_PROXY_PORT);
     }
 
     public Properties getDlqProps() {
