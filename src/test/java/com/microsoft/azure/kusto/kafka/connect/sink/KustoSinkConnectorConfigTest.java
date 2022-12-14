@@ -64,7 +64,7 @@ public class KustoSinkConnectorConfigTest {
         // In the previous PR this behavior was changed. The default was to use APPLICATION auth, but it also permits
         // MI. In case of MI the App-ID/App-KEY became optional
         Assertions.assertThrows(ConfigException.class, () -> {
-            KustoSinkTask.createKustoEngineConnectionString(config,config.getKustoEngineUrl());
+            KustoSinkTask.createKustoEngineConnectionString(config, config.getKustoEngineUrl());
         });
     }
 
@@ -75,7 +75,7 @@ public class KustoSinkConnectorConfigTest {
         settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF, KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name());
         settings.remove(KustoSinkConfig.KUSTO_AUTH_APPID_CONF);
         KustoSinkConfig config = new KustoSinkConfig(settings);
-        ConnectionStringBuilder kcsb = KustoSinkTask.createKustoEngineConnectionString(config,config.getKustoEngineUrl());
+        ConnectionStringBuilder kcsb = KustoSinkTask.createKustoEngineConnectionString(config, config.getKustoEngineUrl());
         Assertions.assertNotNull(kcsb);
     }
 
