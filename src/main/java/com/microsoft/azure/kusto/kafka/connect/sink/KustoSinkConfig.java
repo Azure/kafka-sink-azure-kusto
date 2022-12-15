@@ -32,6 +32,8 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_BEHAVIOR_ON_ERROR_CONF = "behavior.on.error";
     static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_CONF = "misc.deadletterqueue.bootstrap.servers";
     static final String KUSTO_DLQ_TOPIC_NAME_CONF = "misc.deadletterqueue.topic.name";
+    static final String KUSTO_CONNECTION_PROXY_HOST = "proxy.host";
+    static final String KUSTO_CONNECTION_PROXY_PORT = "proxy.port";
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION = "kusto.validation.table.enable";
@@ -44,6 +46,11 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_AUTH_APPID_DOC = "Application Id for Azure Active Directory authentication.";
     private static final String KUSTO_AUTH_APPID_DISPLAY = "Kusto Auth AppID";
     private static final String KUSTO_AUTH_APPKEY_DOC = "Application Key for Azure Active Directory authentication.";
+    private static final String KUSTO_CONNECTION_PROXY_HOST_DOC = "Proxy host";
+    private static final String KUSTO_CONNECTION_PROXY_HOST_DISPLAY = "Proxy host used to connect to Kusto";
+    private static final String KUSTO_CONNECTION_PROXY_PORT_DOC = "Proxy port";
+    private static final String KUSTO_CONNECTION_PROXY_PORT_DISPLAY = "Proxy port used to connect to Kusto";
+
     private static final String KUSTO_AUTH_APPKEY_DISPLAY = "Kusto Auth AppKey";
     private static final String KUSTO_AUTH_AUTHORITY_DOC = "Azure Active Directory tenant.";
     private static final String KUSTO_AUTH_AUTHORITY_DISPLAY = "Kusto Auth Authority";
@@ -225,7 +232,6 @@ public class KustoSinkConfig extends AbstractConfig {
     private static void defineConnectionConfigs(ConfigDef result) {
         final String connectionGroupName = "Connection";
         int connectionGroupOrder = 0;
-
         result
                 .define(
                         KUSTO_INGEST_URL_CONF,
@@ -301,7 +307,27 @@ public class KustoSinkConfig extends AbstractConfig {
                         connectionGroupName,
                         connectionGroupOrder++,
                         Width.MEDIUM,
-                        KUSTO_AUTH_STRATEGY_DISPLAY);
+                        KUSTO_AUTH_STRATEGY_DISPLAY)
+                .define(
+                        KUSTO_CONNECTION_PROXY_HOST,
+                        Type.STRING,
+                        null,
+                        Importance.LOW,
+                        KUSTO_CONNECTION_PROXY_HOST_DOC,
+                        connectionGroupName,
+                        connectionGroupOrder++,
+                        Width.MEDIUM,
+                        KUSTO_CONNECTION_PROXY_HOST_DISPLAY)
+                .define(
+                        KUSTO_CONNECTION_PROXY_PORT,
+                        Type.INT,
+                        -1,
+                        Importance.LOW,
+                        KUSTO_CONNECTION_PROXY_PORT_DOC,
+                        connectionGroupName,
+                        connectionGroupOrder++,
+                        Width.MEDIUM,
+                        KUSTO_CONNECTION_PROXY_PORT_DISPLAY);
     }
 
     public String getKustoIngestUrl() {
@@ -366,6 +392,14 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public String getDlqTopicName() {
         return getString(KUSTO_DLQ_TOPIC_NAME_CONF);
+    }
+
+    public String getConnectionProxyHost() {
+        return getString(KUSTO_CONNECTION_PROXY_HOST);
+    }
+
+    public Integer getConnectionProxyPort() {
+        return getInt(KUSTO_CONNECTION_PROXY_PORT);
     }
 
     public Properties getDlqProps() {

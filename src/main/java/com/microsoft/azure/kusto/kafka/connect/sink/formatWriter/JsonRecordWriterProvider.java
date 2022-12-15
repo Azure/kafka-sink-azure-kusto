@@ -51,7 +51,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
                         if (value instanceof Struct) {
                             byte[] rawJson = converter.fromConnectData(record.topic(), record.valueSchema(), value);
                             if (ArrayUtils.isEmpty(rawJson)) {
-                                log.warn("Filtering empty records post-serialization. Record filtered {}",record); // prints everything
+                                log.warn("Filtering empty records post-serialization. Record filtered {}", record); // prints everything
                             } else {
                                 out.write(rawJson);
                                 out.write(LINE_SEPARATOR_BYTES);
