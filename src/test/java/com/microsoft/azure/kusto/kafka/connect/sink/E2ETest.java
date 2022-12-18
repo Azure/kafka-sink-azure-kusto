@@ -1,7 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
+
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -51,9 +50,6 @@ public class E2ETest {
     private static HttpProxyServer proxy;
     private final String basePath = Paths.get("src/test/resources/", "testE2E").toString();
     private final Logger log = Logger.getLogger(this.getClass().getName());
-    private boolean isDlqEnabled;
-    private String dlqTopicName;
-    private static Producer<byte[], byte[]> kafkaProducer;
 
     @BeforeAll
     public static void beforeAll() {
@@ -61,15 +57,12 @@ public class E2ETest {
         properties.put("bootstrap.servers", "localhost:9000");
         properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
         properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-        kafkaProducer = new KafkaProducer<>(properties);
         setupAndStartProxy();
     }
 
     @AfterAll
     public static void afterAll() {
         shutdownProxy();
-        kafkaProducer.flush();
-        kafkaProducer.close();
     }
 
     private static void setupAndStartProxy() {
@@ -86,8 +79,8 @@ public class E2ETest {
 
     @BeforeEach
     public void setUp() {
-        isDlqEnabled = false;
-        dlqTopicName = null;
+        boolean isDlqEnabled = false;
+        String dlqTopicName = null;
     }
 
     @Test
