@@ -1,6 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.google.common.base.Function;
+import java.util.function.Function;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
@@ -9,10 +9,13 @@ import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWrite
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
+
+import org.apache.commons.io.FilenameUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,20 +40,20 @@ public class FileWriter implements Closeable {
     private final IngestionProperties.DataFormat format;
     SourceFile currentFile;
     private Timer timer;
-    private Consumer<SourceFile> onRollCallback;
-    private Function<Long, String> getFilePath;
+    private final Consumer<SourceFile> onRollCallback;
+    private final Function<Long, String> getFilePath;
     private OutputStream outputStream;
-    private String basePath;
+    private final String basePath;
     private CountingOutputStream countingStream;
-    private long fileThreshold;
+    private final long fileThreshold;
     // Lock is given from TopicPartitionWriter to lock while ingesting
-    private ReentrantReadWriteLock reentrantReadWriteLock;
+    private final ReentrantReadWriteLock reentrantReadWriteLock;
     // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
     private FileDescriptor currentFileDescriptor;
     private String flushError;
     private RecordWriterProvider recordWriterProvider;
     private RecordWriter recordWriter;
-    private BehaviorOnError behaviorOnError;
+    private final BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
     private boolean stopped = false;
     private boolean isDlqEnabled = false;
@@ -78,14 +81,11 @@ public class FileWriter implements Closeable {
         this.flushInterval = flushInterval;
         this.behaviorOnError = behaviorOnError;
         this.isDlqEnabled = isDlqEnabled;
-
         // This is a fair lock so that we flush close to the time intervals
         this.reentrantReadWriteLock = reentrantLock;
-
         // If we failed on flush we want to throw the error from the put() flow.
         flushError = null;
         this.format = format;
-
     }
 
     boolean isDirty() {
@@ -105,9 +105,15 @@ public class FileWriter implements Closeable {
 
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
-        File file = new File(filePath);
-
-        file.createNewFile();
+        // Sanitize the file name just be sure and make sure it has the R/W permissions only
+        File file = new File(FilenameUtils.normalize(filePath));
+        boolean execResult = file.setExecutable(false);
+        execResult = execResult && file.setReadable(true);
+        execResult = execResult && file.setWritable(true);
+        execResult = execResult && file.createNewFile();
+        if (!execResult) {
+            log.warn("Setting permissions creating file {} returned false.", filePath);
+        }
         FileOutputStream fos = new FileOutputStream(file);
         currentFileDescriptor = fos.getFD();
         fos.getChannel().truncate(0);
@@ -312,13 +318,13 @@ public class FileWriter implements Closeable {
         }
 
         @Override
-        public void write(byte[] b) throws IOException {
+        public void write(byte @NotNull [] b) throws IOException {
             out.write(b);
             this.numBytes += b.length;
         }
 
         @Override
-        public void write(byte[] b, int off, int len) throws IOException {
+        public void write(byte @NotNull [] b, int off, int len) throws IOException {
             out.write(b, off, len);
             this.numBytes += len;
         }

@@ -1,75 +1,80 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.littleshoot.proxy.HttpProxyServer;
 import org.littleshoot.proxy.HttpProxyServerBootstrap;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
+import com.microsoft.azure.kusto.data.StringUtils;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
-import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.UUID;
-import java.util.logging.Logger;
 
-@Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
+//@Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
-    private static final String appId = System.getProperty("appId");
-    private static final String appKey = System.getProperty("appKey");
-    private static final String authority = System.getProperty("authority");
-    private static final String cluster = System.getProperty("cluster");
-    private static final String database = System.getProperty("database");
-    private static final String tableBaseName = System.getProperty("table", testPrefix + UUID.randomUUID().toString().replace('-', '_'));
+    private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
+    private static String appId;
+    private static String appKey;
+    private static String authority;
+    private static String cluster;
+    private static String database;
+    private static String tableBaseName;
     private static HttpProxyServer proxy;
     private final String basePath = Paths.get("src/test/resources/", "testE2E").toString();
-    private final Logger log = Logger.getLogger(this.getClass().getName());
-    private boolean isDlqEnabled;
-    private String dlqTopicName;
-    private static Producer<byte[], byte[]> kafkaProducer;
 
     @BeforeAll
     public static void beforeAll() {
-        Properties properties = new Properties();
-        properties.put("bootstrap.servers", "localhost:9000");
-        properties.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-        properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-        kafkaProducer = new KafkaProducer<>(properties);
+        /*
+         * Some scanners report global declarations as not handling exceptions and also not santizing names. Extracting these to beforeAll and then sanitizing
+         * the names should fix this.
+         */
+        appId = getProperty("appId", null, false); // not used in file paths for temp files
+        appKey = getProperty("appKey", null, false); // not used in file paths for temp files
+        authority = getProperty("authority", null, false); // not used in file paths for temp files
+        cluster = getProperty("cluster", null, false);// not used in file paths for temp files
+        database = getProperty("database", "e2e", true); // used in file names. Sanitize the name
+        String defaultTableName = String.format("%s%s", testPrefix, UUID.randomUUID().toString().replace('-', '_'));
+        tableBaseName = getProperty("table", defaultTableName, true);// used in file names. Sanitize the name
         setupAndStartProxy();
+    }
+
+    private static String getProperty(String propertyName, String defaultValue, boolean sanitizePath) {
+        String propertyValue = System.getProperty(propertyName, defaultValue);
+        if (StringUtils.isNotEmpty(propertyValue)) {
+            return sanitizePath ? FilenameUtils.normalize(propertyValue) : propertyValue;
+        }
+        throw new IllegalArgumentException(String.format("Property %s cannot be empty", propertyName));
     }
 
     @AfterAll
     public static void afterAll() {
         shutdownProxy();
-        kafkaProducer.flush();
-        kafkaProducer.close();
     }
 
     private static void setupAndStartProxy() {
@@ -82,12 +87,6 @@ public class E2ETest {
 
     private static void shutdownProxy() {
         proxy.stop();
-    }
-
-    @BeforeEach
-    public void setUp() {
-        isDlqEnabled = false;
-        dlqTopicName = null;
     }
 
     @Test
@@ -124,32 +123,28 @@ public class E2ETest {
         }
     }
 
-
     @Test
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String dataFormat = "avro";
         IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.AVRO;
         String mapping = "{\"column\": \"ColA\", \"Properties\":{\"Field\":\"XText\"}}," +
                 "{\"column\": \"ColB\", \"Properties\":{\"Field\":\"RowNumber\"}}";
-        byte[] message = new byte[1184];
-        try (FileInputStream fs = new FileInputStream("src/test/resources/data.avro");) {
-            if (fs.read(message) != 1184) {
-                Assertions.fail("Error while ");
-            }
-        } catch (IOException e) {
-            Assertions.fail("Test failed");
-        }
-        List<byte[]> messagesBytes = new ArrayList<>();
-        messagesBytes.add(message);
         long flushInterval = 300000;
-
+        List<byte[]> messagesBytes = new ArrayList<>();
+        try {
+            byte[] message = Files.readAllBytes(Paths.get("src", "test", "resources", "data.avro"));
+            messagesBytes.add(message);
+        } catch (IOException ex) {
+            Assertions.fail("Error reading avro file in E2E test");
+        }
         if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval, true, true)) {
             Assertions.fail("Test failed");
         }
     }
 
     private boolean executeTest(String dataFormat, IngestionMapping.IngestionMappingKind ingestionMappingKind,
-            String mapping, List<byte[]> messagesBytes, long flushInterval, boolean streaming, boolean useProxy)
+            String mapping, List<byte[]> messagesBytes, long flushInterval, boolean streaming,
+            boolean useProxy)
             throws URISyntaxException, DataServiceException, DataClientException {
         String table = tableBaseName + dataFormat;
         String mappingReference = dataFormat + "Mapping";
@@ -157,7 +152,7 @@ public class E2ETest {
                 String.format("https://%s.kusto.windows.net/", cluster),
                 appId, appKey, authority);
         Client engineClient = ClientFactory.createClient(engineCsb);
-
+        String basepath = Paths.get(basePath, dataFormat).toString();
         try {
             if (tableBaseName.startsWith(testPrefix)) {
                 engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
@@ -169,12 +164,7 @@ public class E2ETest {
                     "'[" + mapping + "]'", table, dataFormat, mappingReference));
 
             TopicPartition tp = new TopicPartition("testPartition" + dataFormat, 11);
-            ConnectionStringBuilder csb = ConnectionStringBuilder
-                    .createWithAadApplicationCredentials(String.format("https://ingest-%s.kusto.windows.net", cluster),
-                            appId, appKey, authority);
-            IngestClient ingestClient = IngestClientFactory.createManagedStreamingIngestClient(csb, engineCsb);
             IngestionProperties ingestionProperties = new IngestionProperties(database, table);
-
             long fileThreshold = 100;
             TopicIngestionProperties props = new TopicIngestionProperties();
             props.ingestionProperties = ingestionProperties;
@@ -182,11 +172,9 @@ public class E2ETest {
             props.ingestionProperties.setIngestionMapping(mappingReference, ingestionMappingKind);
             String kustoDmUrl = String.format("https://ingest-%s.kusto.windows.net", cluster);
             String kustoEngineUrl = String.format("https://%s.kusto.windows.net", cluster);
-            String basepath = Paths.get(basePath, dataFormat).toString();
             Map<String, String> settings = getKustoConfigs(
                     kustoDmUrl, kustoEngineUrl, basepath, mappingReference, fileThreshold,
                     flushInterval, tp, dataFormat, table, streaming, useProxy);
-            KustoSinkConfig config = new KustoSinkConfig(settings);
             KustoSinkTask kustoSinkTask = new KustoSinkTask();
             kustoSinkTask.start(settings);
             kustoSinkTask.open(Collections.singletonList(tp));
@@ -195,7 +183,6 @@ public class E2ETest {
                 records.add(
                         new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, messageBytes, 10));
             }
-
             kustoSinkTask.put(records);
             // Streaming result should show
             int timeoutMs = streaming ? 0 : 60 * 6 * 1000;
@@ -203,11 +190,15 @@ public class E2ETest {
         } catch (InterruptedException e) {
             return false;
         } finally {
-            if (table.startsWith(testPrefix)) {
-                engineClient.execute(database, ".drop table " + table);
+            try {
+                Files.deleteIfExists(Paths.get(basepath));
+                if (table.startsWith(testPrefix)) {
+                    engineClient.execute(database, ".drop table " + table);
+                }
+            } catch (IOException ex) {
+                log.warn("Clean up error deleting file {}", basepath);
             }
         }
-
         return true;
     }
 
@@ -228,8 +219,8 @@ public class E2ETest {
             rowCount = res.getInt(0);
             timeElapsedMs += sleepPeriodMs;
         }
-        Assertions.assertEquals(expectedNumberOfRows,rowCount);
-        this.log.info("Successfully ingested " + expectedNumberOfRows + " records.");
+        Assertions.assertEquals(expectedNumberOfRows, rowCount);
+        log.info("Successfully ingested " + expectedNumberOfRows + " records.");
     }
 
     private Map<String, String> getKustoConfigs(String clusterUrl, String engineUrl, String basePath,
@@ -251,7 +242,8 @@ public class E2ETest {
         settings.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, String.valueOf(flushInterval));
         if (useProxy) {
             settings.put(KustoSinkConfig.KUSTO_CONNECTION_PROXY_HOST, proxy.getListenAddress().getHostName());
-            settings.put(KustoSinkConfig.KUSTO_CONNECTION_PROXY_PORT, String.valueOf(proxy.getListenAddress().getPort()));
+            settings.put(KustoSinkConfig.KUSTO_CONNECTION_PROXY_PORT,
+                    String.valueOf(proxy.getListenAddress().getPort()));
         }
         return settings;
     }
