@@ -16,6 +16,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.function.Function;
@@ -41,6 +43,8 @@ import java.util.Properties;
 
 //TODO parts of this test needs to be re-formatted and may need rewriting
 public class TopicPartitionWriterTest {
+    private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriterTest.class);
+
     private static final String KUSTO_INGEST_CLUSTER_URL = "https://ingest-cluster.kusto.windows.net";
     private static final String KUSTO_CLUSTER_URL = "https://cluster.kusto.windows.net";
     private static final String DATABASE = "testdb1";
@@ -103,7 +107,8 @@ public class TopicPartitionWriterTest {
         try {
             verify(mockedClient, only()).ingestFromFile(fileSourceInfoArgument.capture(), ingestionPropertiesArgumentCaptor.capture());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error running testHandleRollFile", e);
+            fail(e);
         }
 
         Assertions.assertEquals(fileSourceInfoArgument.getValue().getFilePath(), descriptor.path);
@@ -129,7 +134,8 @@ public class TopicPartitionWriterTest {
         try {
             verify(mockedClient, only()).ingestFromFile(fileSourceInfoArgument.capture(), ingestionPropertiesArgumentCaptor.capture());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error running testHandleRollFile", e);
+            fail(e);
         }
 
         Assertions.assertEquals(fileSourceInfoArgument.getValue().getFilePath(), descriptor.path);

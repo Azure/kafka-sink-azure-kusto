@@ -8,6 +8,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Function;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -33,6 +35,8 @@ import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 
 public class FileWriterTest {
+    private static final Logger log = LoggerFactory.getLogger(FileWriterTest.class);
+
     IngestionProperties ingestionProps;
     private File currentDirectory;
 
@@ -58,7 +62,7 @@ public class FileWriterTest {
                     Assertions.assertEquals(s, msg);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("Error running test", e);
                 Assertions.fail(e.getMessage());
             }
             return null;
