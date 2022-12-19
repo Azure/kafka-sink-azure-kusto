@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-// @Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
+@Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
     private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
