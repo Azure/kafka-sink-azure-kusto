@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
+// @Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
     private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
@@ -55,10 +55,13 @@ public class E2ETest {
          * Some scanners report global declarations as not handling exceptions and also not santizing names. Extracting these to beforeAll and then sanitizing
          * the names should fix this.
          */
-        appId = getProperty("appId", null, false); // not used in file paths for temp files
-        appKey = getProperty("appKey", null, false); // not used in file paths for temp files
-        authority = getProperty("authority", null, false); // not used in file paths for temp files
-        cluster = getProperty("cluster", null, false);// not used in file paths for temp files
+        // App credentials are not used in the file name that are created. These paths hence need not be sanitized for
+        // path traversal vulnerability.
+        appId = getProperty("appId", null, false);
+        appKey = getProperty("appKey", null, false);
+        authority = getProperty("authority", null, false);
+        cluster = getProperty("cluster", null, false);
+        // The database and table names are used in the file name and hence are sanitized ( ../.. or ./dd/ etc)
         database = getProperty("database", "e2e", true); // used in file names. Sanitize the name
         String defaultTableName = String.format("%s%s", testPrefix, UUID.randomUUID().toString().replace('-', '_'));
         tableBaseName = getProperty("table", defaultTableName, true);// used in file names. Sanitize the name
@@ -101,7 +104,6 @@ public class E2ETest {
         messagesBytes.add(messages[0].getBytes());
         messagesBytes.add(messages[1].getBytes());
         long flushInterval = 100;
-
         if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval, false, false)) {
             Assertions.fail("Test failed");
         }
@@ -130,7 +132,7 @@ public class E2ETest {
         IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.AVRO;
         String mapping = "{\"column\": \"ColA\", \"Properties\":{\"Field\":\"XText\"}}," +
                 "{\"column\": \"ColB\", \"Properties\":{\"Field\":\"RowNumber\"}}";
-        long flushInterval = 300000;
+        long flushInterval = 300;
         List<byte[]> messagesBytes = new ArrayList<>();
         try {
             byte[] message = Files.readAllBytes(Paths.get("src", "test", "resources", "data.avro"));
@@ -157,6 +159,9 @@ public class E2ETest {
         try {
             if (tableBaseName.startsWith(testPrefix)) {
                 engineClient.execute(database, String.format(".create table %s (ColA:string,ColB:int)", table));
+                engineClient.execute(database, String.format(
+                        ".alter table %s policy ingestionbatching @'{\"MaximumBatchingTimeSpan\":\"00:00:05\", \"MaximumNumberOfItems\": 2, \"MaximumRawDataSizeMB\": 100}'",
+                        table));
                 if (streaming) {
                     engineClient.execute(database, ".clear database cache streamingingestion schema");
                 }
@@ -185,7 +190,7 @@ public class E2ETest {
                         new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.BYTES_SCHEMA, messageBytes, 10));
             }
             kustoSinkTask.put(records);
-            // Streaming result should show
+            // Streaming result should show immediately
             int timeoutMs = streaming ? 0 : 60 * 6 * 1000;
             validateExpectedResults(engineClient, 2, table, timeoutMs);
         } catch (InterruptedException e) {
@@ -206,13 +211,11 @@ public class E2ETest {
     private void validateExpectedResults(Client engineClient, Integer expectedNumberOfRows, String table, int timeoutMs)
             throws InterruptedException, DataClientException, DataServiceException {
         String query = String.format("%s | count", table);
-
         KustoResultSetTable res = engineClient.execute(database, query).getPrimaryResults();
         res.next();
         int rowCount = res.getInt(0);
         int timeElapsedMs = 0;
         int sleepPeriodMs = 5 * 1000;
-
         while (rowCount < expectedNumberOfRows && timeElapsedMs < timeoutMs) {
             Thread.sleep(sleepPeriodMs);
             res = engineClient.execute(database, query).getPrimaryResults();
@@ -221,7 +224,7 @@ public class E2ETest {
             timeElapsedMs += sleepPeriodMs;
         }
         Assertions.assertEquals(expectedNumberOfRows, rowCount);
-        log.info("Successfully ingested " + expectedNumberOfRows + " records.");
+        log.info("Successfully ingested {} records", expectedNumberOfRows);
     }
 
     private Map<String, String> getKustoConfigs(String clusterUrl, String engineUrl, String basePath,

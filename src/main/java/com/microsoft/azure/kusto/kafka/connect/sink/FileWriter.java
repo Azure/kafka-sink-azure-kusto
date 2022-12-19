@@ -42,7 +42,7 @@ public class FileWriter implements Closeable {
     private Timer timer;
     private final Consumer<SourceFile> onRollCallback;
     private final Function<Long, String> getFilePath;
-    private OutputStream outputStream;
+    private GZIPOutputStream outputStream;
     private final String basePath;
     private CountingOutputStream countingStream;
     private final long fileThreshold;
@@ -94,7 +94,6 @@ public class FileWriter implements Closeable {
 
     public void openFile(@Nullable Long offset) throws IOException {
         SourceFile fileProps = new SourceFile();
-
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
             if (!folder.exists()) {
@@ -102,18 +101,37 @@ public class FileWriter implements Closeable {
             }
             log.warn("Couldn't create the directory because it already exists (likely a race condition)");
         }
-
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
         // Sanitize the file name just be sure and make sure it has the R/W permissions only
-        File file = new File(FilenameUtils.normalize(filePath));
-        boolean execResult = file.setExecutable(false);
-        execResult = execResult && file.setReadable(true);
-        execResult = execResult && file.setWritable(true);
-        execResult = execResult && file.createNewFile();
-        if (!execResult) {
-            log.warn("Setting permissions creating file {} returned false.", filePath);
+        String sanitizedFilePath = FilenameUtils.normalize(filePath);
+        if (sanitizedFilePath == null) {
+            /*
+             * This condition should not occur at all. The files are created in controlled manner with the names consisting DB name, table name. These do not
+             * permit names like "../../" or "./" etc. Still adding an additional check.
+             */
+            String errorMessage = String.format("Exception creating local file for write." +
+                    "File %s has non canonical path", filePath);
+            throw new RuntimeException(errorMessage);
         }
+        File file = new File(sanitizedFilePath);
+        boolean createFile = file.createNewFile(); // if there is a runtime exception. It gets thrown from here
+        if (createFile) {
+            /*
+             * Setting restricted permissions on the file. If these permissions cannot be set, then warn, We cannot fail the ingestion. Added this in a
+             * conditional as these permissions can be applied only when the file is created
+             */
+            boolean execResult = file.setReadable(true, true);
+            execResult = execResult && file.setWritable(true, true);
+            execResult = execResult && file.setExecutable(false, false);
+            if (!execResult) {
+                log.warn("Setting permissions creating file {} returned false." +
+                        "The files set for ingestion can be read by other applications having access." +
+                        "Please check security policies on the host that is preventing file permissions being applied", filePath);
+            }
+        }
+        // The underlying file is closed only when the current countingStream (abstraction for size based writes) and
+        // the file is rolled over
         FileOutputStream fos = new FileOutputStream(file);
         currentFileDescriptor = fos.getFD();
         fos.getChannel().truncate(0);
@@ -132,9 +150,11 @@ public class FileWriter implements Closeable {
     void finishFile(Boolean delete) throws IOException, DataException {
         if (isDirty()) {
             recordWriter.commit();
-            GZIPOutputStream gzip = (GZIPOutputStream) outputStream;
-            gzip.finish();
-
+            // Since we are using GZIP compression, finish the file. Close is invoked only when this flush finishes
+            // and then the file is finished in ingest
+            // This is called when there is a time or a size limit reached. The file is then reset/rolled and then a
+            // new file is started for processing
+            outputStream.finish();
             // It could be we were waiting on the lock when task suddenly stops and we should not ingest anymore
             if (stopped) {
                 return;
@@ -143,9 +163,8 @@ public class FileWriter implements Closeable {
                 onRollCallback.accept(currentFile);
             } catch (ConnectException e) {
                 /*
-                 * Swallow the exception and continue to process subsequent records when behavior.on.error is not set to fail mode.
-                 *
-                 * Also, throwing/logging the exception with just a message to avoid polluting logs with duplicate trace.
+                 * Swallow the exception and continue to process subsequent records when behavior.on.error is not set to fail mode. Also, throwing/logging the
+                 * exception with just a message to avoid polluting logs with duplicate trace.
                  */
                 handleErrors("Failed to write records to KustoDB.", e);
             }
@@ -153,6 +172,8 @@ public class FileWriter implements Closeable {
                 dumpFile();
             }
         } else {
+            // The stream is closed only when there are non-empty files for ingestion.Note that the FileOutputStream
+            // is also closed when this GZIP stream is closed
             outputStream.close();
             currentFile = null;
         }
@@ -197,7 +218,6 @@ public class FileWriter implements Closeable {
 
     public synchronized void stop() throws DataException {
         stopped = true;
-
         if (timer != null) {
             Timer temp = timer;
             timer = null;
@@ -212,10 +232,8 @@ public class FileWriter implements Closeable {
                 if (timer != null) {
                     timer.cancel();
                 }
-
                 timer = new Timer(true);
             }
-
             TimerTask t = new TimerTask() {
                 @Override
                 public void run() {
@@ -234,12 +252,10 @@ public class FileWriter implements Closeable {
             if (stopped) {
                 return;
             }
-
             // Lock before the check so that if a writing process just flushed this won't ingest empty files
             if (isDirty()) {
                 finishFile(true);
             }
-
             resetFlushTimer(false);
         } catch (Exception e) {
             String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
@@ -258,7 +274,6 @@ public class FileWriter implements Closeable {
         if (recordWriterProvider == null) {
             initializeRecordWriter(record);
         }
-
         if (currentFile == null) {
             openFile(record.kafkaOffset());
             resetFlushTimer(true);
@@ -304,9 +319,9 @@ public class FileWriter implements Closeable {
 
     private class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;
-        private OutputStream outputStream;
+        private final GZIPOutputStream outputStream;
 
-        CountingOutputStream(OutputStream out) {
+        CountingOutputStream(GZIPOutputStream out) {
             super(out);
             this.outputStream = out;
         }
@@ -329,8 +344,8 @@ public class FileWriter implements Closeable {
             this.numBytes += len;
         }
 
-        public OutputStream getOutputStream() {
-            return outputStream;
+        public GZIPOutputStream getOutputStream() {
+            return this.outputStream;
         }
     }
 }

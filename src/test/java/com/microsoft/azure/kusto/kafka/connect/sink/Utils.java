@@ -41,12 +41,14 @@ public class Utils {
     }
 
     public static boolean restrictPermissions(File file) {
-        return file.setExecutable(false) && file.setReadable(true) && file.setWritable(true);
+        // No execute permissions. Read and write only for the owning applications
+        return file.setExecutable(false, false) &&
+                file.setReadable(true, true) &&
+                file.setWritable(true, true);
     }
 
     public static int getFilesCount(String path) {
         File folder = new File(path);
-        return Objects.requireNonNull(folder.list()).length;
+        return Objects.requireNonNull(folder.list(), String.format("File %s is empty and has no files", path)).length;
     }
-
 }
