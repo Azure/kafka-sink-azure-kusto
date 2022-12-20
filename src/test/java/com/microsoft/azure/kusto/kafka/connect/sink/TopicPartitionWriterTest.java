@@ -1,6 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -20,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.Objects;
 import java.util.function.Function;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -264,7 +266,8 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testWriteBytesValuesAndOffset() throws IOException {
-        byte[] message = Files.readAllBytes(Paths.get("src", "test", "resources", "data.avro"));
+        byte[] message = IOUtils.toByteArray(
+                Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream("data.avro")));
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         o.write(message);
         // Expect to finish file with one record although fileThreshold is high

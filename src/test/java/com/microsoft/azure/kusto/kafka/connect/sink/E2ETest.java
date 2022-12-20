@@ -1,6 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -34,6 +35,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
@@ -135,7 +137,8 @@ public class E2ETest {
         long flushInterval = 300;
         List<byte[]> messagesBytes = new ArrayList<>();
         try {
-            byte[] message = Files.readAllBytes(Paths.get("src", "test", "resources", "data.avro"));
+            byte[] message = IOUtils.toByteArray(
+                    Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream("data.avro")));
             messagesBytes.add(message);
         } catch (IOException ex) {
             Assertions.fail("Error reading avro file in E2E test");
