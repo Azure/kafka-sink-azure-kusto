@@ -39,7 +39,7 @@ import java.util.UUID;
 @Disabled("We don't want these tests running as part of the build or CI. Comment this line to test manually.")
 public class E2ETest {
     private static final String testPrefix = "tmpKafkaE2ETest";
-    private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
+    private static final Logger log = LoggerFactory.getLogger(E2ETest.class);
     private static String appId;
     private static String appKey;
     private static String authority;

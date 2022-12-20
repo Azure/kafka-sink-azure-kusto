@@ -121,13 +121,23 @@ public class FileWriter implements Closeable {
              * Setting restricted permissions on the file. If these permissions cannot be set, then warn, We cannot fail the ingestion. Added this in a
              * conditional as these permissions can be applied only when the file is created
              */
-            boolean execResult = file.setReadable(true, true);
-            execResult = execResult && file.setWritable(true, true);
-            execResult = execResult && file.setExecutable(false, false);
-            if (!execResult) {
-                log.warn("Setting permissions creating file {} returned false." +
+            try {
+                boolean execResult = file.setReadable(true, true);
+                execResult = execResult && file.setWritable(true, true);
+                execResult = execResult && file.setExecutable(false, false);
+                if (!execResult) {
+                    log.warn("Setting permissions creating file {} returned false." +
+                            "The files set for ingestion can be read by other applications having access." +
+                            "Please check security policies on the host that is preventing file permissions being applied",
+                            filePath);
+                }
+            } catch (Exception ex) {
+                // There is a likely chance of the permissions not getting set. This is set to warn
+                log.warn("Exception permissions creating file {} returned false." +
                         "The files set for ingestion can be read by other applications having access." +
-                        "Please check security policies on the host that is preventing file permissions being applied", filePath);
+                        "Please check security policies on the host that is preventing file permissions being applied",
+                        filePath, ex);
+
             }
         }
         // The underlying file is closed only when the current countingStream (abstraction for size based writes) and

@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 public class Utils {
-    private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
+    private static final Logger log = LoggerFactory.getLogger(Utils.class);
 
     private Utils() {
 
@@ -19,7 +19,7 @@ public class Utils {
     public static File getCurrentWorkingDirectory() {
         File currentDirectory = new File(Paths.get(
                 System.getProperty("java.io.tmpdir"),
-                FileWriter.class.getSimpleName(),
+                Utils.class.getSimpleName(),
                 String.valueOf(Instant.now().toEpochMilli())).toString());
         boolean opResult = restrictPermissions(currentDirectory);
         String fullPath = currentDirectory.getAbsolutePath();
@@ -42,9 +42,16 @@ public class Utils {
 
     public static boolean restrictPermissions(File file) {
         // No execute permissions. Read and write only for the owning applications
-        return file.setExecutable(false, false) &&
-                file.setReadable(true, true) &&
-                file.setWritable(true, true);
+        try {
+            return file.setExecutable(false, false) &&
+                    file.setReadable(true, true) &&
+                    file.setWritable(true, true);
+        } catch (Exception ex) {
+            log.debug("Exception setting permissions on temporary test files[{}]. This is usually not a problem as it is" +
+                    "run on test.To fix this, please check if there are specific security policies on test host that are" +
+                    "causing this", file.getPath(), ex);
+            return false;
+        }
     }
 
     public static int getFilesCount(String path) {
