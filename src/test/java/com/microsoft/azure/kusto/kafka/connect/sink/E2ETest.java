@@ -126,6 +126,23 @@ public class E2ETest {
 
 
     @Test
+    public void testE2EJsonTombstone() throws URISyntaxException, DataClientException, DataServiceException {
+        String dataFormat = "json";
+        IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.JSON;
+        String mapping = "{\"column\":\"ColA\", \"DataType\":\"string\", \"Properties\":{\"Path\":\"$.ColA\"}}," +
+                "{\"column\":\"ColB\", \"DataType\":\"int\", \"Properties\":{\"Path\":\"$.ColB\"}},";
+        String[] messages = new String[] {"{'ColA': 'first field a', 'ColB': '11'}","{'ColA': 'first field a', 'ColB': '11'}", null};
+        List<byte[]> messagesBytes = new ArrayList<>();
+        messagesBytes.add(messages[0].getBytes());
+        messagesBytes.add(null);
+        long flushInterval = 100;
+
+        if (!executeTest(dataFormat, ingestionMappingKind, mapping, messagesBytes, flushInterval, false)) {
+            Assertions.fail("Test failed");
+        }
+    }
+
+    @Test
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String dataFormat = "avro";
         IngestionMapping.IngestionMappingKind ingestionMappingKind = IngestionMapping.IngestionMappingKind.AVRO;
