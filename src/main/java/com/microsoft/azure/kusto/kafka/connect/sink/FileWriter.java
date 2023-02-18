@@ -104,22 +104,26 @@ public class FileWriter implements Closeable {
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
         // Sanitize the file name just be sure and make sure it has the R/W permissions only
+
         String sanitizedFilePath = FilenameUtils.normalize(filePath);
         if (sanitizedFilePath == null) {
             /*
-             * This condition should not occur at all. The files are created in controlled manner with the names consisting DB name, table name. These do not
+             * This condition should not occur at all. The files are created in controlled manner with the names consisting DB name, table name. This does not
              * permit names like "../../" or "./" etc. Still adding an additional check.
              */
             String errorMessage = String.format("Exception creating local file for write." +
-                    "File %s has non canonical path", filePath);
+                    "File %s has a non canonical path", filePath);
             throw new RuntimeException(errorMessage);
         }
         File file = new File(sanitizedFilePath);
         boolean createFile = file.createNewFile(); // if there is a runtime exception. It gets thrown from here
         if (createFile) {
             /*
-             * Setting restricted permissions on the file. If these permissions cannot be set, then warn, We cannot fail the ingestion. Added this in a
-             * conditional as these permissions can be applied only when the file is created
+             * Setting restricted permissions on the file. If these permissions cannot be set, then warn -
+             * We cannot fail the ingestion (Failing the ingestion would for not having the permission would mean that
+             * there may be data loss or unexpected scenarios.)
+             * Added this in a conditional as these permissions can be applied only when the file is created
+             *
              */
             try {
                 boolean execResult = file.setReadable(true, true);
@@ -128,7 +132,7 @@ public class FileWriter implements Closeable {
                 if (!execResult) {
                     log.warn("Setting permissions creating file {} returned false." +
                             "The files set for ingestion can be read by other applications having access." +
-                            "Please check security policies on the host that is preventing file permissions being applied",
+                            "Please check security policies on the host that is preventing file permissions from being applied",
                             filePath);
                 }
             } catch (Exception ex) {
@@ -163,7 +167,7 @@ public class FileWriter implements Closeable {
             // Since we are using GZIP compression, finish the file. Close is invoked only when this flush finishes
             // and then the file is finished in ingest
             // This is called when there is a time or a size limit reached. The file is then reset/rolled and then a
-            // new file is started for processing
+            // new file is created for processing
             outputStream.finish();
             // It could be we were waiting on the lock when task suddenly stops and we should not ingest anymore
             if (stopped) {
@@ -182,8 +186,8 @@ public class FileWriter implements Closeable {
                 dumpFile();
             }
         } else {
-            // The stream is closed only when there are non-empty files for ingestion.Note that the FileOutputStream
-            // is also closed when this GZIP stream is closed
+            // The stream is closed only when there are non-empty files for ingestion. Note that this closes the
+            // FileOutputStream as well
             outputStream.close();
             currentFile = null;
         }

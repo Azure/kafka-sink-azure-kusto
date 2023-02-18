@@ -76,8 +76,8 @@ class TopicPartitionWriter {
     }
 
     static String getTempDirectoryName(String tempDirPath) {
-        String tempDir = "kusto-sink-connector-" + UUID.randomUUID();
-        Path path = Paths.get(tempDirPath, tempDir);
+        String tempDir = String.format("kusto-sink-connector-%s",UUID.randomUUID());
+        Path path = Paths.get(tempDirPath, tempDir).toAbsolutePath();
         return path.toString();
     }
 
