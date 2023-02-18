@@ -119,10 +119,9 @@ public class FileWriter implements Closeable {
         boolean createFile = file.createNewFile(); // if there is a runtime exception. It gets thrown from here
         if (createFile) {
             /*
-             * Setting restricted permissions on the file. If these permissions cannot be set, then warn -
-             * We cannot fail the ingestion (Failing the ingestion would for not having the permission would mean that
-             * there may be data loss or unexpected scenarios.)
-             * Added this in a conditional as these permissions can be applied only when the file is created
+             * Setting restricted permissions on the file. If these permissions cannot be set, then warn - We cannot fail the ingestion (Failing the ingestion
+             * would for not having the permission would mean that there may be data loss or unexpected scenarios.) Added this in a conditional as these
+             * permissions can be applied only when the file is created
              *
              */
             try {
