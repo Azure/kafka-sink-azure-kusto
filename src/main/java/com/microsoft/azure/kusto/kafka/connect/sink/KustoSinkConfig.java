@@ -1,5 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.common.config.AbstractConfig;
@@ -102,6 +105,12 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DOC = "Enable table access validation at task start.";
     private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DISPLAY = "Enable table validation";
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    static {
+        objectMapper.enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
+    }
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -361,8 +370,12 @@ public class KustoSinkConfig extends AbstractConfig {
         return KustoAuthenticationStrategy.valueOf(getString(KUSTO_AUTH_STRATEGY_CONF).toUpperCase(Locale.ENGLISH));
     }
 
-    public String getTopicToTableMapping() {
+    public String getRawTopicToTableMapping() {
         return getString(KUSTO_TABLES_MAPPING_CONF);
+    }
+
+    public KustoTableMapping[] getTopicToTableMapping() throws JsonProcessingException {
+        return objectMapper.readValue(getRawTopicToTableMapping(), KustoTableMapping[].class);
     }
 
     public String getTempDirPath() {
