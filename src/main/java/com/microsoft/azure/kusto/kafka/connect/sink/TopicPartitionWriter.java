@@ -11,7 +11,6 @@ import com.microsoft.azure.kusto.ingest.result.IngestionStatus;
 import com.microsoft.azure.kusto.ingest.result.IngestionStatusResult;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
-import com.microsoft.azure.storage.StorageException;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -107,8 +106,8 @@ class TopicPartitionWriter {
                         currentOffset));
                 this.lastCommittedOffset = currentOffset;
                 return;
-            } catch (IngestionServiceException | StorageException exception) {
-                if (ingestionProps.streaming && exception instanceof IngestionServiceException) {
+            } catch (IngestionServiceException exception) {
+                if (ingestionProps.streaming) {
                     Throwable innerException = exception.getCause();
                     if (innerException instanceof KustoDataExceptionBase &&
                             ((KustoDataExceptionBase) innerException).isPermanent()) {
@@ -124,7 +123,7 @@ class TopicPartitionWriter {
         }
     }
 
-    private boolean hasStreamingSucceeded(IngestionStatus status) throws URISyntaxException, StorageException {
+    private boolean hasStreamingSucceeded(IngestionStatus status) {
         switch (status.status) {
             case Succeeded:
             case Queued:

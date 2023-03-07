@@ -124,7 +124,6 @@ public class E2ETest {
         }
     }
 
-
     @Test
     public void testE2EAvro() throws URISyntaxException, DataClientException, DataServiceException {
         String dataFormat = "avro";
@@ -228,7 +227,7 @@ public class E2ETest {
             rowCount = res.getInt(0);
             timeElapsedMs += sleepPeriodMs;
         }
-        Assertions.assertEquals(expectedNumberOfRows,rowCount);
+        Assertions.assertEquals(expectedNumberOfRows, rowCount);
         this.log.info("Successfully ingested " + expectedNumberOfRows + " records.");
     }
 

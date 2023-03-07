@@ -9,13 +9,12 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>3.0.8</version>
+    <version>4.0.0</version>
     <properties>
         <kafka.version>3.1.0</kafka.version>
-        <json.version>20220320</json.version>
         <junit.version>5.9.0</junit.version>
         <commonio.version>2.11.0</commonio.version>
-        <kusto-sdk.version>3.2.1</kusto-sdk.version>
+        <kusto-sdk.version>4.0.3</kusto-sdk.version>
         <formatter.version>2.20.0</formatter.version>
         <jackson-version>2.13.4.2</jackson-version>
         <littleproxy.version>1.1.2</littleproxy.version>
@@ -183,11 +182,6 @@
             <artifactId>connect-json</artifactId>
             <version>${kafka.version}</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>${json.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
