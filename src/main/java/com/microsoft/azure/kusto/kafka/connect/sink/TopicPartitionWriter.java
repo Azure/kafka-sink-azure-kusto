@@ -76,9 +76,8 @@ class TopicPartitionWriter {
     }
 
     static String getTempDirectoryName(String tempDirPath) {
-        String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
-        Path path = Paths.get(tempDirPath, tempDir);
-
+        String tempDir = String.format("kusto-sink-connector-%s", UUID.randomUUID());
+        Path path = Paths.get(tempDirPath, tempDir).toAbsolutePath();
         return path.toString();
     }
 
@@ -194,7 +193,7 @@ class TopicPartitionWriter {
             });
         } catch (IllegalStateException e) {
             log.error("Failed to write records to miscellaneous dead-letter queue topic, "
-                    + "kafka producer has already been closed. Exception={}", e);
+                    + "kafka producer has already been closed. Exception={0}", e);
         }
     }
 
@@ -222,10 +221,10 @@ class TopicPartitionWriter {
         if (BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(FILE_EXCEPTION_MESSAGE, ex);
         } else if (BehaviorOnError.LOG == behaviorOnError) {
-            log.error(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            log.error(FILE_EXCEPTION_MESSAGE, ex);
             sendFailedRecordToDlq(record);
         } else {
-            log.debug(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            log.debug(FILE_EXCEPTION_MESSAGE, ex);
             sendFailedRecordToDlq(record);
         }
     }
@@ -249,14 +248,14 @@ class TopicPartitionWriter {
             fileWriter.rollback();
             fileWriter.close();
         } catch (IOException e) {
-            log.error("Failed to rollback with exception={}", e);
+            log.error("Failed to rollback with exception={0}", e);
         }
         try {
             if (dlqProducer != null) {
                 dlqProducer.close();
             }
         } catch (Exception e) {
-            log.error("Failed to close kafka producer={}", e);
+            log.error("Failed to close kafka producer={0}", e);
         }
         try {
             FileUtils.deleteDirectory(new File(basePath));
