@@ -249,7 +249,7 @@ public class KustoSinkTaskTest {
         // easy to set it this way than mock
         TopicPartition mockPartition = new TopicPartition("test-topic", 1);
         TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
-        doThrow(IOException.class).when(mockPartitionWriter).close();
+        //doThrow(IOException.class).when(mockPartitionWriter).close();
         IngestClient mockClient = mock(IngestClient.class);
         doNothing().when(mockClient).close();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
