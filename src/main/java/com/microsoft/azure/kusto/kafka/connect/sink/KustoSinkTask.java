@@ -433,8 +433,6 @@ public class KustoSinkTask extends SinkTask {
     public void put(Collection<SinkRecord> records) {
         SinkRecord lastRecord = null;
         for (SinkRecord sinkRecord : records) {
-            log.debug("Record to topic: {}", sinkRecord.topic());
-
             lastRecord = sinkRecord;
             TopicPartition tp = new TopicPartition(sinkRecord.topic(), sinkRecord.kafkaPartition());
             TopicPartitionWriter writer = writers.get(tp);

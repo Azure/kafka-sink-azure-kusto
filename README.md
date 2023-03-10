@@ -688,6 +688,7 @@ the [Release History](README.md#16-release-history) section of this document.
 | 3.0.6           | 2022-11-28   | <ul><li>Upgrade Kusto Java SDK to 3.2.1 and fix failing unit test case (mitigate text4shell RCE vulnerability)</li></ul>
 | 3.0.7           | 2022-12-06   | <ul><li>Upgrade Jackson version to the latest security version</li><li>Filter tombstone records & records that fail JSON serialization</li></ul>
 | 3.0.8           | 2022-12-15   | <ul><li>New feature: Added Proxy support to KustoSinkTask</li></ul>
+| 3.0.9           | 2022-12-19   | <ul><li>Bugfix: Restrict file permissions on file created for ingestion</li><li>Canonicalize file names</li><li>Refactor tests</li></ul>
 | 4.0.0           | 2023-03-07   | <ul><li>Upgrade Kusto Java SDK to 4.0.3</li></ul>
 ## 17. Contributing
 
