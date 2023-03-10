@@ -11,7 +11,7 @@
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
     <version>4.0.0</version>
     <properties>
-        <kafka.version>3.1.0</kafka.version>
+        <kafka.version>3.4.0</kafka.version>
         <junit.version>5.9.0</junit.version>
         <commonio.version>2.11.0</commonio.version>
         <kusto-sdk.version>4.0.3</kusto-sdk.version>

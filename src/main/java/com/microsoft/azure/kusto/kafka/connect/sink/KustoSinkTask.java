@@ -170,7 +170,6 @@ public class KustoSinkTask extends SinkTask {
         String database = mapping.getDb();
         String table = mapping.getTable();
         String format = mapping.getFormat();
-        // used optString instead of getString since mapping is not mandatory
         String mappingName = mapping.getMapping();
         boolean streamingEnabled = mapping.isStreaming();
         if (isDataFormatAnyTypeOfJson(format)) {

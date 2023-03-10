@@ -106,11 +106,7 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DISPLAY = "Enable table validation";
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
-    static {
-        objectMapper.enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
-    }
+    private static final ObjectMapper objectMapper = new ObjectMapper().enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -302,7 +298,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 .define(
                         KUSTO_SINK_ENABLE_TABLE_VALIDATION,
                         Type.BOOLEAN,
-                        Boolean.TRUE,
+                        Boolean.FALSE,
                         Importance.LOW,
                         KUSTO_SINK_ENABLE_TABLE_VALIDATION_DOC,
                         connectionGroupName,
@@ -375,7 +371,13 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public KustoTableMapping[] getTopicToTableMapping() throws JsonProcessingException {
-        return objectMapper.readValue(getRawTopicToTableMapping(), KustoTableMapping[].class);
+        KustoTableMapping[] mappings = objectMapper.readValue(getRawTopicToTableMapping(), KustoTableMapping[].class);
+
+        for (KustoTableMapping mapping : mappings) {
+            mapping.validate();
+        }
+
+        return mappings;
     }
 
     public String getTempDirPath() {
