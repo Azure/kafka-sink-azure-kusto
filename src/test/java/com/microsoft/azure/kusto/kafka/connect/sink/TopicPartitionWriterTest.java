@@ -331,7 +331,7 @@ public class TopicPartitionWriterTest {
         List<SinkRecord> records = new ArrayList<>();
         records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "another,stringy,message", 5));
         records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "{'also':'stringy','sortof':'message'}", 4));
-        when(kafkaProducer.send(anyObject(), anyObject())).thenReturn(null);
+        when(kafkaProducer.send(any(), any())).thenReturn(null);
         assertThrows(KafkaException.class, () -> spyWriter.sendFailedRecordToDlq(records.get(0)));
     }
 
