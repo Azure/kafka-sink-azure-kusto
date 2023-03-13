@@ -98,7 +98,7 @@ public class KustoSinkTask extends SinkTask {
                         "Kusto appId, appKey, and authority should be configured.");
         }
 
-        kcsb.setConnectorDetails(Version.CLIENT_NAME,Version.getVersion(),null,null,false,null, Pair.emptyArray());
+        kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), null, null, false, null, Pair.emptyArray());
         return kcsb;
     }
 
