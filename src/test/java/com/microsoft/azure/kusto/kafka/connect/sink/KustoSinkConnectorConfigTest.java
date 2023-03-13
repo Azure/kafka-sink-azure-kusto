@@ -1,11 +1,11 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import org.apache.kafka.common.config.ConfigException;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -116,9 +116,9 @@ public class KustoSinkConnectorConfigTest {
     }
 
     @Test
-    public void shouldPerformTableValidationByDefault() {
+    public void shouldNotPerformTableValidationByDefault() {
         KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
-        Assertions.assertTrue(config.getEnableTableValidation());
+        Assertions.assertFalse(config.getEnableTableValidation());
     }
 
     @Test
@@ -139,6 +139,54 @@ public class KustoSinkConnectorConfigTest {
                 KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase());
         KustoSinkConfig config = new KustoSinkConfig(settings);
         Assertions.assertNotNull(config);
+    }
+
+    @Test
+    public void shouldDeserializeTablesMappings() throws JsonProcessingException {
+        HashMap<String, String> settings = setupConfigs();
+        KustoSinkConfig config = new KustoSinkConfig(settings);
+        Assertions.assertArrayEquals(
+                new KustoTableMapping[] {
+                        new KustoTableMapping(null, "csv", "table1", "db1", "topic1", false),
+                        new KustoTableMapping("Mapping", "json", "table2", "db2", "topic2", false)
+                },
+                config.getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldThrowConfigExceptionOnMissingTopicMapping() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': null, 'db': 'db1', 'table': 'table1','format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldThrowConfigExceptionOnMissingDbMapping() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': null, 'table': 'table1','format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldThrowConfigExceptionOnMissingTableMapping() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': 'db1', 'table': null,'format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
     }
 
     public static HashMap<String, String> setupConfigs() {

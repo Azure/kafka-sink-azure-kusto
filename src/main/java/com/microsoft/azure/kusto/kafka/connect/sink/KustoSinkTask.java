@@ -13,6 +13,7 @@ import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.HttpHost;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -97,7 +98,7 @@ public class KustoSinkTask extends SinkTask {
                         "Kusto appId, appKey, and authority should be configured.");
         }
 
-        kcsb.setClientVersionForTracing(Version.CLIENT_NAME + ":" + Version.getVersion());
+        kcsb.setConnectorDetails(Version.CLIENT_NAME,Version.getVersion(),null,null,false,null, Pair.emptyArray());
         return kcsb;
     }
 
@@ -170,7 +171,6 @@ public class KustoSinkTask extends SinkTask {
         String database = mapping.getDb();
         String table = mapping.getTable();
         String format = mapping.getFormat();
-        // used optString instead of getString since mapping is not mandatory
         String mappingName = mapping.getMapping();
         boolean streamingEnabled = mapping.isStreaming();
         if (isDataFormatAnyTypeOfJson(format)) {
