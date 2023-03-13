@@ -4,7 +4,7 @@ import org.apache.kafka.common.config.ConfigException;
 
 import java.util.Objects;
 
-public class KustoTableMapping {
+public class TopicToTableMapping {
     private String mapping;
     private String format;
     private String table;
@@ -12,10 +12,10 @@ public class KustoTableMapping {
     private String topic;
     private boolean streaming;
 
-    public KustoTableMapping() {
+    public TopicToTableMapping() {
     }
 
-    public KustoTableMapping(String mapping, String format, String table, String db, String topic, boolean streaming) {
+    public TopicToTableMapping(String mapping, String format, String table, String db, String topic, boolean streaming) {
         this.mapping = mapping;
         this.format = format;
         this.table = table;
@@ -104,7 +104,7 @@ public class KustoTableMapping {
             return true;
         if (o == null || getClass() != o.getClass())
             return false;
-        KustoTableMapping that = (KustoTableMapping) o;
+        TopicToTableMapping that = (TopicToTableMapping) o;
         return streaming == that.streaming && Objects.equals(mapping, that.mapping) && Objects.equals(format, that.format) && Objects.equals(table, that.table)
                 && Objects.equals(db, that.db) && Objects.equals(topic, that.topic);
     }

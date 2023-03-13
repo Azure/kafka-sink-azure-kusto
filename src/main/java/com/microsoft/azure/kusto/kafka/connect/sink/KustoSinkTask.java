@@ -67,7 +67,7 @@ public class KustoSinkTask extends SinkTask {
     }
 
     private static boolean isStreamingEnabled(KustoSinkConfig config) throws JsonProcessingException {
-        return Arrays.stream(config.getTopicToTableMapping()).anyMatch(KustoTableMapping::isStreaming);
+        return Arrays.stream(config.getTopicToTableMapping()).anyMatch(TopicToTableMapping::isStreaming);
     }
 
     public static ConnectionStringBuilder createKustoEngineConnectionString(KustoSinkConfig config, String clusterUrl) {
@@ -114,9 +114,9 @@ public class KustoSinkTask extends SinkTask {
         Map<String, TopicIngestionProperties> result = new HashMap<>();
 
         try {
-            KustoTableMapping[] mappings = config.getTopicToTableMapping();
+            TopicToTableMapping[] mappings = config.getTopicToTableMapping();
 
-            for (KustoTableMapping mapping : mappings) {
+            for (TopicToTableMapping mapping : mappings) {
                 IngestionProperties props = new IngestionProperties(mapping.getDb(), mapping.getTable());
 
                 String format = mapping.getFormat();
@@ -166,8 +166,8 @@ public class KustoSinkTask extends SinkTask {
      * @param mapping      JSON Object containing a Table mapping.
      * @param config       Kusto Sink configuration
      */
-    private static void validateTableAccess(Client engineClient, KustoTableMapping mapping, KustoSinkConfig config, List<String> databaseTableErrorList,
-            List<String> accessErrorList) {
+    private static void validateTableAccess(Client engineClient, TopicToTableMapping mapping, KustoSinkConfig config, List<String> databaseTableErrorList,
+                                            List<String> accessErrorList) {
         String database = mapping.getDb();
         String table = mapping.getTable();
         String format = mapping.getFormat();
@@ -286,9 +286,9 @@ public class KustoSinkTask extends SinkTask {
         try {
             Client engineClient = createKustoEngineClient(config);
             if (config.getTopicToTableMapping() != null) {
-                KustoTableMapping[] mappings = config.getTopicToTableMapping();
+                TopicToTableMapping[] mappings = config.getTopicToTableMapping();
                 if (enableTableValidation && mappings.length > 0 && (isIngestorRole(mappings[0], engineClient))) {
-                    for (KustoTableMapping mapping : mappings) {
+                    for (TopicToTableMapping mapping : mappings) {
                         validateTableAccess(engineClient, mapping, config, databaseTableErrorList, accessErrorList);
                     }
                 }
@@ -314,7 +314,7 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
-    private boolean isIngestorRole(KustoTableMapping testMapping, Client engineClient) {
+    private boolean isIngestorRole(TopicToTableMapping testMapping, Client engineClient) {
         try {
             engineClient.execute(testMapping.getDb(), String.format(FETCH_TABLE_COMMAND, testMapping.getTable()), validateOnlyClientRequestProperties);
         } catch (DataServiceException | DataClientException err) {

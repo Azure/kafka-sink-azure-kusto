@@ -370,10 +370,10 @@ public class KustoSinkConfig extends AbstractConfig {
         return getString(KUSTO_TABLES_MAPPING_CONF);
     }
 
-    public KustoTableMapping[] getTopicToTableMapping() throws JsonProcessingException {
-        KustoTableMapping[] mappings = objectMapper.readValue(getRawTopicToTableMapping(), KustoTableMapping[].class);
+    public TopicToTableMapping[] getTopicToTableMapping() throws JsonProcessingException {
+        TopicToTableMapping[] mappings = objectMapper.readValue(getRawTopicToTableMapping(), TopicToTableMapping[].class);
 
-        for (KustoTableMapping mapping : mappings) {
+        for (TopicToTableMapping mapping : mappings) {
             mapping.validate();
         }
 

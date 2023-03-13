@@ -146,9 +146,9 @@ public class KustoSinkConnectorConfigTest {
         HashMap<String, String> settings = setupConfigs();
         KustoSinkConfig config = new KustoSinkConfig(settings);
         Assertions.assertArrayEquals(
-                new KustoTableMapping[] {
-                        new KustoTableMapping(null, "csv", "table1", "db1", "topic1", false),
-                        new KustoTableMapping("Mapping", "json", "table2", "db2", "topic2", false)
+                new TopicToTableMapping[] {
+                        new TopicToTableMapping(null, "csv", "table1", "db1", "topic1", false),
+                        new TopicToTableMapping("Mapping", "json", "table2", "db2", "topic2", false)
                 },
                 config.getTopicToTableMapping());
     }
