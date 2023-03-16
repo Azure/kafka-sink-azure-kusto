@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.google.common.base.Strings;
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
@@ -12,6 +11,7 @@ import com.microsoft.azure.kusto.ingest.result.IngestionStatusResult;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
@@ -141,8 +141,8 @@ class TopicPartitionWriter {
                         status.getDatabase(),
                         status.getOperationId(),
                         ingestionSourceId,
-                        (!Strings.isNullOrEmpty(failureStatus) ? (", failure: " + failureStatus) : ""),
-                        (!Strings.isNullOrEmpty(details) ? (", details: " + details) : ""));
+                        (StringUtils.isNotEmpty(failureStatus) ? (", failure: " + failureStatus) : ""),
+                        (StringUtils.isNotEmpty(details) ? (", details: " + details) : ""));
                 return true;
             case Failed:
         }

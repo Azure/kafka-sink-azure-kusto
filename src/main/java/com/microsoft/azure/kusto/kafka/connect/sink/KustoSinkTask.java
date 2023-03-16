@@ -1,7 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Strings;
 import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
@@ -75,7 +74,7 @@ public class KustoSinkTask extends SinkTask {
 
         switch (config.getAuthStrategy()) {
             case APPLICATION:
-                if (!Strings.isNullOrEmpty(config.getAuthAppId()) && !Strings.isNullOrEmpty(config.getAuthAppKey())) {
+                if (StringUtils.isNotEmpty(config.getAuthAppId()) && StringUtils.isNotEmpty(config.getAuthAppKey())) {
                     kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                             clusterUrl,
                             config.getAuthAppId(),
@@ -206,7 +205,8 @@ public class KustoSinkTask extends SinkTask {
             }
 
             if (hasAccess) {
-                if (Strings.isNullOrEmpty(config.getAuthAppId()) || Strings.isNullOrEmpty(config.getAuthAuthority())) {
+                //TODO check this for managed identity
+                if (StringUtils.isEmpty(config.getAuthAppId()) || StringUtils.isEmpty(config.getAuthAuthority())) {
                     throw new ConfigException("Authority ID and Application ID must be provided to validate table accesses.");
                 }
 

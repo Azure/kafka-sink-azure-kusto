@@ -3,8 +3,8 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
@@ -398,9 +398,9 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public boolean isDlqEnabled() {
-        if (!getDlqBootstrapServers().isEmpty() && !Strings.isNullOrEmpty(getDlqTopicName())) {
+        if (!getDlqBootstrapServers().isEmpty() && StringUtils.isNotEmpty(getDlqTopicName())) {
             return true;
-        } else if (getDlqBootstrapServers().isEmpty() && Strings.isNullOrEmpty(getDlqTopicName())) {
+        } else if (getDlqBootstrapServers().isEmpty() && StringUtils.isEmpty(getDlqTopicName())) {
             return false;
         } else {
             throw new ConfigException("To enable Miscellaneous Dead-Letter Queue configuration please configure both " +
