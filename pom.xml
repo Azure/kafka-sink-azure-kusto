@@ -9,7 +9,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>4.0.0</version>
+    <version>4.0.1</version>
     <properties>
         <kafka.version>3.4.0</kafka.version>
         <junit.version>5.9.2</junit.version>

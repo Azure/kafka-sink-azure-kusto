@@ -690,6 +690,7 @@ the [Release History](README.md#16-release-history) section of this document.
 | 3.0.8           | 2022-12-15   | <ul><li>New feature: Added Proxy support to KustoSinkTask</li></ul>
 | 3.0.9           | 2022-12-19   | <ul><li>Bugfix: Restrict file permissions on file created for ingestion</li><li>Canonicalize file names</li><li>Refactor tests</li></ul>
 | 4.0.0           | 2023-03-07   | <ul><li>Upgrade Kusto Java SDK to 4.0.3 and Kafka Clients to 3.4.0</li><li>Disable table access validation at start up by default</li></ul>
+| 4.0.1           | 2023-03-26   | <ul><li>Upgrade Kusto Java SDK to 4.0.4</li></ul>
 ## 17. Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a
@@ -712,6 +713,7 @@ In order to make the PR process efficient, please follow the below checklist:
 * **Please provide any related information needed to understand the change** - Especially in the form of unit tests, but
   also docs, guidelines, use-case, best practices, etc as appropriate.
 * **Checks should pass**
+* Run `mvn dependency-check:check`. This should return no High/Medium vulnerabilities in any libraries/dependencies
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
