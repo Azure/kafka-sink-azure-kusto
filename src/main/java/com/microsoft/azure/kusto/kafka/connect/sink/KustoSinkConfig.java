@@ -1,7 +1,10 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.google.common.base.Strings;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
@@ -13,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +41,6 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION = "kusto.validation.table.enable";
-    private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
     private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
     private static final String KUSTO_INGEST_URL_DOC = "Kusto ingestion endpoint URL.";
     private static final String KUSTO_INGEST_URL_DISPLAY = "Kusto cluster ingestion URL";
@@ -101,6 +104,9 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
     private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DOC = "Enable table access validation at task start.";
     private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DISPLAY = "Enable table validation";
+    private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
+
+    private static final ObjectMapper objectMapper = new ObjectMapper().enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
@@ -111,11 +117,17 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public static ConfigDef getConfig() {
-        ConfigDef result = new ConfigDef();
-        defineConnectionConfigs(result);
-        defineWriteConfigs(result);
-        defineErrorHandlingAndRetriesConfigs(result);
-        return result;
+        try {
+            String tempDirectory = System.getProperty("java.io.tmpdir");
+            ConfigDef result = new ConfigDef();
+            defineConnectionConfigs(result);
+            defineWriteConfigs(result, tempDirectory);
+            defineErrorHandlingAndRetriesConfigs(result);
+            return result;
+        } catch (Exception ex) {
+            log.error("Error in initializing config", ex);
+            throw new RuntimeException("Error initializing config. Exception ", ex);
+        }
     }
 
     private static void defineErrorHandlingAndRetriesConfigs(ConfigDef result) {
@@ -129,8 +141,8 @@ public class KustoSinkConfig extends AbstractConfig {
                         BehaviorOnError.FAIL.name(),
                         ConfigDef.ValidString.in(
                                 BehaviorOnError.FAIL.name(), BehaviorOnError.LOG.name(), BehaviorOnError.IGNORE.name(),
-                                BehaviorOnError.FAIL.name().toLowerCase(), BehaviorOnError.LOG.name().toLowerCase(),
-                                BehaviorOnError.IGNORE.name().toLowerCase()),
+                                BehaviorOnError.FAIL.name().toLowerCase(Locale.ENGLISH), BehaviorOnError.LOG.name().toLowerCase(Locale.ENGLISH),
+                                BehaviorOnError.IGNORE.name().toLowerCase(Locale.ENGLISH)),
                         Importance.LOW,
                         KUSTO_BEHAVIOR_ON_ERROR_DOC,
                         errorAndRetriesGroupName,
@@ -180,7 +192,7 @@ public class KustoSinkConfig extends AbstractConfig {
                         KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY);
     }
 
-    private static void defineWriteConfigs(ConfigDef result) {
+    private static void defineWriteConfigs(ConfigDef result, String tempDirectory) {
         final String writeGroupName = "Writes";
         int writeGroupOrder = 0;
 
@@ -198,7 +210,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 .define(
                         KUSTO_SINK_TEMP_DIR_CONF,
                         Type.STRING,
-                        System.getProperty("java.io.tmpdir"),
+                        tempDirectory,
                         Importance.LOW,
                         KUSTO_SINK_TEMP_DIR_DOC,
                         writeGroupName,
@@ -286,7 +298,7 @@ public class KustoSinkConfig extends AbstractConfig {
                 .define(
                         KUSTO_SINK_ENABLE_TABLE_VALIDATION,
                         Type.BOOLEAN,
-                        Boolean.TRUE,
+                        Boolean.FALSE,
                         Importance.LOW,
                         KUSTO_SINK_ENABLE_TABLE_VALIDATION_DOC,
                         connectionGroupName,
@@ -300,8 +312,8 @@ public class KustoSinkConfig extends AbstractConfig {
                         ConfigDef.ValidString.in(
                                 KustoAuthenticationStrategy.APPLICATION.name(),
                                 KustoAuthenticationStrategy.MANAGED_IDENTITY.name(),
-                                KustoAuthenticationStrategy.APPLICATION.name().toLowerCase(),
-                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase()),
+                                KustoAuthenticationStrategy.APPLICATION.name().toLowerCase(Locale.ENGLISH),
+                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase(Locale.ENGLISH)),
                         Importance.HIGH,
                         KUSTO_AUTH_STRATEGY_DOC,
                         connectionGroupName,
@@ -351,11 +363,21 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public KustoAuthenticationStrategy getAuthStrategy() {
-        return KustoAuthenticationStrategy.valueOf(getString(KUSTO_AUTH_STRATEGY_CONF).toUpperCase());
+        return KustoAuthenticationStrategy.valueOf(getString(KUSTO_AUTH_STRATEGY_CONF).toUpperCase(Locale.ENGLISH));
     }
 
-    public String getTopicToTableMapping() {
+    public String getRawTopicToTableMapping() {
         return getString(KUSTO_TABLES_MAPPING_CONF);
+    }
+
+    public TopicToTableMapping[] getTopicToTableMapping() throws JsonProcessingException {
+        TopicToTableMapping[] mappings = objectMapper.readValue(getRawTopicToTableMapping(), TopicToTableMapping[].class);
+
+        for (TopicToTableMapping mapping : mappings) {
+            mapping.validate();
+        }
+
+        return mappings;
     }
 
     public String getTempDirPath() {
@@ -372,13 +394,13 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public BehaviorOnError getBehaviorOnError() {
         return BehaviorOnError.valueOf(
-                getString(KUSTO_BEHAVIOR_ON_ERROR_CONF).toUpperCase());
+                getString(KUSTO_BEHAVIOR_ON_ERROR_CONF).toUpperCase(Locale.ENGLISH));
     }
 
     public boolean isDlqEnabled() {
-        if (!getDlqBootstrapServers().isEmpty() && !Strings.isNullOrEmpty(getDlqTopicName())) {
+        if (!getDlqBootstrapServers().isEmpty() && StringUtils.isNotEmpty(getDlqTopicName())) {
             return true;
-        } else if (getDlqBootstrapServers().isEmpty() && Strings.isNullOrEmpty(getDlqTopicName())) {
+        } else if (getDlqBootstrapServers().isEmpty() && StringUtils.isEmpty(getDlqTopicName())) {
             return false;
         } else {
             throw new ConfigException("To enable Miscellaneous Dead-Letter Queue configuration please configure both " +
@@ -442,6 +464,6 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     enum KustoAuthenticationStrategy {
-        APPLICATION, MANAGED_IDENTITY;
+        APPLICATION, MANAGED_IDENTITY
     }
 }

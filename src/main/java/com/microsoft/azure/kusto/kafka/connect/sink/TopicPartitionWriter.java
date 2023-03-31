@@ -1,6 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.google.common.base.Strings;
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
@@ -11,8 +10,8 @@ import com.microsoft.azure.kusto.ingest.result.IngestionStatus;
 import com.microsoft.azure.kusto.ingest.result.IngestionStatusResult;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
-import com.microsoft.azure.storage.StorageException;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
@@ -76,9 +75,8 @@ class TopicPartitionWriter {
     }
 
     static String getTempDirectoryName(String tempDirPath) {
-        String tempDir = "kusto-sink-connector-" + UUID.randomUUID().toString();
-        Path path = Paths.get(tempDirPath, tempDir);
-
+        String tempDir = String.format("kusto-sink-connector-%s", UUID.randomUUID());
+        Path path = Paths.get(tempDirPath, tempDir).toAbsolutePath();
         return path.toString();
     }
 
@@ -107,8 +105,8 @@ class TopicPartitionWriter {
                         currentOffset));
                 this.lastCommittedOffset = currentOffset;
                 return;
-            } catch (IngestionServiceException | StorageException exception) {
-                if (ingestionProps.streaming && exception instanceof IngestionServiceException) {
+            } catch (IngestionServiceException exception) {
+                if (ingestionProps.streaming) {
                     Throwable innerException = exception.getCause();
                     if (innerException instanceof KustoDataExceptionBase &&
                             ((KustoDataExceptionBase) innerException).isPermanent()) {
@@ -124,7 +122,7 @@ class TopicPartitionWriter {
         }
     }
 
-    private boolean hasStreamingSucceeded(IngestionStatus status) throws URISyntaxException, StorageException {
+    private boolean hasStreamingSucceeded(IngestionStatus status) {
         switch (status.status) {
             case Succeeded:
             case Queued:
@@ -143,8 +141,8 @@ class TopicPartitionWriter {
                         status.getDatabase(),
                         status.getOperationId(),
                         ingestionSourceId,
-                        (!Strings.isNullOrEmpty(failureStatus) ? (", failure: " + failureStatus) : ""),
-                        (!Strings.isNullOrEmpty(details) ? (", details: " + details) : ""));
+                        (StringUtils.isNotEmpty(failureStatus) ? (", failure: " + failureStatus) : ""),
+                        (StringUtils.isNotEmpty(details) ? (", details: " + details) : ""));
                 return true;
             case Failed:
         }
@@ -194,7 +192,7 @@ class TopicPartitionWriter {
             });
         } catch (IllegalStateException e) {
             log.error("Failed to write records to miscellaneous dead-letter queue topic, "
-                    + "kafka producer has already been closed. Exception={}", e);
+                    + "kafka producer has already been closed. Exception={0}", e);
         }
     }
 
@@ -222,10 +220,10 @@ class TopicPartitionWriter {
         if (BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(FILE_EXCEPTION_MESSAGE, ex);
         } else if (BehaviorOnError.LOG == behaviorOnError) {
-            log.error(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            log.error(FILE_EXCEPTION_MESSAGE, ex);
             sendFailedRecordToDlq(record);
         } else {
-            log.debug(FILE_EXCEPTION_MESSAGE + " {}", ex);
+            log.debug(FILE_EXCEPTION_MESSAGE, ex);
             sendFailedRecordToDlq(record);
         }
     }
@@ -249,14 +247,14 @@ class TopicPartitionWriter {
             fileWriter.rollback();
             fileWriter.close();
         } catch (IOException e) {
-            log.error("Failed to rollback with exception={}", e);
+            log.error("Failed to rollback with exception={0}", e);
         }
         try {
             if (dlqProducer != null) {
                 dlqProducer.close();
             }
         } catch (Exception e) {
-            log.error("Failed to close kafka producer={}", e);
+            log.error("Failed to close kafka producer={0}", e);
         }
         try {
             FileUtils.deleteDirectory(new File(basePath));

@@ -39,8 +39,6 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
                         throw new ConnectException(e);
                     }
                 }
-
-                log.trace("Sink record: {}", record);
                 Object value = avroData.fromConnectData(schema, record.value());
                 // AvroData wraps primitive types so their schema can be included. We need to unwrap
                 // NonRecordContainers to just their value to properly handle these types

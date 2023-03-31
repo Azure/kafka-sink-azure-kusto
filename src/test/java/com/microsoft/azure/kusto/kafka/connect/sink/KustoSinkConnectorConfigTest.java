@@ -1,17 +1,18 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import org.apache.kafka.common.config.ConfigException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
-import org.apache.kafka.common.config.ConfigException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Properties;
-
-import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
 
 public class KustoSinkConnectorConfigTest {
     private static final String DM_URL = "https://ingest-cluster_name.kusto.windows.net";
@@ -40,9 +41,7 @@ public class KustoSinkConnectorConfigTest {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
-        Assertions.assertThrows(ConfigException.class, () -> {
-            new KustoSinkConfig(settings);
-        });
+        Assertions.assertThrows(ConfigException.class, () -> new KustoSinkConfig(settings));
     }
 
     @Test
@@ -58,21 +57,21 @@ public class KustoSinkConnectorConfigTest {
     public void shouldThrowExceptionWhenAppIdNotGivenForApplicationAuth() {
         // Adding required Configuration with no default value.
         HashMap<String, String> settings = setupConfigs();
-        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF, KustoSinkConfig.KustoAuthenticationStrategy.APPLICATION.name());
+        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF,
+                KustoSinkConfig.KustoAuthenticationStrategy.APPLICATION.name());
         settings.remove(KustoSinkConfig.KUSTO_AUTH_APPID_CONF);
         KustoSinkConfig config = new KustoSinkConfig(settings);
         // In the previous PR this behavior was changed. The default was to use APPLICATION auth, but it also permits
         // MI. In case of MI the App-ID/App-KEY became optional
-        Assertions.assertThrows(ConfigException.class, () -> {
-            KustoSinkTask.createKustoEngineConnectionString(config, config.getKustoEngineUrl());
-        });
+        Assertions.assertThrows(ConfigException.class, () -> KustoSinkTask.createKustoEngineConnectionString(config, config.getKustoEngineUrl()));
     }
 
     @Test
     public void shouldNotThrowExceptionWhenAppIdNotGivenForManagedIdentity() {
         // Same test as above. In this case since the Auth method is MI AppId/Key becomes optional.
         HashMap<String, String> settings = setupConfigs();
-        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF, KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name());
+        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF,
+                KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name());
         settings.remove(KustoSinkConfig.KUSTO_AUTH_APPID_CONF);
         KustoSinkConfig config = new KustoSinkConfig(settings);
         ConnectionStringBuilder kcsb = KustoSinkTask.createKustoEngineConnectionString(config, config.getKustoEngineUrl());
@@ -85,9 +84,7 @@ public class KustoSinkConnectorConfigTest {
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_INGEST_URL_CONF);
         settings.put(KustoSinkConfig.KUSTO_BEHAVIOR_ON_ERROR_CONF, "DummyValue");
-        Assertions.assertThrows(ConfigException.class, () -> {
-            new KustoSinkConfig(settings);
-        });
+        Assertions.assertThrows(ConfigException.class, () -> new KustoSinkConfig(settings));
     }
 
     @Test
@@ -107,17 +104,21 @@ public class KustoSinkConnectorConfigTest {
         HashMap<String, String> settings = setupConfigs();
         settings.put("misc.deadletterqueue.security.protocol", "SASL_PLAINTEXT");
         settings.put("misc.deadletterqueue.sasl.mechanism", "PLAIN");
-        KustoSinkConfig config = new KustoSinkConfig(settings);
-        Assertions.assertNotNull(config);
-        Properties dlqProps = config.getDlqProps();
-        Assertions.assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
-        Assertions.assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
+        try {
+            KustoSinkConfig config = new KustoSinkConfig(settings);
+            Assertions.assertNotNull(config);
+            Properties dlqProps = config.getDlqProps();
+            Assertions.assertEquals("SASL_PLAINTEXT", dlqProps.get("security.protocol"));
+            Assertions.assertEquals("PLAIN", dlqProps.get("sasl.mechanism"));
+        } catch (Exception ex) {
+            fail(ex);
+        }
     }
 
     @Test
-    public void shouldPerformTableValidationByDefault() {
+    public void shouldNotPerformTableValidationByDefault() {
         KustoSinkConfig config = new KustoSinkConfig(setupConfigs());
-        Assertions.assertTrue(config.getEnableTableValidation());
+        Assertions.assertFalse(config.getEnableTableValidation());
     }
 
     @Test
@@ -134,9 +135,58 @@ public class KustoSinkConnectorConfigTest {
     public void shouldAllowNoPasswordIfManagedIdentityEnabled() {
         HashMap<String, String> settings = setupConfigs();
         settings.remove(KustoSinkConfig.KUSTO_AUTH_APPKEY_CONF);
-        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF, KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase());
+        settings.put(KustoSinkConfig.KUSTO_AUTH_STRATEGY_CONF,
+                KustoSinkConfig.KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase());
         KustoSinkConfig config = new KustoSinkConfig(settings);
         Assertions.assertNotNull(config);
+    }
+
+    @Test
+    public void shouldDeserializeTablesMappings() throws JsonProcessingException {
+        HashMap<String, String> settings = setupConfigs();
+        KustoSinkConfig config = new KustoSinkConfig(settings);
+        Assertions.assertArrayEquals(
+                new TopicToTableMapping[] {
+                        new TopicToTableMapping(null, "csv", "table1", "db1", "topic1", false),
+                        new TopicToTableMapping("Mapping", "json", "table2", "db2", "topic2", false)
+                },
+                config.getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldThrowConfigExceptionOnMissingTopicMapping() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': null, 'db': 'db1', 'table': 'table1','format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldThrowConfigExceptionOnMissingDbMapping() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': null, 'table': 'table1','format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldThrowConfigExceptionOnMissingTableMapping() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': 'db1', 'table': null,'format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
     }
 
     public static HashMap<String, String> setupConfigs() {
