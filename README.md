@@ -369,7 +369,7 @@ Kafka Connect connectors can be deployed in standalone mode (just for developmen
 
 This involves having the connector plugin jar in /usr/share/java of a Kafka Connect worker, reference to the same plugin
 path in connect-standalone.properties, and launching of the connector from command line. This is not scalable, not fault
-tolerant, and is not recommeded for production.
+tolerant, and is not recommended for production.
 
 ### 8.2. Distributed Kafka Connect deployment mode
 
