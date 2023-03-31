@@ -55,7 +55,7 @@ public class KustoSinkTaskTest {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
-        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.any());
         kustoSinkTaskSpy.start(configs);
         ArrayList<TopicPartition> tps = new ArrayList<>();
         tps.add(new TopicPartition("topic1", 1));

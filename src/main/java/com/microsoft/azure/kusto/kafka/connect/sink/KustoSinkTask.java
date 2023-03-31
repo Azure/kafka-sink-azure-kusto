@@ -166,7 +166,7 @@ public class KustoSinkTask extends SinkTask {
      * @param config       Kusto Sink configuration
      */
     private static void validateTableAccess(Client engineClient, TopicToTableMapping mapping, KustoSinkConfig config, List<String> databaseTableErrorList,
-                                            List<String> accessErrorList) {
+            List<String> accessErrorList) {
         String database = mapping.getDb();
         String table = mapping.getTable();
         String format = mapping.getFormat();
@@ -205,7 +205,7 @@ public class KustoSinkTask extends SinkTask {
             }
 
             if (hasAccess) {
-                //TODO check this for managed identity
+                // TODO check this for managed identity
                 if (StringUtils.isEmpty(config.getAuthAppId()) || StringUtils.isEmpty(config.getAuthAuthority())) {
                     throw new ConfigException("Authority ID and Application ID must be provided to validate table accesses.");
                 }

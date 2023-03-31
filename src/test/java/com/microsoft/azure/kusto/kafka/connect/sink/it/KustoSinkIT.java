@@ -30,9 +30,8 @@ import java.util.stream.Stream;
 
 public class KustoSinkIT {
     private static final Network network = Network.newNetwork();
-    private static final KafkaContainer kafkaContainer =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:6.2.5"))
-                    .withNetwork(network);
+    private static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:6.2.5"))
+            .withNetwork(network);
 
     private static final DebeziumContainer connectContainer = new DebeziumContainer("debezium/connect-base:1.9.5.Final")
             .withFileSystemBind("target/kafka-sink-azure-kusto", "/kafka/connect/kafka-sink-azure-kusto")
@@ -52,7 +51,7 @@ public class KustoSinkIT {
         Files.createDirectories(Paths.get("target/kafka-sink-azure-kusto"));
         try (OutputStream fos = Files.newOutputStream(
                 Paths.get("target/kafka-sink-azure-kusto/kafka-sink-azure-kusto.jar"));
-             JarOutputStream target = new JarOutputStream(fos, manifest)) {
+                JarOutputStream target = new JarOutputStream(fos, manifest)) {
             add(new File("target/classes"), target);
         }
     }
@@ -90,17 +89,14 @@ public class KustoSinkIT {
 
     @Test
     public void shouldHandleAllTypesOfEvents(String topicNamePrefix,
-                                             String appId,
-                                             String appKey,
-                                             String authority,
-                                             String databaseName,
-                                             String mappingFileName,
-                                             IngestionProperties.DataFormat dataFormat) throws Exception {
+            String appId,
+            String appKey,
+            String authority,
+            String databaseName,
+            String mappingFileName,
+            IngestionProperties.DataFormat dataFormat) throws Exception {
 
-
-        
-
-        switch (dataFormat){
+        switch (dataFormat) {
             case CSV:
                 break;
             case AVRO:
@@ -117,7 +113,7 @@ public class KustoSinkIT {
                 .with("topics", topicName)
                 .with("kusto.tables.topics.mapping", "[{'topic': 'multijson.topic','db': 'sdktestsdb', 'table': 'MultiJson','format':'json'}]")
                 .with("aad.auth.authority", authority)
-                .with("aad.auth.appid",appId )
+                .with("aad.auth.appid", appId)
                 .with("aad.auth.appkey", appKey)
                 .with("kusto.ingestion.url", "https://ingest-sdke2etestcluster.eastus.dev.kusto.windows.net")
                 .with("kusto.query.url", "https://sdke2etestcluster.eastus.dev.kusto.windows.net")
@@ -127,22 +123,22 @@ public class KustoSinkIT {
         connectContainer.ensureConnectorTaskState("adx-connector", 0, Connector.State.RUNNING);
     }
 
-    private static String getProperty(String attribute, String defaultValue, boolean sanitize){
-        String value = System.getProperty(attribute,defaultValue);
+    private static String getProperty(String attribute, String defaultValue, boolean sanitize) {
+        String value = System.getProperty(attribute, defaultValue);
         // Make the paths to be safe. Remove any null paths
         return sanitize ? FilenameUtils.normalizeNoEndSeparator(value) : value;
     }
 
     @BeforeAll
-    public void beforeAll(){
+    public void beforeAll() {
         String testPrefix = "tmpKafkaE2ETest";
-        String appId = getProperty("appId","",false);
-        String appKey = getProperty("appKey","",false);
-        String authority = getProperty("authority","",false);
-        String cluster = getProperty("cluster","",false);
-        String database = getProperty("database","e2e",true);
+        String appId = getProperty("appId", "", false);
+        String appKey = getProperty("appKey", "", false);
+        String authority = getProperty("authority", "", false);
+        String cluster = getProperty("cluster", "", false);
+        String database = getProperty("database", "e2e", true);
         String defaultTable = testPrefix + UUID.randomUUID().toString().replace('-', '_');
-        String table = getProperty("table",defaultTable,true);
+        String table = getProperty("table", defaultTable, true);
 
     }
 }

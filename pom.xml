@@ -10,19 +10,21 @@
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
     <version>4.0.1</version>
     <properties>
-        <kafka.version>3.4.0</kafka.version>
-        <junit.version>5.9.2</junit.version>
-        <commonio.version>2.11.0</commonio.version>
         <commoncodec.version>1.15</commoncodec.version>
+        <commonio.version>2.11.0</commonio.version>
+        <debezium.testcontainer.version>2.2.0.Alpha3</debezium.testcontainer.version>
         <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
-        <kusto-sdk.version>4.0.4</kusto-sdk.version>
-        <kafka.connect.avro.converter.version>7.3.2</kafka.connect.avro.converter.version>
         <formatter.version>2.20.0</formatter.version>
-        <jackson-version>2.14.2</jackson-version>
         <impsort.version>1.8.0</impsort.version>
+        <jackson-version>2.14.2</jackson-version>
+        <junit.version>5.9.2</junit.version>
+        <kafka.connect.avro.converter.version>7.3.2</kafka.connect.avro.converter.version>
+        <kafka.version>3.4.0</kafka.version>
+        <kusto-sdk.version>4.0.4</kusto-sdk.version>
         <littleproxy.version>1.1.2</littleproxy.version>
         <mockito.version>5.2.0</mockito.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <testcontainer.version>1.17.6</testcontainer.version>
     </properties>
     <build>
         <plugins>
@@ -106,6 +108,18 @@
                     <lineEnding>KEEP</lineEnding>
                 </configuration>
             </plugin>
+            <!-- Makes it easier to have consist import order -->
+            <plugin>
+                <groupId>net.revelc.code</groupId>
+                <artifactId>impsort-maven-plugin</artifactId>
+                <version>${impsort.version}</version>
+                <configuration>
+                    <groups>java.,javax.,org.,com.</groups>
+                    <removeUnused>true</removeUnused>
+                    <staticAfter>true</staticAfter>
+                    <!-- <staticGroups>java.,javax.,org.w3c.,org.xml.,junit.</staticGroups> -->
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
@@ -119,7 +133,6 @@
             </resource>
         </resources>
     </build>
-
     <name>Kafka Connect Azure Data Explorer (Kusto) Sink</name>
     <licenses>
         <license>
@@ -128,12 +141,10 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-
     <scm>
         <url>https://github.com/Azure/kafka-sink-azure-kusto</url>
         <connection>scm:git://github.com/Azure/kafka-sink-azure-kusto.git</connection>
     </scm>
-
     <developers>
         <developer>
             <id>microsoft</id>
@@ -324,7 +335,7 @@
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-testing-testcontainers</artifactId>
-            <version>1.9.5.Final</version>
+            <version>${debezium.testcontainer.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -333,176 +344,7 @@
             <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>kafka-connect-avro-converter</artifactId>
-            <version>7.1.1</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>connect-runtime</artifactId>
-            <version>5.3.0-ccs</version>
-            <scope>provided</scope>
-        </dependency>
     </dependencies>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>copy-dependencies</id>
-                        <phase>process-sources</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.directory}/kafka-sink-azure-kusto</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>copy-jar</id>
-                        <phase>pre-integration-test</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.directory}/kafka-sink-azure-kusto</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>${project.build.directory}</directory>
-                                    <filtering>false</filtering>
-                                    <includes>
-                                        <include>kafka-sink-azure-kusto-${project.version}.jar</include>
-                                    </includes>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- For complete packaging -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id> <!-- this is used for inheritance merges -->
-                        <phase>package</phase> <!-- bind to the packaging phase -->
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>fully.qualified.MainClass</mainClass>
-                        </manifest>
-                    </archive>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.5.1</version>
-                <inherited>true</inherited>
-                <configuration>
-                    <source>8</source>
-                    <target>8</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>io.confluent</groupId>
-                <artifactId>kafka-connect-maven-plugin</artifactId>
-                <version>0.12.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>kafka-connect</goal>
-                        </goals>
-                        <configuration>
-                            <title>Kafka Connect Azure Data Explorer (Kusto) Sink Connector</title>
-                            <version>${project.version}</version>
-                            <ownerUsername>microsoftcorporation</ownerUsername>
-                            <ownerName>Microsoft Corporation</ownerName>
-                            <componentTypes>
-                                <componentType>sink</componentType>
-                            </componentTypes>
-                            <tags>
-                                <tag>Azure</tag>
-                                <tag>Kusto</tag>
-                                <tag>Azure Data Explorer</tag>
-                                <tag>Database</tag>
-                                <tag>Sink</tag>
-                                <tag>Kafka Connect</tag>
-                            </tags>
-                            <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
-                            <supportProviderName>Microsoft</supportProviderName>
-                            <supportUrl>https://github.com/Azure/kafka-sink-azure-kusto/issues</supportUrl>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
-            </plugin>
-            <plugin>
-                <groupId>net.revelc.code.formatter</groupId>
-                <artifactId>formatter-maven-plugin</artifactId>
-                <version>${formatter.version}</version>
-                <configuration>
-                    <configFile>${project.basedir}/formatter.xml</configFile>
-                    <encoding>UTF-8</encoding>
-                    <lineEnding>KEEP</lineEnding>
-                </configuration>
-            </plugin>
-            <!-- Makes it easier to have consist import order -->
-            <plugin>
-                <groupId>net.revelc.code</groupId>
-                <artifactId>impsort-maven-plugin</artifactId>
-                <version>${impsort.version}</version>
-                <configuration>
-                    <groups>java.,javax.,org.,com.</groups>
-                    <removeUnused>true</removeUnused>
-                    <staticAfter>true</staticAfter>
-                    <!-- <staticGroups>java.,javax.,org.w3c.,org.xml.,junit.</staticGroups> -->
-                </configuration>
-            </plugin>
-        </plugins>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
-    </build>
     <repositories>
         <repository>
             <id>jitpack.io</id>
