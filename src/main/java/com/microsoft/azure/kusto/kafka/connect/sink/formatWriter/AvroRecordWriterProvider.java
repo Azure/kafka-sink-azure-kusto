@@ -1,9 +1,8 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
-import io.confluent.connect.avro.AvroData;
-import io.confluent.kafka.serializers.NonRecordContainer;
+import java.io.IOException;
+import java.io.OutputStream;
+
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.kafka.connect.data.Schema;
@@ -13,8 +12,11 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.OutputStream;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+
+import io.confluent.connect.avro.AvroData;
+import io.confluent.kafka.serializers.NonRecordContainer;
 
 public class AvroRecordWriterProvider implements RecordWriterProvider {
     private static final Logger log = LoggerFactory.getLogger(AvroRecordWriterProvider.class);

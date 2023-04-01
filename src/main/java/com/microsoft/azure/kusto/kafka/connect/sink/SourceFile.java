@@ -1,10 +1,10 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import org.apache.kafka.connect.sink.SinkRecord;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.kafka.connect.sink.SinkRecord;
 
 public class SourceFile {
     public String path;

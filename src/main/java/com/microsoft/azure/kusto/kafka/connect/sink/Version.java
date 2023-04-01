@@ -1,10 +1,10 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.InputStream;
 import java.util.Properties;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Version {
     public static final String CLIENT_NAME = "Kusto.Kafka.Sink";

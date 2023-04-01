@@ -1,0 +1,2 @@
+.create-merge table TBL (vnum:int, vdec:decimal, vdate:datetime, vb:bool, vreal:real, vstr:string, vlong:long,type:string)
+.create-or-alter table TBL ingestion avro mapping "avro_mapping" '[{"Column":"vnum","Properties":{"Field":"vnum"}},{"Column":"vdec","Properties":{"Field":"vdec"}},{"Column":"vdate","Pr

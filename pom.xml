@@ -138,6 +138,14 @@
                     <staticAfter>true</staticAfter>
                     <!-- <staticGroups>java.,javax.,org.w3c.,org.xml.,junit.</staticGroups> -->
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>sort-imports</id>
+                        <goals>
+                            <goal>sort</goal><!-- runs at process-sources phase by default -->
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.owasp</groupId>

@@ -1,13 +1,13 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import org.apache.commons.io.FilenameUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Objects;
+
+import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Utils {
     private static final Logger log = LoggerFactory.getLogger(Utils.class);
