@@ -348,6 +348,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.confluent.avro</groupId>
+            <artifactId>avro-random-generator</artifactId>
+            <version>0.4.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <version>${testcontainer.version}</version>

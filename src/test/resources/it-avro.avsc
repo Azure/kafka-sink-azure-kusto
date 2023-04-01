@@ -1,0 +1,60 @@
+{
+    "type": "record",
+    "name": "E2ETestObject",
+    "namespace": "com.azure.kusto",
+    "fields": [
+        {
+            "name": "type",
+            "type": "string",
+            "default": ""
+        },
+        {
+            "name": "vb",
+            "type": "boolean",
+            "default": false
+        },
+        {
+            "name": "vdate",
+            "type": {
+                "type": "string",
+                "arg.properties": {
+                    "options": [
+                        "2023-01-01T00:00:01.000Z",
+                        "2023-01-01T00:00:02.000Z",
+                        "2023-01-01T00:00:03.000Z",
+                        "2023-01-01T00:00:04.000Z",
+                        "2023-01-01T00:00:05.000Z",
+                        "2023-01-01T00:00:06.000Z",
+                        "2023-01-01T00:00:07.000Z",
+                        "2023-01-01T00:00:08.000Z"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "vdec",
+            "type": "double",
+            "default": 42.4242
+        },
+        {
+            "name": "vlong",
+            "type": "long",
+            "default": 12356788976
+        },
+        {
+            "name": "vnum",
+            "type": "int",
+            "default": 42
+        },
+        {
+            "name": "vreal",
+            "type": "double",
+            "default": 3.141516
+        },
+        {
+            "name": "vstr",
+            "type": "string",
+            "default": ""
+        }
+    ]
+}
