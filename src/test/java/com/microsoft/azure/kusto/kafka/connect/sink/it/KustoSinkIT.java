@@ -1,5 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.it;
 
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -87,8 +88,6 @@ public class KustoSinkIT {
     }
 
     private static void createTables() throws Exception {
-        // String table = tableBaseName + dataFormat;
-        // String mappingReference = dataFormat + "Mapping";
         ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                 String.format("https://%s.kusto.windows.net/", coordinates.cluster),
                 coordinates.appId, coordinates.appKey, coordinates.authority);
@@ -124,13 +123,15 @@ public class KustoSinkIT {
     @Test
     public void shouldHandleAllTypesOfEvents() throws Exception {
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
+        String srUrl = String.format("http://%s:%s",schemaRegistryContainer.getContainerId().substring(0,12),8081);
         testFormats.forEach(dataFormat -> {
             String valueFormat = "org.apache.kafka.connect.storage.StringConverter";
             if (dataFormat.equals("avro")) {
                 valueFormat = AvroConverter.class.getName();
+
                 log.error("Using value format: {}", valueFormat);
             }
-            log.info("Deploying connector for {}", dataFormat);
+            log.info("Deploying connector for {} , using SR url {}", dataFormat , srUrl);
             ConnectorConfiguration connector = ConnectorConfiguration.create()
                     .with("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector")
                     .with("flush.size.bytes", 10000)
@@ -146,7 +147,8 @@ public class KustoSinkIT {
                     .with("aad.auth.appkey", coordinates.appKey)
                     .with("kusto.ingestion.url", String.format("https://ingest-%s.kusto.windows.net", coordinates.cluster))
                     .with("kusto.query.url", String.format("https://%s.kusto.windows.net", coordinates.cluster))
-                    .with("schema.registry.url", "http://" + schemaRegistryContainer.getHost() + ":" + schemaRegistryContainer.getFirstMappedPort())
+                    .with("schema.registry.url", srUrl)
+                    .with("value.converter.schema.registry.url", srUrl)
                     .with("key.converter", "org.apache.kafka.connect.storage.StringConverter")
                     .with("value.converter", valueFormat);
             connectContainer.registerConnector(String.format("adx-connector-%s", dataFormat), connector);
@@ -159,7 +161,7 @@ public class KustoSinkIT {
                     connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0).name());
             try {
                 produceKafkaMessages(dataFormat);
-                Thread.sleep(600000);
+                Thread.sleep(60000);
             } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -177,9 +179,9 @@ public class KustoSinkIT {
         Generator randomDataBuilder = builder.build();
         if (dataFormat.equals("avro")) {
             producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-            producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
-            producerProperties.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
-                    "http://" + schemaRegistryContainer.getHost() + ":" + schemaRegistryContainer.getFirstMappedPort());
+            producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
+            producerProperties.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,String.format("http://%s:%s",schemaRegistryContainer.getHost(),schemaRegistryContainer.getFirstMappedPort()));
+            producerProperties.put(AbstractKafkaSchemaSerDeConfig.AUTO_REGISTER_SCHEMAS,true);
             // GenericRecords to bytes using avro
             try (KafkaProducer<String, GenericData.Record> producer = new KafkaProducer<>(producerProperties)) {
                 for (int i = 0; i < 10; i++) {

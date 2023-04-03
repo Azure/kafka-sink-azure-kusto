@@ -41,7 +41,7 @@
                             <overWriteSnapshots>false</overWriteSnapshots>
                             <overWriteIfNewer>true</overWriteIfNewer>
                             <includeScope>runtime</includeScope>
-                            <excludeScope>provided</excludeScope>
+                            <excludeScope>test</excludeScope>
                             <outputDirectory>${project.build.directory}/${project.artifactId}</outputDirectory>
                         </configuration>
                     </execution>
@@ -320,7 +320,6 @@
             <groupId>io.confluent</groupId>
             <artifactId>kafka-connect-avro-converter</artifactId>
             <version>${kafka.connect.avro.converter.version}</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>

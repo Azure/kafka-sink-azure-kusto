@@ -1,0 +1,1 @@
+curl "https://packages.confluent.io/maven/io/confluent/kafka-connect-avro-converter/7.3.2/kafka-connect-avro-converter-7.3.2.jar" -o /kafka/connect/kafka-sink-azure-kusto/kafka-connect-avro-converter-7.3.2.jar

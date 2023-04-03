@@ -10,8 +10,14 @@
         },
         {
             "name": "vb",
-            "type": "boolean",
-            "default": false
+            "type": {
+                "type": "boolean",
+                "arg.properties": {
+                    "iteration": {
+                        "start": false
+                    }
+                }
+            }
         },
         {
             "name": "vdate",
@@ -38,8 +44,16 @@
         },
         {
             "name": "vlong",
-            "type": "long",
-            "default": 12356788976
+            "type": {
+                "type": "long",
+                "arg.properties": {
+                    "iteration": {
+                        "start": -42,
+                        "restart": 4242,
+                        "step": 42
+                    }
+                }
+            }
         },
         {
             "name": "vnum",
