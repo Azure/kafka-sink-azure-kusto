@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 public class ITSetup {
     private static final Logger log = LoggerFactory.getLogger(ITSetup.class);
+
     protected static void createConnectorJar() throws IOException {
         Manifest manifest = new Manifest();
         manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
@@ -35,10 +36,10 @@ public class ITSetup {
         String url = "https://packages.confluent.io/maven/io/confluent/kafka-connect-avro-converter/7.3.2/kafka-connect-avro-converter-7.3.2.jar";
         String fileName = url.substring(url.lastIndexOf('/') + 1);
         log.info("Downloading {} to {}", url, fileName);
-        try(InputStream in = new URL(url).openStream()) {
-            Files.copy(in, Paths.get("target/kafka-sink-azure-kusto/"+fileName), StandardCopyOption.REPLACE_EXISTING);
+        try (InputStream in = new URL(url).openStream()) {
+            Files.copy(in, Paths.get("target/kafka-sink-azure-kusto/" + fileName), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            log.error("Downloading {} to {} failed ", url, fileName,e);
+            log.error("Downloading {} to {} failed ", url, fileName, e);
             throw new RuntimeException(e);
         }
     }
