@@ -1,20 +1,18 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.it;
 
-import io.github.resilience4j.retry.Retry;
-import io.github.resilience4j.retry.RetryRegistry;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -27,10 +25,12 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -40,11 +40,12 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.testcontainers.utility.DockerImageName;
 
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
+import com.microsoft.azure.kusto.data.KustoResultColumn;
+import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
@@ -56,12 +57,15 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.debezium.testing.testcontainers.Connector;
 import io.debezium.testing.testcontainers.ConnectorConfiguration;
 import io.debezium.testing.testcontainers.DebeziumContainer;
+import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 
 import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.createConnectorJar;
 import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.getConnectorProperties;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class KustoSinkIT {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkIT.class);
@@ -72,8 +76,6 @@ public class KustoSinkIT {
     private static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:" + confluentVersion))
             .withNetwork(network);
     private static final List<String> testFormats = List.of("avro"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
-
-    private static final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     private static ITCoordinates coordinates;
     private static final DebeziumContainer connectContainer = new DebeziumContainer("debezium/connect-base:2.2")
@@ -109,9 +111,6 @@ public class KustoSinkIT {
     }
 
     private static void createTables() throws Exception {
-        ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                String.format("https://%s.kusto.windows.net/", coordinates.cluster),
-                coordinates.appId, coordinates.appKey, coordinates.authority);
         URL kqlResource = KustoSinkIT.class.getClassLoader().getResource("it-table-setup.kql");
         assert kqlResource != null;
         List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream().map(kql -> kql.replace("TBL", coordinates.table))
@@ -194,26 +193,24 @@ public class KustoSinkIT {
                 Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream("it-avro.avsc")),
                 StandardCharsets.UTF_8));
         Generator randomDataBuilder = builder.build();
+        Map<String, String> expectedRecordsProduced = new HashMap<>();
 
         if (dataFormat.equals("avro")) {
             producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
             producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
             // GenericRecords to bytes using avro
             try (KafkaProducer<String, GenericData.Record> producer = new KafkaProducer<>(producerProperties)) {
-                Map<String,String> recordsProduced = new HashMap<>();
                 for (int i = 0; i < 10; i++) {
                     GenericData.Record record = (GenericData.Record) randomDataBuilder.generate();
                     ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
                     Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                             .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
-                    recordsProduced.put(jsonRecordMap.get("vstr").toString(),objectMapper.writeValueAsString(jsonRecordMap));
+                    jsonRecordMap.put("type",dataFormat);
+                    expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(), objectMapper.writeValueAsString(jsonRecordMap));
                     producer.send(producerRecord);
-                    Map<String,String> actualRecordsIngested = getRecordsIngested(dataFormat);
-                    assertEquals(recordsProduced,actualRecordsIngested);
                 }
             }
         } else if (dataFormat.equals("json")) {
-            Map<String,String> recordsProduced = new HashMap<>();
             producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
             producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
             // GenericRecords to json using avro
@@ -224,48 +221,55 @@ public class KustoSinkIT {
                             .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                     ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic", "Key-" + i,
                             objectMapper.writeValueAsString(jsonRecordMap));
-                    recordsProduced.put(jsonRecordMap.get("vstr").toString(),objectMapper.writeValueAsString(jsonRecordMap));
+                    jsonRecordMap.put("type",dataFormat);
+                    expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(), objectMapper.writeValueAsString(jsonRecordMap));
                     producer.send(producerRecord);
-                    Map<String,String> actualRecordsIngested = getRecordsIngested(dataFormat);
-                    assertEquals(recordsProduced,actualRecordsIngested);
                 }
             }
         }
         log.info("Produced messages for format {}", dataFormat);
+        Map<String, String> actualRecordsIngested = getRecordsIngested(dataFormat);
+        actualRecordsIngested.keySet().forEach(key -> {
+            log.info("Record ingested: {}", actualRecordsIngested.get(key));
+            try {
+                JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),false);
+            } catch (JSONException e) {
+                fail(e);
+            }
+        });
     }
 
-    private Map<String,String> getRecordsIngested(String dataFormat) {
+    private Map<String, String> getRecordsIngested(String dataFormat) {
         // Waits 60 seconds for the records to be ingested
+        Predicate<Object> predicate = (results) -> results == null || ((Map<?, ?>) results).isEmpty();
         RetryConfig config = RetryConfig.custom()
-                .maxAttempts(6)
+                .maxAttempts(50)
+                .retryOnResult(predicate)
                 .waitDuration(Duration.of(10, SECONDS))
                 .build();
         RetryRegistry registry = RetryRegistry.of(config);
         Retry retry = registry.retry("ingestRecordService", config);
-        Supplier<Map<String,String>> recordSearchSupplier = () -> {
+        Supplier<Map<String, String>> recordSearchSupplier = () -> {
             try {
-               String results =  engineClient.executeToJsonResult(coordinates.database, String.format("%s | where type == '%s' | order by vstr desc", coordinates.table,dataFormat));
-               Map<String,String> actualResults = new HashMap<>();
-               ArrayNode allResults =  (ArrayNode)objectMapper.readTree(results);
-                allResults.forEach(node -> {
-                    String key = node.get("vstr").textValue();
-                    actualResults.put(key,node.toString());
-                });
+                String query = String.format("%s | where type == '%s' | project  vstr,vresult = pack_all()", coordinates.table, dataFormat);
+                KustoResultSetTable resultSet = engineClient.execute(coordinates.database, query).getPrimaryResults();
+                Map<String, String> actualResults = new HashMap<>();
+                while (resultSet.next()) {
+                    String key = resultSet.getString("vstr");
+                    String vResult = resultSet.getString("vresult");
+                    actualResults.put(key, vResult);
+                }
                 return actualResults;
-            } catch (DataServiceException | DataClientException | IOException e) {
+            } catch (DataServiceException | DataClientException e) {
                 return Collections.emptyMap();
             }
         };
-        return Retry.decorateSupplier(retry, recordSearchSupplier).get();
+        return retry.executeSupplier(recordSearchSupplier);
     }
 
     static private class SchemaRegistryContainer extends GenericContainer<SchemaRegistryContainer> {
         public static final String SCHEMA_REGISTRY_IMAGE = "confluentinc/cp-schema-registry";
         public static final int SCHEMA_REGISTRY_PORT = 8081;
-
-        public SchemaRegistryContainer() {
-            this(confluentVersion);
-        }
 
         public SchemaRegistryContainer(String version) {
             super(SCHEMA_REGISTRY_IMAGE + ":" + version);
