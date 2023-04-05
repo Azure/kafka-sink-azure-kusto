@@ -61,7 +61,6 @@ import io.github.resilience4j.retry.RetryRegistry;
 import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.createConnectorJar;
 import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.getConnectorProperties;
 import static java.time.temporal.ChronoUnit.SECONDS;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class KustoSinkIT {
@@ -131,7 +130,7 @@ public class KustoSinkIT {
     }
 
     @Test
-    public void shouldHandleAllTypesOfEvents() throws Exception {
+    public void shouldHandleAllTypesOfEvents() {
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
         String srUrl = String.format("http://%s:%s", schemaRegistryContainer.getContainerId().substring(0, 12), 8081);
         testFormats.forEach(dataFormat -> {
