@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,13 +37,11 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.lifecycle.Startables;
-import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import org.testcontainers.utility.DockerImageName;
 
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
-import com.microsoft.azure.kusto.data.KustoResultColumn;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
@@ -205,7 +202,7 @@ public class KustoSinkIT {
                     ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
                     Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                             .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
-                    jsonRecordMap.put("type",dataFormat);
+                    jsonRecordMap.put("type", dataFormat);
                     expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(), objectMapper.writeValueAsString(jsonRecordMap));
                     producer.send(producerRecord);
                 }
@@ -221,7 +218,7 @@ public class KustoSinkIT {
                             .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                     ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic", "Key-" + i,
                             objectMapper.writeValueAsString(jsonRecordMap));
-                    jsonRecordMap.put("type",dataFormat);
+                    jsonRecordMap.put("type", dataFormat);
                     expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(), objectMapper.writeValueAsString(jsonRecordMap));
                     producer.send(producerRecord);
                 }
@@ -232,7 +229,7 @@ public class KustoSinkIT {
         actualRecordsIngested.keySet().forEach(key -> {
             log.info("Record ingested: {}", actualRecordsIngested.get(key));
             try {
-                JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),false);
+                JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key), false);
             } catch (JSONException e) {
                 fail(e);
             }
