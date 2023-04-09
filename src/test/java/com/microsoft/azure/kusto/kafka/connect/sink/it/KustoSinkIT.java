@@ -29,16 +29,17 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.skyscreamer.jsonassert.Customization;
 import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.comparator.CustomComparator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.MountableFile;
 
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
@@ -46,14 +47,13 @@ import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
+import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.KustoKafkaConnectContainer;
+import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.SchemaRegistryContainer;
 
 import io.confluent.avro.random.generator.Generator;
 import io.confluent.connect.avro.AvroConverter;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
-import io.debezium.testing.testcontainers.Connector;
-import io.debezium.testing.testcontainers.ConnectorConfiguration;
-import io.debezium.testing.testcontainers.DebeziumContainer;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
@@ -62,6 +62,7 @@ import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.createConn
 import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.getConnectorProperties;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
 public class KustoSinkIT {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkIT.class);
@@ -71,17 +72,17 @@ public class KustoSinkIT {
     private static final String confluentVersion = "6.2.5";
     private static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:" + confluentVersion))
             .withNetwork(network);
-    private static final List<String> testFormats = List.of("avro"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
+    private static final List<String> testFormats = List.of("avro","json"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
 
     private static ITCoordinates coordinates;
-    private static final DebeziumContainer connectContainer = new DebeziumContainer("debezium/connect-base:2.2")
-            .withEnv("CONNECT_PLUGIN_PATH", "/kafka/connect")
+    private static final KustoKafkaConnectContainer connectContainer = new KustoKafkaConnectContainer(confluentVersion)
             .withFileSystemBind("target/kafka-sink-azure-kusto", "/kafka/connect/kafka-sink-azure-kusto")
             .withNetwork(network)
             .withKafka(kafkaContainer)
             .dependsOn(kafkaContainer);
 
-    private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion);
+    private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
+            .withNetwork(network);
 
     private static Client engineClient = null;
 
@@ -97,10 +98,13 @@ public class KustoSinkIT {
             createTables();
             log.info("Creating connector jar");
             createConnectorJar();
-            log.info("Starting containers");
             Startables.deepStart(Stream.of(kafkaContainer, connectContainer)).join();
-            schemaRegistryContainer.withKafka(kafkaContainer).withNetwork(network).start();
-            log.info("Started containers");
+            schemaRegistryContainer.start();
+            log.info("Started containers , copying scripts to container and executing them");
+            connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 0744),
+                    "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh").execInContainer("sh", "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh");
+
+            log.info(connectContainer.getLogs());
         } else {
             log.info("Skipping test due to missing configuration");
         }
@@ -141,33 +145,33 @@ public class KustoSinkIT {
                 log.error("Using value format: {}", valueFormat);
             }
             log.info("Deploying connector for {} , using SR url {}", dataFormat, srUrl);
-            ConnectorConfiguration connector = ConnectorConfiguration.create()
-                    .with("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector")
-                    .with("flush.size.bytes", 10000)
-                    .with("flush.interval.ms", 1000)
-                    .with("tasks.max", 1)
-                    .with("topics", String.format("e2e.%s.topic", dataFormat))
-                    .with("kusto.tables.topics.mapping",
-                            String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping'}]", dataFormat,
-                                    coordinates.database,
-                                    coordinates.table, dataFormat, dataFormat))
-                    .with("aad.auth.authority", coordinates.authority)
-                    .with("aad.auth.appid", coordinates.appId)
-                    .with("aad.auth.appkey", coordinates.appKey)
-                    .with("kusto.ingestion.url", String.format("https://ingest-%s.kusto.windows.net", coordinates.cluster))
-                    .with("kusto.query.url", String.format("https://%s.kusto.windows.net", coordinates.cluster))
-                    .with("schema.registry.url", srUrl)
-                    .with("value.converter.schema.registry.url", srUrl)
-                    .with("key.converter", "org.apache.kafka.connect.storage.StringConverter")
-                    .with("value.converter", valueFormat);
-            connectContainer.registerConnector(String.format("adx-connector-%s", dataFormat), connector);
+            Map<String, Object> connectorProps = new HashMap<>();
+            connectorProps.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
+            connectorProps.put("flush.size.bytes", 10000);
+            connectorProps.put("flush.interval.ms", 1000);
+            connectorProps.put("tasks.max", 1);
+            connectorProps.put("topics", String.format("e2e.%s.topic", dataFormat));
+            connectorProps.put("kusto.tables.topics.mapping",
+                    String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping'}]", dataFormat,
+                            coordinates.database,
+                            coordinates.table, dataFormat, dataFormat));
+            connectorProps.put("aad.auth.authority", coordinates.authority);
+            connectorProps.put("aad.auth.appid", coordinates.appId);
+            connectorProps.put("aad.auth.appkey", coordinates.appKey);
+            connectorProps.put("kusto.ingestion.url", String.format("https://ingest-%s.kusto.windows.net", coordinates.cluster));
+            connectorProps.put("kusto.query.url", String.format("https://%s.kusto.windows.net", coordinates.cluster));
+            connectorProps.put("schema.registry.url", srUrl);
+            connectorProps.put("value.converter.schema.registry.url", srUrl);
+            connectorProps.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+            connectorProps.put("value.converter", valueFormat);
+            connectContainer.registerConnector(String.format("adx-connector-%s", dataFormat), connectorProps);
             log.info("Deployed connector for {}", dataFormat);
             log.info(connectContainer.getLogs());
         });
         testFormats.forEach(dataFormat -> {
-            connectContainer.ensureConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0, Connector.State.RUNNING);
+            connectContainer.ensureConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0, "RUNNING");
             log.info("Connector state for {} : {}. ", dataFormat,
-                    connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0).name());
+                    connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));
             try {
                 produceKafkaMessages(dataFormat);
                 Thread.sleep(10000);
@@ -228,7 +232,11 @@ public class KustoSinkIT {
         actualRecordsIngested.keySet().forEach(key -> {
             log.info("Record ingested: {}", actualRecordsIngested.get(key));
             try {
-                JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key), false);
+                JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),
+                        new CustomComparator(LENIENT,
+                                // there are sometimes round off errors in the double values but they are close enough to 8 precision
+                                new Customization("vdec", (vdec1,
+                                        vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001)));
             } catch (JSONException e) {
                 fail(e);
             }
@@ -253,6 +261,7 @@ public class KustoSinkIT {
                 while (resultSet.next()) {
                     String key = resultSet.getString("vstr");
                     String vResult = resultSet.getString("vresult");
+                    log.info("Record queried: {}", vResult);
                     actualResults.put(key, vResult);
                 }
                 return actualResults;
@@ -261,26 +270,5 @@ public class KustoSinkIT {
             }
         };
         return retry.executeSupplier(recordSearchSupplier);
-    }
-
-    static private class SchemaRegistryContainer extends GenericContainer<SchemaRegistryContainer> {
-        public static final String SCHEMA_REGISTRY_IMAGE = "confluentinc/cp-schema-registry";
-        public static final int SCHEMA_REGISTRY_PORT = 8081;
-
-        public SchemaRegistryContainer(String version) {
-            super(SCHEMA_REGISTRY_IMAGE + ":" + version);
-            waitingFor(Wait.forHttp("/subjects").forStatusCode(200));
-            withExposedPorts(SCHEMA_REGISTRY_PORT);
-        }
-
-        public SchemaRegistryContainer withKafka(KafkaContainer kafka) {
-            return withKafka(kafka.getNetwork(), kafka.getNetworkAliases().get(0) + ":9092");
-        }
-
-        public SchemaRegistryContainer withKafka(Network network, String bootstrapServers) {
-            withNetwork(network).withEnv("SCHEMA_REGISTRY_HOST_NAME", "schema-registry").withEnv("SCHEMA_REGISTRY_LISTENERS", "http://0.0.0.0:8081")
-                    .withEnv("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "PLAINTEXT://" + bootstrapServers);
-            return self();
-        }
     }
 }

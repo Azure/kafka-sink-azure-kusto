@@ -3,12 +3,9 @@ package com.microsoft.azure.kusto.kafka.connect.sink.it;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.jar.Attributes;
@@ -32,15 +29,6 @@ public class ITSetup {
                 Paths.get("target/kafka-sink-azure-kusto/kafka-sink-azure-kusto.jar"));
                 JarOutputStream target = new JarOutputStream(fos, manifest)) {
             add(new File("target/classes"), target);
-        }
-        String url = "https://packages.confluent.io/maven/io/confluent/kafka-connect-avro-converter/7.3.2/kafka-connect-avro-converter-7.3.2.jar";
-        String fileName = url.substring(url.lastIndexOf('/') + 1);
-        log.info("Downloading {} to {}", url, fileName);
-        try (InputStream in = new URL(url).openStream()) {
-            Files.copy(in, Paths.get("target/kafka-sink-azure-kusto/" + fileName), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            log.error("Downloading {} to {} failed ", url, fileName, e);
-            throw new RuntimeException(e);
         }
     }
 
