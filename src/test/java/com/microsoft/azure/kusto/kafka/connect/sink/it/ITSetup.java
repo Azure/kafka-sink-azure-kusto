@@ -19,8 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ITSetup {
-    private static final Logger log = LoggerFactory.getLogger(ITSetup.class);
-
     protected static void createConnectorJar() throws IOException {
         Manifest manifest = new Manifest();
         manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
@@ -63,7 +61,7 @@ public class ITSetup {
         }
     }
 
-    static ITCoordinates getConnectorProperties() throws Exception {
+    static ITCoordinates getConnectorProperties() {
         String testPrefix = "tmpKafkaSinkIT_";
         String appId = getProperty("appId", "", false);
         String appKey = getProperty("appKey", "", false);
