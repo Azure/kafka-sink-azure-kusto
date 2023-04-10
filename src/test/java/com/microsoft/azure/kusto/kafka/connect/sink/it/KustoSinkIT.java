@@ -48,6 +48,7 @@ import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.KustoKafkaConnectContainer;
+import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.ProxyContainer;
 import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.SchemaRegistryContainer;
 
 import io.confluent.avro.random.generator.Generator;
@@ -72,17 +73,18 @@ public class KustoSinkIT {
     private static final String confluentVersion = "6.2.5";
     private static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:" + confluentVersion))
             .withNetwork(network);
-    private static final List<String> testFormats = List.of("avro","json"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
+    private static final ProxyContainer proxyContainer = new ProxyContainer().withNetwork(network);
+
+    private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
+            .withNetwork(network).dependsOn(kafkaContainer);
+    private static final List<String> testFormats = List.of("avro", "json"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
 
     private static ITCoordinates coordinates;
     private static final KustoKafkaConnectContainer connectContainer = new KustoKafkaConnectContainer(confluentVersion)
             .withFileSystemBind("target/kafka-sink-azure-kusto", "/kafka/connect/kafka-sink-azure-kusto")
             .withNetwork(network)
             .withKafka(kafkaContainer)
-            .dependsOn(kafkaContainer);
-
-    private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
-            .withNetwork(network);
+            .dependsOn(kafkaContainer, proxyContainer, schemaRegistryContainer);
 
     private static Client engineClient = null;
 
@@ -98,13 +100,11 @@ public class KustoSinkIT {
             createTables();
             log.info("Creating connector jar");
             createConnectorJar();
-            Startables.deepStart(Stream.of(kafkaContainer, connectContainer)).join();
-            schemaRegistryContainer.start();
+            Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
             log.info("Started containers , copying scripts to container and executing them");
-            connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 0744),
+            connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
                     "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh").execInContainer("sh", "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh");
-
-            log.info(connectContainer.getLogs());
+            log.debug(connectContainer.getLogs());
         } else {
             log.info("Skipping test due to missing configuration");
         }
@@ -137,14 +137,14 @@ public class KustoSinkIT {
     public void shouldHandleAllTypesOfEvents() {
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
         String srUrl = String.format("http://%s:%s", schemaRegistryContainer.getContainerId().substring(0, 12), 8081);
-        testFormats.forEach(dataFormat -> {
+        testFormats.parallelStream().forEach(dataFormat -> {
             String valueFormat = "org.apache.kafka.connect.storage.StringConverter";
             if (dataFormat.equals("avro")) {
                 valueFormat = AvroConverter.class.getName();
-
                 log.error("Using value format: {}", valueFormat);
             }
-            log.info("Deploying connector for {} , using SR url {}", dataFormat, srUrl);
+            log.info("Deploying connector for {} , using SR url {}. Using proxy host {} and port {}", dataFormat, srUrl,
+                    proxyContainer.getContainerId().substring(0, 12), proxyContainer.getExposedPorts().get(0));
             Map<String, Object> connectorProps = new HashMap<>();
             connectorProps.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
             connectorProps.put("flush.size.bytes", 10000);
@@ -164,9 +164,11 @@ public class KustoSinkIT {
             connectorProps.put("value.converter.schema.registry.url", srUrl);
             connectorProps.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
             connectorProps.put("value.converter", valueFormat);
+            connectorProps.put("proxy.host", proxyContainer.getContainerId().substring(0, 12));
+            connectorProps.put("proxy.port", proxyContainer.getExposedPorts().get(0));
             connectContainer.registerConnector(String.format("adx-connector-%s", dataFormat), connectorProps);
             log.info("Deployed connector for {}", dataFormat);
-            log.info(connectContainer.getLogs());
+            log.debug(connectContainer.getLogs());
         });
         testFormats.forEach(dataFormat -> {
             connectContainer.ensureConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0, "RUNNING");
@@ -230,7 +232,7 @@ public class KustoSinkIT {
         log.info("Produced messages for format {}", dataFormat);
         Map<String, String> actualRecordsIngested = getRecordsIngested(dataFormat);
         actualRecordsIngested.keySet().forEach(key -> {
-            log.info("Record ingested: {}", actualRecordsIngested.get(key));
+            log.debug("Record ingested: {}", actualRecordsIngested.get(key));
             try {
                 JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),
                         new CustomComparator(LENIENT,
@@ -261,7 +263,7 @@ public class KustoSinkIT {
                 while (resultSet.next()) {
                     String key = resultSet.getString("vstr");
                     String vResult = resultSet.getString("vresult");
-                    log.info("Record queried: {}", vResult);
+                    log.debug("Record queried: {}", vResult);
                     actualResults.put(key, vResult);
                 }
                 return actualResults;

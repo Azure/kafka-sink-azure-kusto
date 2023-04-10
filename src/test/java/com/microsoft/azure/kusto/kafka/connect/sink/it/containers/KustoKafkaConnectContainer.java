@@ -76,7 +76,7 @@ public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConne
         try {
             Map<String, Object> connectorConfiguration = Map.of("name", name, "config", configuration);
             String postConfig = OBJECT_MAPPER.writeValueAsString(connectorConfiguration);
-            log.info("Registering connector {} with config {}", name, postConfig);
+            log.trace("Registering connector {} with config {}", name, postConfig);
             executePOSTRequestSuccessfully(postConfig, String.format("%s/connectors", getTarget()));
             Awaitility.await()
                     .atMost(KAFKA_CONNECT_START_TIMEOUT)

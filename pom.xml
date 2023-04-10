@@ -10,6 +10,9 @@
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
     <version>4.0.1</version>
     <properties>
+        <avro.random.generator.version>0.4.1</avro.random.generator.version>
+        <awaitility.version>4.2.0</awaitility.version>
+        <azure.bom.version>1.2.11</azure.bom.version>
         <commoncodec.version>1.15</commoncodec.version>
         <commonio.version>2.11.0</commonio.version>
         <debezium.testcontainer.version>2.2.0.Alpha3</debezium.testcontainer.version>
@@ -17,14 +20,18 @@
         <formatter.version>2.20.0</formatter.version>
         <impsort.version>1.8.0</impsort.version>
         <jackson-version>2.14.2</jackson-version>
+        <java.release.version>11</java.release.version>
+        <jsonassert.version>1.5.1</jsonassert.version>
         <junit.version>5.9.2</junit.version>
-        <kafka.connect.avro.converter.version>7.3.2</kafka.connect.avro.converter.version>
+        <kafka.connect.avro.converter.version>7.3.3</kafka.connect.avro.converter.version>
         <kafka.version>3.4.0</kafka.version>
         <kusto-sdk.version>4.0.4</kusto-sdk.version>
         <littleproxy.version>1.1.2</littleproxy.version>
+        <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
+        <mvn.surefire.plugin.version>2.22.0</mvn.surefire.plugin.version>
         <mockito.version>5.2.0</mockito.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <testcontainer.version>1.17.6</testcontainer.version>
+        <testcontainer.version>1.18.0</testcontainer.version>
     </properties>
     <build>
         <plugins>
@@ -74,10 +81,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>${mvn.compiler.plugin.version}</version>
                 <inherited>true</inherited>
                 <configuration>
-                    <release>11</release>
+                    <release>${java.release.version}</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -115,7 +122,29 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>${mvn.surefire.plugin.version}</version>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*KustoSinkIT.java</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <phase>integration-test</phase>
+                        <configuration>
+                            <excludes>
+                                <exclude>none</exclude>
+                            </excludes>
+                            <includes>
+                                <include>**/*KustoSinkIT.java</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>net.revelc.code.formatter</groupId>
@@ -183,7 +212,7 @@
             <dependency>
                 <groupId>com.azure</groupId>
                 <artifactId>azure-sdk-bom</artifactId>
-                <version>1.2.10</version>
+                <version>${azure.bom.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -200,12 +229,28 @@
                     <artifactId>jackson-databind</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>com.fasterxml.woodstox</groupId>
-                    <artifactId>woodstox-core</artifactId>
+                    <groupId>commons-codec</groupId>
+                    <artifactId>commons-codec</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
+                    <artifactId>azure-identity</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-storage-blob</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-storage-queue</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-data-tables</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-storage-common</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>com.azure</groupId>
@@ -213,17 +258,25 @@
                 </exclusion>
                 <exclusion>
                     <groupId>com.azure</groupId>
-                    <artifactId>azure-identity</artifactId>
+                    <artifactId>azure-core-http-netty</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-core-http-netty</artifactId>
+            <version>1.13.2</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
+            <version>1.8.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.microsoft.azure</groupId>
+                    <artifactId>msal4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
@@ -236,6 +289,7 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-data-tables</artifactId>
+            <version>12.3.9</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
@@ -244,6 +298,12 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-core</artifactId>
+            <version>1.38.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.azure</groupId>
+            <artifactId>msal4j</artifactId>
+            <version>1.13.7</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
@@ -342,18 +402,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.littleshoot</groupId>
-            <artifactId>littleproxy</artifactId>
-            <version>${littleproxy.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>io.confluent.avro</groupId>
             <artifactId>avro-random-generator</artifactId>
-            <version>0.4.1</version>
+            <version>${avro.random.generator.version}</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
@@ -375,13 +428,13 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
-            <version>4.2.0</version>
+            <version>${awaitility.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.skyscreamer</groupId>
             <artifactId>jsonassert</artifactId>
-            <version>1.5.1</version>
+            <version>${jsonassert.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
