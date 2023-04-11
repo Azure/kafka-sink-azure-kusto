@@ -47,6 +47,7 @@ import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
+import com.microsoft.azure.kusto.kafka.connect.sink.Version;
 import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.KustoKafkaConnectContainer;
 import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.ProxyContainer;
 import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.SchemaRegistryContainer;
@@ -59,7 +60,6 @@ import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
 
-import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.createConnectorJar;
 import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.getConnectorProperties;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -81,7 +81,6 @@ public class KustoSinkIT {
 
     private static ITCoordinates coordinates;
     private static final KustoKafkaConnectContainer connectContainer = new KustoKafkaConnectContainer(confluentVersion)
-            .withFileSystemBind("target/kafka-sink-azure-kusto", "/kafka/connect/kafka-sink-azure-kusto")
             .withNetwork(network)
             .withKafka(kafkaContainer)
             .dependsOn(kafkaContainer, proxyContainer, schemaRegistryContainer);
@@ -98,8 +97,12 @@ public class KustoSinkIT {
             engineClient = ClientFactory.createClient(engineCsb);
             log.info("Creating tables in Kusto");
             createTables();
-            log.info("Creating connector jar");
-            createConnectorJar();
+            // Mount the libs
+            String mountPath = String.format("target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
+                    Version.getVersion(), Version.getVersion());
+            log.info("Creating connector jar with version {} and mounting it from {},", Version.getVersion(), mountPath);
+            connectContainer.withFileSystemBind(mountPath, "/kafka/connect/kafka-sink-azure-kusto");
+            //createConnectorJar();
             Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
             log.info("Started containers , copying scripts to container and executing them");
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--

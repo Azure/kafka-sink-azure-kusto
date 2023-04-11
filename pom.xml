@@ -13,51 +13,39 @@
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
         <azure.bom.version>1.2.11</azure.bom.version>
+        <!-- The following 4 are Added to override vulnerable deps -->
+        <azure.core.version>1.38.0</azure.core.version>
+        <azure.data.tables.version>12.3.9</azure.data.tables.version>
+        <azure.msal4j.version>1.13.7</azure.msal4j.version>
         <commoncodec.version>1.15</commoncodec.version>
         <commonio.version>2.11.0</commonio.version>
-        <debezium.testcontainer.version>2.2.0.Alpha3</debezium.testcontainer.version>
         <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
         <formatter.version>2.20.0</formatter.version>
         <impsort.version>1.8.0</impsort.version>
         <jackson-version>2.14.2</jackson-version>
         <java.release.version>11</java.release.version>
         <jsonassert.version>1.5.1</jsonassert.version>
+        <!-- Added to override vulnerable deps -->
+        <jsonsmart.version>2.4.10</jsonsmart.version>
         <junit.version>5.9.2</junit.version>
-        <kafka.connect.avro.converter.version>7.3.3</kafka.connect.avro.converter.version>
+        <kafka.connect.avro.converter.version>7.3.2</kafka.connect.avro.converter.version>
         <kafka.version>3.4.0</kafka.version>
-        <kusto-sdk.version>4.0.4</kusto-sdk.version>
-        <littleproxy.version>1.1.2</littleproxy.version>
+        <kusto.sdk.version>4.0.4</kusto.sdk.version>
+        <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.surefire.plugin.version>2.22.0</mvn.surefire.plugin.version>
         <mockito.version>5.2.0</mockito.version>
+        <!-- Added to override vulnerable deps -->
+        <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <testcontainer.version>1.18.0</testcontainer.version>
     </properties>
     <build>
         <plugins>
             <plugin>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>test-compile</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
-                        <configuration>
-                            <overWriteReleases>false</overWriteReleases>
-                            <overWriteSnapshots>false</overWriteSnapshots>
-                            <overWriteIfNewer>true</overWriteIfNewer>
-                            <includeScope>runtime</includeScope>
-                            <excludeScope>test</excludeScope>
-                            <outputDirectory>${project.build.directory}/${project.artifactId}</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>${mvn.assembly.plugin.version}</version>
                 <executions>
                     <execution>
                         <id>make-assembly</id> <!-- this is used for inheritance merges -->
@@ -70,7 +58,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>fully.qualified.MainClass</mainClass>
+                            <mainClass>com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
@@ -127,6 +115,7 @@
                     <excludes>
                         <exclude>**/*KustoSinkIT.java</exclude>
                     </excludes>
+                    <parallel>true</parallel>
                 </configuration>
                 <executions>
                     <execution>
@@ -222,7 +211,7 @@
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-data</artifactId>
-            <version>${kusto-sdk.version}</version>
+            <version>${kusto.sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -289,7 +278,7 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-data-tables</artifactId>
-            <version>12.3.9</version>
+            <version>${azure.data.tables.version}</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
@@ -298,17 +287,39 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-core</artifactId>
-            <version>1.38.0</version>
+            <version>${azure.core.version}</version>
         </dependency>
+        <!-- used in msal4j in azure-identity , 2.4.8 has a Vulnerability -->
         <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>msal4j</artifactId>
-            <version>1.13.7</version>
+            <version>${azure.msal4j.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.minidev</groupId>
+                    <artifactId>json-smart</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.nimbusds</groupId>
+                    <artifactId>nimbus-jose-jwt</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>${nimbusjose.jwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+            <version>${jsonsmart.version}</version>
+        </dependency>
+        <!-- msal4j vulnerabilities fixed -->
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-ingest</artifactId>
-            <version>${kusto-sdk.version}</version>
+            <version>${kusto.sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
