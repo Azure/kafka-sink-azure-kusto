@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -77,7 +78,7 @@ public class KustoSinkIT {
 
     private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
             .withNetwork(network).dependsOn(kafkaContainer);
-    private static final List<String> testFormats = List.of("avro", "json"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
+    private static final List<String> testFormats = List.of("json", "avro", "csv"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
 
     private static ITCoordinates coordinates;
     private static final KustoKafkaConnectContainer connectContainer = new KustoKafkaConnectContainer(confluentVersion)
@@ -98,11 +99,12 @@ public class KustoSinkIT {
             log.info("Creating tables in Kusto");
             createTables();
             // Mount the libs
-            String mountPath = String.format("target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
+            String mountPath = String.format(
+                    "target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
                     Version.getVersion(), Version.getVersion());
             log.info("Creating connector jar with version {} and mounting it from {},", Version.getVersion(), mountPath);
             connectContainer.withFileSystemBind(mountPath, "/kafka/connect/kafka-sink-azure-kusto");
-            //createConnectorJar();
+            // createConnectorJar();
             Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
             log.info("Started containers , copying scripts to container and executing them");
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
@@ -146,6 +148,13 @@ public class KustoSinkIT {
                 valueFormat = AvroConverter.class.getName();
                 log.error("Using value format: {}", valueFormat);
             }
+            String topicTableMapping = dataFormat.equals("csv")
+                    ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping','streaming':'true'}]", dataFormat,
+                            coordinates.database,
+                            coordinates.table, dataFormat, dataFormat)
+                    : String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping'}]", dataFormat,
+                            coordinates.database,
+                            coordinates.table, dataFormat, dataFormat);
             log.info("Deploying connector for {} , using SR url {}. Using proxy host {} and port {}", dataFormat, srUrl,
                     proxyContainer.getContainerId().substring(0, 12), proxyContainer.getExposedPorts().get(0));
             Map<String, Object> connectorProps = new HashMap<>();
@@ -154,10 +163,7 @@ public class KustoSinkIT {
             connectorProps.put("flush.interval.ms", 1000);
             connectorProps.put("tasks.max", 1);
             connectorProps.put("topics", String.format("e2e.%s.topic", dataFormat));
-            connectorProps.put("kusto.tables.topics.mapping",
-                    String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping'}]", dataFormat,
-                            coordinates.database,
-                            coordinates.table, dataFormat, dataFormat));
+            connectorProps.put("kusto.tables.topics.mapping", topicTableMapping);
             connectorProps.put("aad.auth.authority", coordinates.authority);
             connectorProps.put("aad.auth.appid", coordinates.appId);
             connectorProps.put("aad.auth.appkey", coordinates.appKey);
@@ -200,42 +206,68 @@ public class KustoSinkIT {
         Generator randomDataBuilder = builder.build();
         Map<String, String> expectedRecordsProduced = new HashMap<>();
 
-        if (dataFormat.equals("avro")) {
-            producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-            producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
-            // GenericRecords to bytes using avro
-            try (KafkaProducer<String, GenericData.Record> producer = new KafkaProducer<>(producerProperties)) {
-                for (int i = 0; i < 10; i++) {
-                    GenericData.Record record = (GenericData.Record) randomDataBuilder.generate();
-                    ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
-                    Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
-                            .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
-                    jsonRecordMap.put("type", dataFormat);
-                    expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(), objectMapper.writeValueAsString(jsonRecordMap));
-                    producer.send(producerRecord);
+        switch (dataFormat) {
+            case "avro":
+                producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+                producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
+                // GenericRecords to bytes using avro
+                try (KafkaProducer<String, GenericData.Record> producer = new KafkaProducer<>(producerProperties)) {
+                    for (int i = 0; i < 100; i++) {
+                        GenericData.Record record = (GenericData.Record) randomDataBuilder.generate();
+                        ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
+                        Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
+                                .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
+                        jsonRecordMap.put("type", dataFormat);
+                        expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(),
+                                objectMapper.writeValueAsString(jsonRecordMap));
+                        producer.send(producerRecord);
+                    }
                 }
-            }
-        } else if (dataFormat.equals("json")) {
-            producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-            producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-            // GenericRecords to json using avro
-            try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
-                for (int i = 0; i < 10; i++) {
-                    GenericRecord record = (GenericRecord) randomDataBuilder.generate();
-                    Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
-                            .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
-                    ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic", "Key-" + i,
-                            objectMapper.writeValueAsString(jsonRecordMap));
-                    jsonRecordMap.put("type", dataFormat);
-                    expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(), objectMapper.writeValueAsString(jsonRecordMap));
-                    producer.send(producerRecord);
+                break;
+            case "json":
+                producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+                producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+                // GenericRecords to json using avro
+                try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
+                    for (int i = 0; i < 10; i++) {
+                        GenericRecord record = (GenericRecord) randomDataBuilder.generate();
+                        Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
+                                .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
+                        ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic", "Key-" + i,
+                                objectMapper.writeValueAsString(jsonRecordMap));
+                        jsonRecordMap.put("type", dataFormat);
+                        expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(),
+                                objectMapper.writeValueAsString(jsonRecordMap));
+                        log.debug("JSON Record produced: {}", objectMapper.writeValueAsString(jsonRecordMap));
+                        producer.send(producerRecord);
+                    }
                 }
-            }
+                break;
+            case "csv":
+                producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+                producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+                // GenericRecords to json using avro
+                try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
+                    for (int i = 0; i < 10; i++) {
+                        GenericRecord record = (GenericRecord) randomDataBuilder.generate();
+                        Map<String, Object> jsonRecordMap = new TreeMap<>(record.getSchema().getFields().stream().parallel()
+                                .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name()))));
+                        String objectsCommaSeparated = jsonRecordMap.values().stream().map(Object::toString).collect(Collectors.joining(","));
+                        log.debug("CSV Record produced: {}", objectsCommaSeparated);
+                        ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.csv.topic", "Key-" + i,
+                                objectsCommaSeparated);
+                        jsonRecordMap.put("type", dataFormat);
+                        expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(),
+                                objectMapper.writeValueAsString(jsonRecordMap));
+                        producer.send(producerRecord);
+                    }
+                }
+                break;
         }
         log.info("Produced messages for format {}", dataFormat);
         Map<String, String> actualRecordsIngested = getRecordsIngested(dataFormat);
         actualRecordsIngested.keySet().forEach(key -> {
-            log.debug("Record ingested: {}", actualRecordsIngested.get(key));
+            log.debug("Record queried: {}", actualRecordsIngested.get(key));
             try {
                 JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),
                         new CustomComparator(LENIENT,
