@@ -14,7 +14,6 @@
         <awaitility.version>4.2.0</awaitility.version>
         <azure.bom.version>1.2.11</azure.bom.version>
         <!-- The following 4 are Added to override vulnerable deps -->
-        <azure.core.version>1.38.0</azure.core.version>
         <azure.data.tables.version>12.3.9</azure.data.tables.version>
         <azure.msal4j.version>1.13.7</azure.msal4j.version>
         <commoncodec.version>1.15</commoncodec.version>
@@ -125,12 +124,6 @@
                         </configuration>
                     </execution>
                 </executions>
-<!--                <configuration>-->
-<!--                    <excludes>-->
-<!--                        <exclude>**/*KustoSinkIT.java</exclude>-->
-<!--                    </excludes>-->
-<!--                    <parallel>true</parallel>-->
-<!--                </configuration>-->
             </plugin>
             <plugin>
                 <groupId>net.revelc.code.formatter</groupId>
