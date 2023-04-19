@@ -113,8 +113,8 @@ public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConne
                 .POST(HttpRequest.BodyPublishers.ofString(payload)).header("Content-Type", "application/json").header("Accept", "application/json")
                 .build(), HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    // Handle failed response in case return codes are not OK / Created
-                    if (response.statusCode() != 200 || response.statusCode() != 201) {
+                    // When the connector is created it will have HTTP/201 Created response code
+                    if (response.statusCode() != 201) {
                         handleFailedResponse(response);
                     }
                     return response;
