@@ -63,6 +63,7 @@ import io.github.resilience4j.retry.RetryRegistry;
 
 import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.getConnectorProperties;
 import static java.time.temporal.ChronoUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
@@ -88,6 +89,8 @@ public class KustoSinkIT {
 
     private static Client engineClient = null;
 
+    private static final String keyColumn = "vlong";
+
     @BeforeAll
     public static void startContainers() throws Exception {
         coordinates = getConnectorProperties();
@@ -104,11 +107,11 @@ public class KustoSinkIT {
                     Version.getVersion(), Version.getVersion());
             log.info("Creating connector jar with version {} and mounting it from {},", Version.getVersion(), mountPath);
             connectContainer.withFileSystemBind(mountPath, "/kafka/connect/kafka-sink-azure-kusto");
-            // createConnectorJar();
             Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
             log.info("Started containers , copying scripts to container and executing them");
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
                     "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh").execInContainer("sh", "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh");
+            //Logs of start up of the container gets published here. This will be handy in case we want to look at startup failures
             log.debug(connectContainer.getLogs());
         } else {
             log.info("Skipping test due to missing configuration");
@@ -127,6 +130,7 @@ public class KustoSinkIT {
                 log.error("Failed to execute kql: {}", kql, e);
             }
         });
+        log.info("Created table {} and associated mappings", coordinates.table);
     }
 
     @AfterAll
@@ -135,7 +139,7 @@ public class KustoSinkIT {
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
         engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-        log.error("Finished table clean up. Dropped table {}", coordinates.table);
+        log.info("Finished table clean up. Dropped table {}", coordinates.table);
     }
 
     @Test
@@ -146,7 +150,7 @@ public class KustoSinkIT {
             String valueFormat = "org.apache.kafka.connect.storage.StringConverter";
             if (dataFormat.equals("avro")) {
                 valueFormat = AvroConverter.class.getName();
-                log.error("Using value format: {}", valueFormat);
+                log.debug("Using value format: {}", valueFormat);
             }
             String topicTableMapping = dataFormat.equals("csv")
                     ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping','streaming':'true'}]", dataFormat,
@@ -180,7 +184,7 @@ public class KustoSinkIT {
             log.debug(connectContainer.getLogs());
         });
         testFormats.forEach(dataFormat -> {
-            connectContainer.ensureConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0, "RUNNING");
+            connectContainer.waitUntilConnectorTaskStateChanges(String.format("adx-connector-%s", dataFormat), 0, "RUNNING");
             log.info("Connector state for {} : {}. ", dataFormat,
                     connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));
             try {
@@ -193,7 +197,8 @@ public class KustoSinkIT {
     }
 
     private void produceKafkaMessages(String dataFormat) throws IOException {
-        log.info("Producing messages");
+        log.debug("Producing messages");
+        int maxRecords = 10;
         Map<String, Object> producerProperties = new HashMap<>();
         producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
         producerProperties.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
@@ -204,7 +209,7 @@ public class KustoSinkIT {
                 Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream("it-avro.avsc")),
                 StandardCharsets.UTF_8));
         Generator randomDataBuilder = builder.build();
-        Map<String, String> expectedRecordsProduced = new HashMap<>();
+        Map<Long, String> expectedRecordsProduced = new HashMap<>();
 
         switch (dataFormat) {
             case "avro":
@@ -212,13 +217,13 @@ public class KustoSinkIT {
                 producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
                 // GenericRecords to bytes using avro
                 try (KafkaProducer<String, GenericData.Record> producer = new KafkaProducer<>(producerProperties)) {
-                    for (int i = 0; i < 100; i++) {
+                    for (int i = 0; i < maxRecords; i++) {
                         GenericData.Record record = (GenericData.Record) randomDataBuilder.generate();
                         ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                         jsonRecordMap.put("type", dataFormat);
-                        expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(),
+                        expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
                         producer.send(producerRecord);
                     }
@@ -229,14 +234,14 @@ public class KustoSinkIT {
                 producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
                 // GenericRecords to json using avro
                 try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
-                    for (int i = 0; i < 10; i++) {
+                    for (int i = 0; i < maxRecords; i++) {
                         GenericRecord record = (GenericRecord) randomDataBuilder.generate();
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                         ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic", "Key-" + i,
                                 objectMapper.writeValueAsString(jsonRecordMap));
                         jsonRecordMap.put("type", dataFormat);
-                        expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(),
+                        expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
                         log.debug("JSON Record produced: {}", objectMapper.writeValueAsString(jsonRecordMap));
                         producer.send(producerRecord);
@@ -248,7 +253,7 @@ public class KustoSinkIT {
                 producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
                 // GenericRecords to json using avro
                 try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
-                    for (int i = 0; i < 10; i++) {
+                    for (int i = 0; i < maxRecords; i++) {
                         GenericRecord record = (GenericRecord) randomDataBuilder.generate();
                         Map<String, Object> jsonRecordMap = new TreeMap<>(record.getSchema().getFields().stream().parallel()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name()))));
@@ -257,7 +262,7 @@ public class KustoSinkIT {
                         ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.csv.topic", "Key-" + i,
                                 objectsCommaSeparated);
                         jsonRecordMap.put("type", dataFormat);
-                        expectedRecordsProduced.put(jsonRecordMap.get("vstr").toString(),
+                        expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
                         producer.send(producerRecord);
                     }
@@ -265,8 +270,8 @@ public class KustoSinkIT {
                 break;
         }
         log.info("Produced messages for format {}", dataFormat);
-        Map<String, String> actualRecordsIngested = getRecordsIngested(dataFormat);
-        actualRecordsIngested.keySet().forEach(key -> {
+        Map<Long, String> actualRecordsIngested = getRecordsIngested(dataFormat, maxRecords);
+        actualRecordsIngested.keySet().parallelStream().forEach(key -> {
             log.debug("Record queried: {}", actualRecordsIngested.get(key));
             try {
                 JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),
@@ -278,25 +283,32 @@ public class KustoSinkIT {
                 fail(e);
             }
         });
+        assertEquals(maxRecords, actualRecordsIngested.size());
     }
 
-    private Map<String, String> getRecordsIngested(String dataFormat) {
-        // Waits 60 seconds for the records to be ingested
-        Predicate<Object> predicate = (results) -> results == null || ((Map<?, ?>) results).isEmpty();
+    private Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
+        String query = String.format("%s | where type == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat,keyColumn);
+        Predicate<Object> predicate = (results) -> {
+            if (results != null) {
+                log.debug("Retrieved records count {}", ((Map<?, ?>) results).size());
+            }
+            return results == null || ((Map<?, ?>) results).isEmpty() || ((Map<?, ?>) results).size() < maxRecords;
+        };
+        // Waits 30 seconds for the records to be ingested. Repeats the poll 5 times , in all 150 seconds
         RetryConfig config = RetryConfig.custom()
-                .maxAttempts(50)
+                .maxAttempts(5)
                 .retryOnResult(predicate)
-                .waitDuration(Duration.of(10, SECONDS))
+                .waitDuration(Duration.of(30, SECONDS))
                 .build();
         RetryRegistry registry = RetryRegistry.of(config);
         Retry retry = registry.retry("ingestRecordService", config);
-        Supplier<Map<String, String>> recordSearchSupplier = () -> {
+        Supplier<Map<Long, String>> recordSearchSupplier = () -> {
             try {
-                String query = String.format("%s | where type == '%s' | project  vstr,vresult = pack_all()", coordinates.table, dataFormat);
+                log.debug("Executing query {} ", query);
                 KustoResultSetTable resultSet = engineClient.execute(coordinates.database, query).getPrimaryResults();
-                Map<String, String> actualResults = new HashMap<>();
+                Map<Long, String> actualResults = new HashMap<>();
                 while (resultSet.next()) {
-                    String key = resultSet.getString("vstr");
+                    Long key = (long) resultSet.getInt(keyColumn);
                     String vResult = resultSet.getString("vresult");
                     log.debug("Record queried: {}", vResult);
                     actualResults.put(key, vResult);

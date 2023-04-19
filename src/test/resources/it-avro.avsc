@@ -43,7 +43,7 @@
                 "type": "long",
                 "arg.properties": {
                     "iteration": {
-                        "start": -42,
+                        "start": 0,
                         "restart": 4242,
                         "step": 42
                     }

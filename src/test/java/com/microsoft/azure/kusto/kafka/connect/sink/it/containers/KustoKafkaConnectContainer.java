@@ -113,7 +113,8 @@ public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConne
                 .POST(HttpRequest.BodyPublishers.ofString(payload)).header("Content-Type", "application/json").header("Accept", "application/json")
                 .build(), HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    if (response.statusCode() != 201) {
+                    // Handle failed response in case return codes are not OK / Created
+                    if (response.statusCode() != 200 || response.statusCode() != 201) {
                         handleFailedResponse(response);
                     }
                     return response;
@@ -147,7 +148,7 @@ public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConne
         return null;
     }
 
-    public void ensureConnectorTaskState(String connectorName, int taskNumber, String status) {
+    public void waitUntilConnectorTaskStateChanges(String connectorName, int taskNumber, String status) {
         Awaitility.await()
                 .atMost(KAFKA_CONNECT_START_TIMEOUT)
                 .until(() -> status.equalsIgnoreCase(getConnectorTaskState(connectorName, taskNumber)));
