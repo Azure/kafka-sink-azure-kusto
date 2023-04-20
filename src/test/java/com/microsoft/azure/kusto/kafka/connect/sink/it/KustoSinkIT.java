@@ -88,6 +88,7 @@ public class KustoSinkIT {
             .dependsOn(kafkaContainer, proxyContainer, schemaRegistryContainer);
 
     private static Client engineClient = null;
+    private static Client dmClient = null;
 
     private static final String keyColumn = "vlong";
 
@@ -98,9 +99,14 @@ public class KustoSinkIT {
             ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                     String.format("https://%s.kusto.windows.net/", coordinates.cluster),
                     coordinates.appId, coordinates.appKey, coordinates.authority);
+            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+                    String.format("https://ingest-%s.kusto.windows.net/", coordinates.cluster),
+                    coordinates.appId, coordinates.appKey, coordinates.authority);
             engineClient = ClientFactory.createClient(engineCsb);
+            dmClient = ClientFactory.createClient(dmCsb);
             log.info("Creating tables in Kusto");
             createTables();
+            refreshDm();
             // Mount the libs
             String mountPath = String.format(
                     "target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
@@ -133,6 +139,22 @@ public class KustoSinkIT {
         log.info("Created table {} and associated mappings", coordinates.table);
     }
 
+    private static void refreshDm() throws Exception {
+        URL kqlResource = KustoSinkIT.class.getClassLoader().getResource("dm-refresh-cache.kql");
+        assert kqlResource != null;
+        List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream().map(kql -> kql.replace("TBL", coordinates.table))
+                .map(kql -> kql.replace("DB", coordinates.database))
+                .collect(Collectors.toList());
+        kqlsToExecute.forEach(kql -> {
+            try {
+                dmClient.execute(kql);
+            } catch (Exception e) {
+                log.error("Failed to execute DM kql: {}", kql, e);
+            }
+        });
+        log.info("Refreshed cache on DB {}", coordinates.database);
+    }
+
     @AfterAll
     public static void stopContainers() throws Exception {
         connectContainer.stop();
@@ -140,6 +162,8 @@ public class KustoSinkIT {
         kafkaContainer.stop();
         engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
         log.info("Finished table clean up. Dropped table {}", coordinates.table);
+        dmClient.close();
+        engineClient.close();
     }
 
     @Test

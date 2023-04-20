@@ -4,11 +4,11 @@ import org.apache.commons.lang3.StringUtils;
 
 class ITCoordinates {
 
-    String appId;
-    String appKey;
-    String authority;
-    String cluster;
-    String database;
+    final String appId;
+    final String appKey;
+    final String authority;
+    final String cluster;
+    final String database;
 
     String table;
 
