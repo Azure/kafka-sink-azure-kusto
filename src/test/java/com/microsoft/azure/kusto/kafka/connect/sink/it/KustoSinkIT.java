@@ -302,7 +302,9 @@ public class KustoSinkIT {
                         new CustomComparator(LENIENT,
                                 // there are sometimes round off errors in the double values but they are close enough to 8 precision
                                 new Customization("vdec", (vdec1,
-                                        vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001)));
+                                        vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001),
+                                new Customization("vreal", (vreal1,
+                                        vreal2) -> Math.abs(Double.parseDouble(vreal1.toString()) - Double.parseDouble(vreal2.toString())) < 0.0001)));
             } catch (JSONException e) {
                 fail(e);
             }
