@@ -12,10 +12,10 @@
     <properties>
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <azure.bom.version>1.2.11</azure.bom.version>
+        <azure.bom.version>1.2.12</azure.bom.version>
         <!-- The following 4 are Added to override vulnerable deps -->
-        <azure.data.tables.version>12.3.9</azure.data.tables.version>
         <azure.msal4j.version>1.13.7</azure.msal4j.version>
+        <azure.identity.version>1.8.3</azure.identity.version>
         <commoncodec.version>1.15</commoncodec.version>
         <commonio.version>2.11.0</commonio.version>
         <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
@@ -249,7 +249,7 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
-            <version>1.8.1</version>
+            <version>${azure.identity.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.microsoft.azure</groupId>
@@ -263,12 +263,11 @@
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
-            <artifactId>azure-storage-queue</artifactId>
+            <artifactId>azure-data-tables</artifactId>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
-            <artifactId>azure-data-tables</artifactId>
-            <version>${azure.data.tables.version}</version>
+            <artifactId>azure-storage-queue</artifactId>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>

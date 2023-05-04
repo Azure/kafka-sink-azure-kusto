@@ -117,7 +117,7 @@ public class KustoSinkIT {
             log.info("Started containers , copying scripts to container and executing them");
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
                     "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh").execInContainer("sh", "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh");
-            //Logs of start up of the container gets published here. This will be handy in case we want to look at startup failures
+            // Logs of start up of the container gets published here. This will be handy in case we want to look at startup failures
             log.debug(connectContainer.getLogs());
         } else {
             log.info("Skipping test due to missing configuration");
@@ -311,7 +311,7 @@ public class KustoSinkIT {
     }
 
     private Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
-        String query = String.format("%s | where type == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat,keyColumn);
+        String query = String.format("%s | where type == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat, keyColumn);
         Predicate<Object> predicate = (results) -> {
             if (results != null) {
                 log.debug("Retrieved records count {}", ((Map<?, ?>) results).size());
