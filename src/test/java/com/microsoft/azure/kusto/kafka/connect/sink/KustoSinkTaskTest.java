@@ -1,5 +1,18 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -24,19 +37,6 @@ import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.getCurrentWorki
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
-
 public class KustoSinkTaskTest {
     File currentDirectory;
 
@@ -55,7 +55,7 @@ public class KustoSinkTaskTest {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
         KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
-        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.<KustoSinkConfig>any());
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.any());
         kustoSinkTaskSpy.start(configs);
         ArrayList<TopicPartition> tps = new ArrayList<>();
         tps.add(new TopicPartition("topic1", 1));

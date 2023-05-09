@@ -1,14 +1,13 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import java.io.*;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.function.Function;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.kafka.connect.data.Schema;
@@ -20,13 +19,14 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Consumer;
-import java.util.zip.GZIPOutputStream;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
 
 /**
  * This class is used to write gzipped rolling files.

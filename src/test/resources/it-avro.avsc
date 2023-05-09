@@ -1,0 +1,99 @@
+{
+    "type": "record",
+    "name": "E2ETestObject",
+    "namespace": "com.azure.kusto",
+    "fields": [
+        {
+            "name": "vb",
+            "type": {
+                "type": "boolean",
+                "arg.properties": {
+                    "iteration": {
+                        "start": false
+                    }
+                }
+            }
+        },
+        {
+            "name": "vdate",
+            "type": {
+                "type": "string",
+                "arg.properties": {
+                    "options": [
+                        "2023-01-01T00:00:01.0000000Z",
+                        "2023-01-01T00:00:02.0000000Z",
+                        "2023-01-01T00:00:03.0000000Z",
+                        "2023-01-01T00:00:04.0000000Z",
+                        "2023-01-01T00:00:05.0000000Z",
+                        "2023-01-01T00:00:06.0000000Z",
+                        "2023-01-01T00:00:07.0000000Z",
+                        "2023-01-01T00:00:08.0000000Z"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "vdec",
+            "type": "double",
+            "default": 42.4242
+        },
+        {
+            "name": "vlong",
+            "type": {
+                "type": "long",
+                "arg.properties": {
+                    "iteration": {
+                        "start": 0,
+                        "restart": 4242,
+                        "step": 42
+                    }
+                }
+            }
+        },
+        {
+            "name": "vnum",
+            "type": "int",
+            "default": 42
+        },
+        {
+            "name": "vreal",
+            "type": {
+                "type": "float",
+                "arg.properties": {
+                    "options": [
+                        0.141,
+                        1.141,
+                        2.141,
+                        3.141,
+                        4.141,
+                        5.141,
+                        6.141,
+                        7.141,
+                        8.141,
+                        39.141
+                    ]
+                }
+            }
+        },
+        {
+            "name": "vstr",
+            "type": {
+                "type": "string",
+                "arg.properties": {
+                    "options": [
+                        "V1",
+                        "V2",
+                        "V3",
+                        "V4",
+                        "V5",
+                        "V6",
+                        "V7",
+                        "V8",
+                        "V9",
+                        "V10"
+                    ]
+                }
+            }
+        }
+    ]
+}

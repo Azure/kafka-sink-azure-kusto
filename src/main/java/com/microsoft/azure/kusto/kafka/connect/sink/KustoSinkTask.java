@@ -1,15 +1,9 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.microsoft.azure.kusto.data.*;
-import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
-import com.microsoft.azure.kusto.data.exceptions.DataClientException;
-import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
-import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
-import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.IngestClientFactory;
-import com.microsoft.azure.kusto.ingest.IngestionMapping;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -26,9 +20,16 @@ import org.apache.kafka.connect.sink.SinkTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.microsoft.azure.kusto.data.*;
+import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
+import com.microsoft.azure.kusto.data.exceptions.DataClientException;
+import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
+import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
+import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestClientFactory;
+import com.microsoft.azure.kusto.ingest.IngestionMapping;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
 /**
  * Kusto sink uses file system to buffer records.
@@ -166,7 +167,7 @@ public class KustoSinkTask extends SinkTask {
      * @param config       Kusto Sink configuration
      */
     private static void validateTableAccess(Client engineClient, TopicToTableMapping mapping, KustoSinkConfig config, List<String> databaseTableErrorList,
-                                            List<String> accessErrorList) {
+            List<String> accessErrorList) {
         String database = mapping.getDb();
         String table = mapping.getTable();
         String format = mapping.getFormat();
@@ -205,7 +206,7 @@ public class KustoSinkTask extends SinkTask {
             }
 
             if (hasAccess) {
-                //TODO check this for managed identity
+                // TODO check this for managed identity
                 if (StringUtils.isEmpty(config.getAuthAppId()) || StringUtils.isEmpty(config.getAuthAuthority())) {
                     throw new ConfigException("Authority ID and Application ID must be provided to validate table accesses.");
                 }
