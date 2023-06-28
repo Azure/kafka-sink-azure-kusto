@@ -691,6 +691,7 @@ the [Release History](README.md#16-release-history) section of this document.
 | 3.0.9           | 2022-12-19   | <ul><li>Bugfix: Restrict file permissions on file created for ingestion</li><li>Canonicalize file names</li><li>Refactor tests</li></ul>
 | 4.0.0           | 2023-03-07   | <ul><li>Upgrade Kusto Java SDK to 4.0.3 and Kafka Clients to 3.4.0</li><li>Disable table access validation at start up by default</li></ul>
 | 4.0.1           | 2023-03-26   | <ul><li>Upgrade Kusto Java SDK to 4.0.4</li></ul>
+| 4.0.2           | 2023-06-28   | <ul><li>Upgrade Kusto Java SDK to 5.0.0</li><li>Fix vulnerabilities in libs</li></ul>
 ## 17. Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a

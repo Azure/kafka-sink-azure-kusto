@@ -8,28 +8,25 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>4.0.1</version>
+    <version>4.0.2</version>
     <properties>
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <azure.bom.version>1.2.12</azure.bom.version>
-        <!-- The following 4 are Added to override vulnerable deps -->
-        <azure.msal4j.version>1.13.7</azure.msal4j.version>
-        <azure.identity.version>1.8.3</azure.identity.version>
+        <azure.bom.version>1.2.14</azure.bom.version>
         <commoncodec.version>1.15</commoncodec.version>
         <commonio.version>2.11.0</commonio.version>
         <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
         <formatter.version>2.20.0</formatter.version>
         <impsort.version>1.8.0</impsort.version>
-        <jackson-version>2.14.2</jackson-version>
-        <java.release.version>11</java.release.version>
+        <jackson.version>2.14.3</jackson.version>
+        <java.release.version>1.8</java.release.version>
         <jsonassert.version>1.5.1</jsonassert.version>
         <!-- Added to override vulnerable deps -->
         <jsonsmart.version>2.4.10</jsonsmart.version>
         <junit.version>5.9.2</junit.version>
-        <kafka.connect.avro.converter.version>7.3.2</kafka.connect.avro.converter.version>
-        <kafka.version>3.4.0</kafka.version>
-        <kusto.sdk.version>4.0.4</kusto.sdk.version>
+        <kafka.connect.avro.converter.version>7.4.0</kafka.connect.avro.converter.version>
+        <kafka.version>3.5.0</kafka.version>
+        <kusto.sdk.version>5.0.0</kusto.sdk.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
@@ -72,7 +69,8 @@
                 <version>${mvn.compiler.plugin.version}</version>
                 <inherited>true</inherited>
                 <configuration>
-                    <release>${java.release.version}</release>
+                    <source>${java.release.version}</source>
+                    <target>${java.release.version}</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -212,98 +210,15 @@
                     <artifactId>commons-codec</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-identity</artifactId>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-handler</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-storage-blob</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-storage-queue</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-data-tables</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-storage-common</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-core-http-netty</artifactId>
-            <version>1.13.2</version>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-identity</artifactId>
-            <version>${azure.identity.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.microsoft.azure</groupId>
-                    <artifactId>msal4j</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-storage-blob</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-data-tables</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-storage-queue</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-storage-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-core</artifactId>
-        </dependency>
-        <!-- used in msal4j in azure-identity , 2.4.8 has a Vulnerability -->
-        <dependency>
-            <groupId>com.microsoft.azure</groupId>
-            <artifactId>msal4j</artifactId>
-            <version>${azure.msal4j.version}</version>
-            <exclusions>
                 <exclusion>
                     <groupId>net.minidev</groupId>
                     <artifactId>json-smart</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>com.nimbusds</groupId>
-                    <artifactId>nimbus-jose-jwt</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>nimbus-jose-jwt</artifactId>
-            <version>${nimbusjose.jwt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>net.minidev</groupId>
-            <artifactId>json-smart</artifactId>
-            <version>${jsonsmart.version}</version>
-        </dependency>
-        <!-- msal4j vulnerabilities fixed -->
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-ingest</artifactId>
@@ -318,34 +233,24 @@
                     <artifactId>commons-codec</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-identity</artifactId>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-handler</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-storage-blob</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-storage-queue</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-data-tables</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-storage-common</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
+                    <groupId>net.minidev</groupId>
+                    <artifactId>json-smart</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+            <version>4.1.94.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+            <version>2.4.11</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
@@ -360,7 +265,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson-version}</version>
+            <version>${jackson.version}</version>
         </dependency>
         <!-- Provided scopes -->
         <dependency>
