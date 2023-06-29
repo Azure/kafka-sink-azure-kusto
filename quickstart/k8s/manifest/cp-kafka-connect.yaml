@@ -1,0 +1,76 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect
+  namespace: adx
+spec:
+  replicas: 2
+  configOverrides:
+    server:
+      - plugin.path=/usr/share/java,/mnt/plugins
+  podTemplate:
+    probe:
+      liveness:
+        periodSeconds: 600
+        failureThreshold: 10
+        timeoutSeconds: 500
+  image:
+    application: confluentinc/cp-server-connect:7.4.0
+    init: confluentinc/confluent-init-container:2.6.0
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        locationType: confluentHub
+        confluentHub:
+          - name: kafka-sink-azure-kusto
+            owner: microsoftcorporation
+            version: 4.0.1
+          - name: kafka-connect-datagen
+            owner: confluentinc
+            version: 0.5.2
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka.adx.svc.cluster.local:9092
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: adx-connector
+  namespace: adx
+spec:
+  class: "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector"
+  taskMax: 2
+  connectClusterRef:
+    name: connect
+  configs:
+    topics : "json.topic"
+    flush.size.bytes: "10000"
+    flush.interval.ms: "10000"
+    kusto.tables.topics.mapping: "[{'topic': 'json.topic','db': 'e2e', 'table': 'KafkaJson','format':'json'}]"
+    aad.auth.appid: ""
+    aad.auth.appkey: ""
+    aad.auth.authority: ""
+    kusto.ingestion.url: "https://ingest-.kusto.windows.net"
+    kusto.query.url: "https://.kusto.windows.net"
+    key.converter: "org.apache.kafka.connect.storage.StringConverter"
+    value.converter: "org.apache.kafka.connect.storage.StringConverter"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: pageviews
+  namespace: adx
+spec:
+  class: "io.confluent.kafka.connect.datagen.DatagenConnector"
+  taskMax: 2
+  connectClusterRef:
+    name: connect
+  configs:
+    kafka.topic: "json.topic"
+    quickstart: "json.topic"
+    key.converter: "org.apache.kafka.connect.storage.StringConverter"
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+    value.converter.schemas.enable: "false"
+    max.interval: "100"
+    iterations: "10000"

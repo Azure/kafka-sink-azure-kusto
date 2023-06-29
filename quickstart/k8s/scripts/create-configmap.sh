@@ -1,0 +1,1 @@
+kubectl create cm install-script-config --from-file install-connector.sh --namespace adx
