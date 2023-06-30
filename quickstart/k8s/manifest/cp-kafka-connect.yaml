@@ -34,6 +34,18 @@ spec:
       bootstrapEndpoint: kafka.adx.svc.cluster.local:9092
 ---
 apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: json.pageviews.topic
+  namespace: adx
+spec:
+  replicas: 3
+  partitionCount: 1
+  kafkaClusterRef:
+    name: kafka
+    namespace: adx
+---
+apiVersion: platform.confluent.io/v1beta1
 kind: Connector
 metadata:
   name: adx-connector
@@ -44,15 +56,15 @@ spec:
   connectClusterRef:
     name: connect
   configs:
-    topics : "json.topic"
+    topics : "json.pageviews.topic"
     flush.size.bytes: "10000"
     flush.interval.ms: "10000"
-    kusto.tables.topics.mapping: "[{'topic': 'json.topic','db': 'e2e', 'table': 'KafkaJson','format':'json'}]"
+    kusto.tables.topics.mapping: "[{'topic': 'json.pageviews.topic','db': 'kafka', 'table': 'PageViews','format':'json'}]"
     aad.auth.appid: ""
     aad.auth.appkey: ""
-    aad.auth.authority: ""
-    kusto.ingestion.url: "https://ingest-.kusto.windows.net"
-    kusto.query.url: "https://.kusto.windows.net"
+    aad.auth.authority: "72f988bf-86f1-41af-91ab-2d7cd011db47dd"
+    kusto.ingestion.url: "https://ingest-<>.kusto.windows.net"
+    kusto.query.url: "https://<>.kusto.windows.net"
     key.converter: "org.apache.kafka.connect.storage.StringConverter"
     value.converter: "org.apache.kafka.connect.storage.StringConverter"
 ---
@@ -67,8 +79,8 @@ spec:
   connectClusterRef:
     name: connect
   configs:
-    kafka.topic: "json.topic"
-    quickstart: "json.topic"
+    kafka.topic: "json.pageviews.topic"
+    quickstart: "pageviews"
     key.converter: "org.apache.kafka.connect.storage.StringConverter"
     value.converter: "org.apache.kafka.connect.json.JsonConverter"
     value.converter.schemas.enable: "false"

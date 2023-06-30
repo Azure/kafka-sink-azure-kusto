@@ -28,3 +28,4 @@ spec:
   dependencies:
     zookeeper:
       endpoint: zookeeper.adx.svc.cluster.local:2181
+
