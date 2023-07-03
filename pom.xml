@@ -33,8 +33,10 @@
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <mockito.version>4.11.0</mockito.version>
         <!-- Added to override vulnerable deps -->
+        <netty.version>4.1.94.Final</netty.version>
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <snappy.version>1.1.10.1</snappy.version>
         <testcontainer.version>1.18.0</testcontainer.version>
     </properties>
     <build>
@@ -234,18 +236,15 @@
                 </exclusion>
                 <exclusion>
                     <groupId>io.netty</groupId>
-                    <artifactId>netty-handler</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>net.minidev</groupId>
-                    <artifactId>json-smart</artifactId>
+                    <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Netty has some vulnerabilities , adding fixed versions -->
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty-handler</artifactId>
-            <version>4.1.94.Final</version>
+            <artifactId>netty-all</artifactId>
+            <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>net.minidev</groupId>
@@ -266,6 +265,17 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.xerial.snappy</groupId>
+                    <artifactId>snappy-java</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+            <version>${snappy.version}</version>
         </dependency>
         <!-- Provided scopes -->
         <dependency>
