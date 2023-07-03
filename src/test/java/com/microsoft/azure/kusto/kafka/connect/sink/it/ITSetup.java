@@ -12,10 +12,11 @@ public class ITSetup {
         String appKey = getProperty("appKey", "", false);
         String authority = getProperty("authority", "", false);
         String cluster = getProperty("cluster", "", false);
+        String ingestCluster = getProperty("ingest", "", false);
         String database = getProperty("database", "e2e", true);
         String defaultTable = testPrefix + UUID.randomUUID().toString().replace('-', '_');
         String table = getProperty("table", defaultTable, true);
-        return new ITCoordinates(appId, appKey, authority, cluster, database, table);
+        return new ITCoordinates(appId, appKey, authority, cluster, ingestCluster, database, table);
     }
 
     private static String getProperty(String attribute, String defaultValue, boolean sanitize) {

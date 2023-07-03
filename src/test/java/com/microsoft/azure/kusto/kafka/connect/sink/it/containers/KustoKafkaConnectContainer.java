@@ -1,13 +1,20 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.it.containers;
 
+import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +81,9 @@ public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConne
 
     public void registerConnector(String name, Map<String, Object> configuration) {
         try {
-            Map<String, Object> connectorConfiguration = Map.of("name", name, "config", configuration);
+            Map<String, Object> connectorConfiguration = new HashMap<>();
+            connectorConfiguration.put("name", name);
+            connectorConfiguration.put("config", configuration);
             String postConfig = OBJECT_MAPPER.writeValueAsString(connectorConfiguration);
             log.trace("Registering connector {} with config {}", name, postConfig);
             executePOSTRequestSuccessfully(postConfig, String.format("%s/connectors", getTarget()));
@@ -89,63 +98,63 @@ public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConne
 
     public boolean isConnectorConfigured(String connectorName) {
         // HTTP get request to check if connector is configured
-        HttpClient httpClient = HttpClient.newBuilder().build();
-        HttpResponse<String> response = httpClient.sendAsync(HttpRequest.newBuilder()
-                .uri(URI.create(String.format("%s/connectors/%s/status", getTarget(), connectorName)))
-                .GET()
-                .build(), HttpResponse.BodyHandlers.ofString())
-                .join();
-        int returnCode = response.statusCode();
-        return 200 <= returnCode && returnCode <= 300;
+        URI connectorUri = URI.create(String.format("%s/connectors/%s/status", getTarget(), connectorName));
+        HttpGet httpget = new HttpGet(connectorUri);
+        try (CloseableHttpClient httpclient = HttpClients.createDefault();
+                CloseableHttpResponse httpResponse = httpclient.execute(httpget)) {
+            int responseCode = httpResponse.getStatusLine().getStatusCode();
+            return 200 <= responseCode && responseCode <= 300;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private static void handleFailedResponse(HttpResponse<String> response) {
-        String responseBody = response.body();
+    private static void handleFailedResponse(HttpResponse response) throws IOException {
+        String responseBody = EntityUtils.toString(response.getEntity());
         log.error("Error registering connector with error {}", responseBody);
         throw new RuntimeException("Error registering connector with error " + responseBody);
     }
 
     private void executePOSTRequestSuccessfully(final String payload, final String fullUrl) {
-        // Java8 http client to post the request
-        HttpClient httpClient = HttpClient.newBuilder().build();
-        httpClient.sendAsync(HttpRequest.newBuilder()
-                .uri(URI.create(fullUrl))
-                .POST(HttpRequest.BodyPublishers.ofString(payload)).header("Content-Type", "application/json").header("Accept", "application/json")
-                .build(), HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    // When the connector is created it will have HTTP/201 Created response code
-                    if (response.statusCode() != 201) {
-                        handleFailedResponse(response);
-                    }
-                    return response;
-                })
-                .exceptionally(e -> {
-                    log.error("Error registering connector, exception when invoking endpoint {}", fullUrl, e);
-                    return null;
-                })
-                .join();
+        final HttpPost httpPost = new HttpPost(URI.create(fullUrl));
+        final StringEntity entity = new StringEntity(payload, StandardCharsets.UTF_8);
+        httpPost.setEntity(entity);
+        httpPost.setHeader("Accept", "application/json");
+        httpPost.setHeader("Content-type", "application/json");
+        try (CloseableHttpClient client = HttpClients.createDefault();
+                CloseableHttpResponse response = client
+                        .execute(httpPost)) {
+            final int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode != 201) {
+                handleFailedResponse(response);
+            }
+        } catch (IOException e) {
+            log.error("Error registering connector, exception when invoking endpoint {}", fullUrl, e);
+        }
     }
 
     public String getConnectorTaskState(String connectorName, int taskNumber) {
         // HTTP get request to check if connector is configured
-        HttpClient httpClient = HttpClient.newBuilder().build();
-        HttpResponse<String> response = httpClient.sendAsync(HttpRequest.newBuilder()
-                .uri(URI.create(String.format("%s/connectors/%s/tasks/%d/status", getTarget(), connectorName, taskNumber)))
-                .GET()
-                .build(), HttpResponse.BodyHandlers.ofString())
-                .join();
-        int returnCode = response.statusCode();
-        if (200 <= returnCode && returnCode <= 300) {
-            try {
-                Map<?, ?> responseMap = OBJECT_MAPPER.readValue(response.body(), Map.class);
-                String connectorState = (String) responseMap.get("state");
-                log.info("Connector {} task {} state is {}", connectorName, taskNumber, connectorState);
-                return connectorState;
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+        URI statusUri = URI.create(String.format("%s/connectors/%s/tasks/%d/status", getTarget(), connectorName, taskNumber));
+        HttpGet httpget = new HttpGet(statusUri);
+        try (CloseableHttpClient httpclient = HttpClients.createDefault();
+                CloseableHttpResponse httpResponse = httpclient.execute(httpget)) {
+            int responseCode = httpResponse.getStatusLine().getStatusCode();
+            if (200 <= responseCode && responseCode <= 300) {
+                try {
+                    String responseBody = EntityUtils.toString(httpResponse.getEntity());
+                    Map<?, ?> responseMap = OBJECT_MAPPER.readValue(responseBody, Map.class);
+                    String connectorState = (String) responseMap.get("state");
+                    log.info("Connector {} task {} state is {}", connectorName, taskNumber, connectorState);
+                    return connectorState;
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
             }
+            return null;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     public void waitUntilConnectorTaskStateChanges(String connectorName, int taskNumber, String status) {
