@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -76,11 +77,9 @@ public class KustoSinkIT {
     private static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:" + confluentVersion))
             .withNetwork(network);
     private static final ProxyContainer proxyContainer = new ProxyContainer().withNetwork(network);
-
     private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
             .withNetwork(network).dependsOn(kafkaContainer);
-    private static final List<String> testFormats = List.of("json", "avro", "csv"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
-
+    private static final List<String> testFormats = Arrays.asList("json", "avro", "csv"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
     private static ITCoordinates coordinates;
     private static final KustoKafkaConnectContainer connectContainer = new KustoKafkaConnectContainer(confluentVersion)
             .withNetwork(network)
@@ -96,11 +95,9 @@ public class KustoSinkIT {
     public static void startContainers() throws Exception {
         coordinates = getConnectorProperties();
         if (coordinates.isValidConfig()) {
-            ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                    String.format("https://%s.kusto.windows.net/", coordinates.cluster),
+            ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.cluster,
                     coordinates.appId, coordinates.appKey, coordinates.authority);
-            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-                    String.format("https://ingest-%s.kusto.windows.net/", coordinates.cluster),
+            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.ingestCluster,
                     coordinates.appId, coordinates.appKey, coordinates.authority);
             engineClient = ClientFactory.createClient(engineCsb);
             dmClient = ClientFactory.createClient(dmCsb);
@@ -195,8 +192,8 @@ public class KustoSinkIT {
             connectorProps.put("aad.auth.authority", coordinates.authority);
             connectorProps.put("aad.auth.appid", coordinates.appId);
             connectorProps.put("aad.auth.appkey", coordinates.appKey);
-            connectorProps.put("kusto.ingestion.url", String.format("https://ingest-%s.kusto.windows.net", coordinates.cluster));
-            connectorProps.put("kusto.query.url", String.format("https://%s.kusto.windows.net", coordinates.cluster));
+            connectorProps.put("kusto.query.url", coordinates.cluster);
+            connectorProps.put("kusto.ingestion.url", coordinates.ingestCluster);
             connectorProps.put("schema.registry.url", srUrl);
             connectorProps.put("value.converter.schema.registry.url", srUrl);
             connectorProps.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
@@ -207,7 +204,7 @@ public class KustoSinkIT {
             log.info("Deployed connector for {}", dataFormat);
             log.debug(connectContainer.getLogs());
         });
-        testFormats.forEach(dataFormat -> {
+        testFormats.parallelStream().forEach(dataFormat -> {
             connectContainer.waitUntilConnectorTaskStateChanges(String.format("adx-connector-%s", dataFormat), 0, "RUNNING");
             log.info("Connector state for {} : {}. ", dataFormat,
                     connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));

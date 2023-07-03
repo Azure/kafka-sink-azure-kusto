@@ -31,7 +31,7 @@
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
-        <mockito.version>5.2.0</mockito.version>
+        <mockito.version>4.11.0</mockito.version>
         <!-- Added to override vulnerable deps -->
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
