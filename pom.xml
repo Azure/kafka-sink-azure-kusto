@@ -8,25 +8,24 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>4.0.2</version>
+    <version>4.0.3</version>
     <properties>
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <azure.bom.version>1.2.14</azure.bom.version>
-        <commoncodec.version>1.15</commoncodec.version>
-        <commonio.version>2.11.0</commonio.version>
+        <commoncodec.version>1.16.0</commoncodec.version>
+        <commonio.version>2.13.0</commonio.version>
         <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
         <formatter.version>2.20.0</formatter.version>
-        <impsort.version>1.8.0</impsort.version>
+        <impsort.version>1.6.2</impsort.version>
         <jackson.version>2.14.3</jackson.version>
         <java.release.version>1.8</java.release.version>
         <jsonassert.version>1.5.1</jsonassert.version>
         <!-- Added to override vulnerable deps -->
         <jsonsmart.version>2.4.10</jsonsmart.version>
-        <junit.version>5.9.2</junit.version>
-        <kafka.connect.avro.converter.version>7.4.0</kafka.connect.avro.converter.version>
+        <junit.version>5.10.0</junit.version>
+        <kafka.connect.avro.converter.version>7.4.1</kafka.connect.avro.converter.version>
         <kafka.version>3.5.0</kafka.version>
-        <kusto.sdk.version>5.0.0</kusto.sdk.version>
+        <kusto.sdk.version>5.0.1</kusto.sdk.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
@@ -36,8 +35,8 @@
         <netty.version>4.1.94.Final</netty.version>
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <snappy.version>1.1.10.1</snappy.version>
-        <testcontainer.version>1.18.0</testcontainer.version>
+        <snappy.version>1.1.10.3</snappy.version>
+        <testcontainer.version>1.18.3</testcontainer.version>
     </properties>
     <build>
         <plugins>
@@ -186,17 +185,6 @@
             <name>Microsoft</name>
         </developer>
     </developers>
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.azure</groupId>
-                <artifactId>azure-sdk-bom</artifactId>
-                <version>${azure.bom.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
