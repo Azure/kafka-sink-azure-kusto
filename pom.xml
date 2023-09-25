@@ -35,7 +35,7 @@
         <netty.version>4.1.94.Final</netty.version>
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <snappy.version>1.1.10.3</snappy.version>
+        <snappy.version>1.1.10.4</snappy.version>
         <testcontainer.version>1.18.3</testcontainer.version>
     </properties>
     <build>
