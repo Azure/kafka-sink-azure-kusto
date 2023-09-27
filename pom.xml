@@ -8,7 +8,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>4.0.3</version>
+    <version>4.0.4</version>
     <properties>
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
@@ -24,18 +24,18 @@
         <jsonsmart.version>2.4.10</jsonsmart.version>
         <junit.version>5.10.0</junit.version>
         <kafka.connect.avro.converter.version>7.4.1</kafka.connect.avro.converter.version>
-        <kafka.version>3.5.0</kafka.version>
-        <kusto.sdk.version>5.0.1</kusto.sdk.version>
+        <kafka.version>3.5.1</kafka.version>
+        <kusto.sdk.version>5.0.2</kusto.sdk.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <mockito.version>4.11.0</mockito.version>
         <!-- Added to override vulnerable deps -->
-        <netty.version>4.1.94.Final</netty.version>
+        <netty.version>4.1.98.Final</netty.version>
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <snappy.version>1.1.10.3</snappy.version>
+        <snappy.version>1.1.10.4</snappy.version>
         <testcontainer.version>1.18.3</testcontainer.version>
     </properties>
     <build>
