@@ -698,6 +698,7 @@ the [Release History](README.md#16-release-history) section of this document.
 | 4.0.2           | 2023-06-28   | <ul><li>Upgrade Kusto Java SDK to 5.0.0</li><li>Fix vulnerabilities in libs</li></ul>
 | 4.0.3           | 2023-07-23   | <ul><li>Upgrade Kusto Java SDK to 5.0.1</li><li>Fix vulnerabilities in libs</li></ul>
 | 4.0.4           | 2023-09-27   | <ul><li>Upgrade Kusto Java SDK to 5.0.2</li><li>Fix vulnerabilities in snappy-java</li></ul>
+| 4.0.5           | 2023-10-27   | <ul><li>Fix vulnerabilities by upgrading io.netty </li></ul>
 
 ## 17. Contributing
 
