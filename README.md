@@ -11,18 +11,19 @@ database PaaS offering.
 [3. Features supported](README.md#3-features-supported)<br>
 [4. Connect worker properties](README.md#4-connect-worker-properties)<br>
 [5. Sink properties](README.md#5-sink-properties)<br>
-[6. Roadmap](README.md#6-roadmap)<br>
-[7. Deployment overview](README.md#7-deployment-overview)<br>
-[8. Connector download/build from source](README.md#8-connector-downloadbuild-from-source)<br>
-[9. Test drive the connector - standalone mode](README.md#9-test-drive-the-connector---standalone-mode)<br>
-[10. Distributed deployment details](README.md#10-distributed-deployment-details)<br>
-[11. Test drive the connector - distributed mode](README.md#11-test-drive-the-connector---distributed-mode)<br>
-[12. Apache Kafka version - Docker Kafka Connect base image version - Confluent Helm chart version related](README.md#12-apache-kafka-version---docker-kafka-connect-base-image-version---confluent-helm-chart-version-related)<br>
-[13. Other](README.md#13-other)<br>
-[14. Need Support?](README.md#14-need-support)<br>
-[15. Major version specifics](README.md#15-major-version-specifics)<br>
-[16. Release History](README.md#16-release-history)<br>
-[17. Contributing](README.md#17-contributing)<br>
+[6. Streaming ingestion].(README.md#6-streaming-ingestion)<br>
+[7. Roadmap](README.md#7-roadmap)<br>
+[8. Deployment overview](README.md#8-deployment-overview)<br>
+[9. Connector download/build from source](README.md#9-connector-downloadbuild-from-source)<br>
+[10. Test drive the connector - standalone mode](README.md#10-test-drive-the-connector---standalone-mode)<br>
+[11. Distributed deployment details](README.md#11-distributed-deployment-details)<br>
+[12. Test drive the connector - distributed mode](README.md#12-test-drive-the-connector---distributed-mode)<br>
+[13. Apache Kafka version - Docker Kafka Connect base image version - Confluent Helm chart version related](README.md#13-apache-kafka-version---docker-kafka-connect-base-image-version---confluent-helm-chart-version-related)<br>
+[14. Other](README.md#14-other)<br>
+[15. Need Support?](README.md#15-need-support)<br>
+[16. Major version specifics](README.md#16-major-version-specifics)<br>
+[17. Release History](README.md#17-release-history)<br>
+[18. Contributing](README.md#18-contributing)<br>
 
 
 <hr>
@@ -700,7 +701,7 @@ the [Release History](README.md#16-release-history) section of this document.
 | 4.0.4           | 2023-09-27   | <ul><li>Upgrade Kusto Java SDK to 5.0.2</li><li>Fix vulnerabilities in snappy-java</li></ul>
 | 4.0.5           | 2023-10-27   | <ul><li>Fix vulnerabilities by upgrading io.netty </li></ul>
 
-## 17. Contributing
+## 18. Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
