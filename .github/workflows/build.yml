@@ -18,7 +18,7 @@ jobs:
           cache: 'maven'
 
       - name: Run the Maven verify phase
-        run: -DappId=${{ secrets.APP_ID }} -Dcluster=${{ secrets.CLUSTER }} -DappKey=${{ secrets.APP_SECRET }} -Dauthority=${{ secrets.TENANT_ID }} -Ddatabase=${{ secrets.DATABASE }} -Dingest=${{ secrets.INGEST }}
+        run: mvn clean verify -DappId=${{ secrets.APP_ID }} -Dcluster=${{ secrets.CLUSTER }} -DappKey=${{ secrets.APP_SECRET }} -Dauthority=${{ secrets.TENANT_ID }} -Ddatabase=${{ secrets.DATABASE }} -Dingest=${{ secrets.INGEST }}
         env:
           appId: ${{ secrets.APP_ID }}
           authority: ${{ secrets.TENANT_ID }}
