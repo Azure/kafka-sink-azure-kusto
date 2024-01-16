@@ -8,7 +8,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>4.0.5</version>
+    <version>4.0.6</version>
     <properties>
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
@@ -23,9 +23,9 @@
         <!-- Added to override vulnerable deps -->
         <jsonsmart.version>2.4.10</jsonsmart.version>
         <junit.version>5.10.0</junit.version>
-        <kafka.connect.avro.converter.version>7.4.1</kafka.connect.avro.converter.version>
+        <kafka.connect.avro.converter.version>7.5.1</kafka.connect.avro.converter.version>
         <kafka.version>3.5.1</kafka.version>
-        <kusto.sdk.version>5.0.2</kusto.sdk.version>
+        <kusto.sdk.version>5.0.3</kusto.sdk.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
@@ -139,6 +139,15 @@
                 <groupId>net.revelc.code</groupId>
                 <artifactId>impsort-maven-plugin</artifactId>
                 <version>${impsort.version}</version>
+                <dependencies>
+                    <!-- Needed because of maven 3.9.0 backward compatibility issue,
+                         See : https://github.com/eclipse/leshan/issues/1410 -->
+                    <dependency>
+                        <groupId>org.codehaus.plexus</groupId>
+                        <artifactId>plexus-utils</artifactId>
+                        <version>3.5.1</version>
+                    </dependency>
+                </dependencies>
                 <configuration>
                     <groups>java.,javax.,org.,com.</groups>
                     <removeUnused>true</removeUnused>
@@ -207,7 +216,35 @@
                     <groupId>net.minidev</groupId>
                     <artifactId>json-smart</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-identity</artifactId>
+                </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core</artifactId>
+            <version>1.45.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-http-netty</artifactId>
+            <version>1.13.11</version>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <version>1.11.1</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
@@ -221,6 +258,10 @@
                 <exclusion>
                     <groupId>commons-codec</groupId>
                     <artifactId>commons-codec</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>io.netty</groupId>
