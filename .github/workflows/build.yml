@@ -33,5 +33,6 @@ jobs:
         with:
           files: |
             target/surefire-reports/*.xml
+            target/failsafe-reports/*.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
