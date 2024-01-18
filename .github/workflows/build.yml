@@ -27,16 +27,7 @@ jobs:
           cluster: ${{ secrets.CLUSTER }}
           ingest: ${{ secrets.INGEST }}
 
-      - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: |
-            target/failsafe-reports/*.xml
-
-      - name: Publish Insurance Test Results
-        if: always()
+      - name: Publish Test Report
+        if: success() || failure()
         uses: scacap/action-surefire-report@v1
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
