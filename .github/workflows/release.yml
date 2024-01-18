@@ -12,10 +12,10 @@ jobs:
     name: Java ${{ matrix.java }}
     steps:
       - uses: actions/checkout@v3
-      - name: Setup Java 8
+      - name: Setup Java ${{ matrix.java }}
         uses: actions/setup-java@v3
         with:
-          java-version: 8
+          java-version: ${{ matrix.java }}
           distribution: 'temurin'
           cache: 'maven'
       - name: Run the Maven package phase
