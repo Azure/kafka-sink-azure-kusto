@@ -1,0 +1,49 @@
+name: Release
+on:
+  workflow_dispatch:
+  release:
+    types: [released]
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ '8' ]
+    name: Java ${{ matrix.java }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Java ${{ matrix.java }}
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: Run the Maven package phase
+        run: mvn clean package -DappId=${{ secrets.APP_ID }} -Dcluster=${{ secrets.CLUSTER }} -DappKey=${{ secrets.APP_SECRET }} -Dauthority=${{ secrets.TENANT_ID }} -Ddatabase=${{ secrets.DATABASE }} -Dingest=${{ secrets.INGEST }}
+        env:
+          appId: ${{ secrets.APP_ID }}
+          authority: ${{ secrets.TENANT_ID }}
+          appKey: ${{ secrets.APP_SECRET }}
+          database: ${{ secrets.DATABASE }}
+          cluster: ${{ secrets.CLUSTER }}
+          ingest: ${{ secrets.INGEST }}
+
+      - name: Get versions
+        id: get_version
+        run: |
+          echo ::set-output name=VERSION::$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+      - name: Move artifacts to staging
+        run: |
+          version=${{ steps.get_version.outputs.VERSION }}
+          mkdir staging
+          cp target/*.jar staging
+          cp target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-${{ steps.get_version.outputs.VERSION }}.zip staging
+      - name: Github Release
+        uses: anton-yurchenko/git-release@v5.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: |
+            staging/kafka-sink-azure-kusto-${{ steps.get_version.outputs.VERSION }}-jar-with-dependencies.jar
+            staging/microsoftcorporation-kafka-sink-azure-kusto-${{ steps.get_version.outputs.VERSION }}.zip
+        continue-on-error: true
