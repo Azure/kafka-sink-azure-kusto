@@ -18,7 +18,6 @@ public class ByteRecordWriterProvider implements RecordWriterProvider {
     @Override
     public RecordWriter getRecordWriter(String filename, OutputStream out) {
         return new RecordWriter() {
-
             @Override
             public void write(SinkRecord record) throws IOException {
                 byte[] value = null;
@@ -35,7 +34,6 @@ public class ByteRecordWriterProvider implements RecordWriterProvider {
                 }
                 out.write(value);
             }
-
             @Override
             public void close() {
                 try {
@@ -44,7 +42,6 @@ public class ByteRecordWriterProvider implements RecordWriterProvider {
                     throw new DataException(e);
                 }
             }
-
             @Override
             public void commit() {
                 try {

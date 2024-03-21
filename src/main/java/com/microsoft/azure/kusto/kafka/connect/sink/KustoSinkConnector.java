@@ -30,8 +30,7 @@ public class KustoSinkConnector extends SinkConnector {
         }
 
         List<Map<String, String>> configs = new ArrayList<>();
-        Map<String, String> taskProps = new HashMap<>();
-        taskProps.putAll(config.originalsStrings());
+        Map<String, String> taskProps = new HashMap<>(config.originalsStrings());
         for (int i = 0; i < maxTasks; i++) {
             configs.add(taskProps);
         }

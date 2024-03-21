@@ -43,7 +43,6 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
                 final JsonGenerator writer = mapper.getFactory()
                         .createGenerator(out)
                         .setRootValueSeparator(null);
-
                 @Override
                 public void write(SinkRecord record) {
                     log.trace("Sink record: {}", record);
