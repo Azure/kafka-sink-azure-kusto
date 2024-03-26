@@ -1,9 +1,9 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.format;
 
+import org.apache.kafka.connect.sink.SinkRecord;
+
 import java.io.Closeable;
 import java.io.IOException;
-
-import org.apache.kafka.connect.sink.SinkRecord;
 
 public interface RecordWriter extends Closeable {
     /**

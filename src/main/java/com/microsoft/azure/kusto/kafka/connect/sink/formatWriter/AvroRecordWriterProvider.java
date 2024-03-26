@@ -5,7 +5,6 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
@@ -18,7 +17,6 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.transforms.util.SchemaUtil;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,26 +54,28 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
                 // AvroData wraps primitive types so their schema can be included. We need to unwrap
                 // NonRecordContainers to just their value to properly handle these types
                 final Struct updatedValue = new Struct(updatedSchema);
-                Map<String,Map<String,String>> metadataMap = new HashMap<>();
+                Map<String, Map<String, String>> metadataMap = new HashMap<>();
 
-                if(!record.headers().isEmpty()) {
+                if (!record.headers().isEmpty()) {
                     metadataMap.put(HEADERS_FIELD, getHeadersAsMap(record));
                 }
 
-                if(!Objects.isNull(record.key())) {
-                    metadataMap.put(KEYS_FIELD,getKeysMap(record));
+                if (!Objects.isNull(record.key())) {
+                    metadataMap.put(KEYS_FIELD, getKeysMap(record));
                 }
-                metadataMap.put(KAFKA_METADATA_FIELD,getKafkaMetaDataAsMap(record));
+                metadataMap.put(KAFKA_METADATA_FIELD, getKafkaMetaDataAsMap(record));
                 updatedValue.put(METADATA_FIELD, metadataMap);
-                for (Field field : valueSchema.fields()) {
-                    if (messageValue instanceof NonRecordContainer) {
-                        updatedValue.put(field.name(), ((NonRecordContainer) messageValue).getValue());
-                    } else if (messageValue instanceof Struct) {
-                        updatedValue.put(field.name(), ((Struct) messageValue).get(field));
-                    } else if (messageValue instanceof GenericData.Record) {
-                        updatedValue.put(field.name(), ((GenericData.Record) messageValue).get(field.name()));
-                    } else {
-                        throw new DataException("Unsupported record type: " + messageValue.getClass());
+                if (messageValue instanceof NonRecordContainer) {
+                    updatedValue.put(valueSchema.name(), ((NonRecordContainer) messageValue).getValue());
+                } else {
+                    for (Field field : valueSchema.fields()) {
+                        if (messageValue instanceof Struct) {
+                            updatedValue.put(field.name(), ((Struct) messageValue).get(field));
+                        } else if (messageValue instanceof GenericData.Record) {
+                            updatedValue.put(field.name(), ((GenericData.Record) messageValue).get(field.name()));
+                        } else {
+                            throw new DataException("Unsupported record type: " + messageValue.getClass());
+                        }
                     }
                 }
                 writer.append(avroData.fromConnectData(updatedSchema, updatedValue));
@@ -102,12 +102,14 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
     }
 
 
-
     private Schema createSchemaWithHeaders(Schema baseSchemaStruct) {
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(baseSchemaStruct, SchemaBuilder.struct());
-
-        for (Field field: baseSchemaStruct.fields()) {
-            builder.field(field.name(), field.schema());
+        if (!baseSchemaStruct.type().isPrimitive()) {
+            for (Field field : baseSchemaStruct.fields()) {
+                builder.field(field.name(), field.schema());
+            }
+        } else {
+            builder.field(baseSchemaStruct.name(), baseSchemaStruct);
         }
         // Schema will be a map to map of strings
         /*

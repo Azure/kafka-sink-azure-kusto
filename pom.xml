@@ -21,8 +21,7 @@
         <java.release.version>1.8</java.release.version>
         <jsonassert.version>1.5.1</jsonassert.version>
         <!-- Added to override vulnerable deps -->
-        <jsonsmart.version>2.4.10</jsonsmart.version>
-        <junit.version>5.10.0</junit.version>
+        <junit.version>5.10.1</junit.version>
         <kafka.connect.avro.converter.version>7.6.0</kafka.connect.avro.converter.version>
         <kafka.version>3.5.1</kafka.version>
         <kusto.sdk.version>5.0.5</kusto.sdk.version>
@@ -337,6 +336,12 @@
             <scope>provided</scope>
         </dependency>
         <!-- Test scopes -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
