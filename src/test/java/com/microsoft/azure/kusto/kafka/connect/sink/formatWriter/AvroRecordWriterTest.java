@@ -25,17 +25,14 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider.*;
+import static com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider.METADATA_FIELD;
 
-public class AvroRecordWriterTest {
-    public static final String TEXT_FIELD_NAME = "text";
-    public static final String ID_FIELD_NAME = "id";
-    private static final String STR_ID_FIELD_NAME = "str-id";
-    public static final String STRING_KEY = "StringKey";
-    public static final String STRING_VALUE = "StringValue";
-    public static final String INT_KEY = "IntKey";
-    public static final String RECORD_FORMAT = "record-%s";
+public class AvroRecordWriterTest extends AbstractRecordWriterTest {
+    private static final Logger log = LoggerFactory.getLogger(AvroRecordWriterTest.class);
+
     public static final String AVRO_TEST_TOPIC = "avro.test.topic";
     private static ObjectMapper JSON_MAPPER;
 
@@ -44,25 +41,8 @@ public class AvroRecordWriterTest {
         JSON_MAPPER = new ObjectMapper();
     }
 
-    @NotNull
-    private static Map<String, String> getKafkaMetadata(int i) {
-        Map<String, String> kafkaMetadata = new HashMap<>();
-        kafkaMetadata.put(TOPIC, AVRO_TEST_TOPIC);
-        kafkaMetadata.put(PARTITION, String.valueOf(i % 3));
-        kafkaMetadata.put(OFFSET, String.valueOf(i));
-        return kafkaMetadata;
-    }
-
-    @NotNull
-    private static Map<String, String> getHeaders(int i) {
-        Map<String, String> headers = new HashMap<>();
-        headers.put(STRING_KEY, STRING_VALUE);
-        headers.put(INT_KEY, String.valueOf(i));
-        return headers;
-    }
-
     @Test
-    public void avroDataWriteStruct() throws IOException , JSONException{
+    public void avroDataWriteStruct() throws IOException, JSONException {
         final Schema valueSchema = SchemaBuilder.struct()
                 .field(TEXT_FIELD_NAME, SchemaBuilder.string().build())
                 .field(ID_FIELD_NAME, SchemaBuilder.int32().build())
@@ -73,7 +53,7 @@ public class AvroRecordWriterTest {
                 .field(ID_FIELD_NAME, SchemaBuilder.int32().build())
                 .build();
 
-        String serializedFilePath=this.writeRecordsToAvroFile(valueSchema, keySchema,
+        String serializedFilePath = this.writeRecordsToAvroFile(valueSchema, keySchema,
                 (i, schema) -> new Struct(schema)
                         .put(TEXT_FIELD_NAME, String.format(RECORD_FORMAT, i))
                         .put(ID_FIELD_NAME, i),
@@ -110,17 +90,20 @@ public class AvroRecordWriterTest {
         });
     }
 
-    public void validate(String path,Function<Integer,Map<String,Object>> resultFunction) throws IOException, JSONException {
+    public void validate(String path, Function<Integer, Map<String, Object>> resultFunction) throws IOException, JSONException {
         // Warns if the types are not generified
         GenericDatumReader<GenericData.Record> datum = new GenericDatumReader<>();
         File file = new File(path);
         DataFileReader<GenericData.Record> reader = new DataFileReader<>(file, datum);
         GenericData.Record record = new GenericData.Record(reader.getSchema());
         int i = 0;
+        assert(reader.hasNext());
         while (reader.hasNext()) {
-            Map<String, Object> expectedJsonMap = getExpectedResults(i,resultFunction);
+            Map<String, Object> expectedJsonMap = getExpectedResults(i, resultFunction);
             String expectedJson = JSON_MAPPER.writeValueAsString(expectedJsonMap);
             String actualJson = reader.next(record).toString();
+            log.debug("Expected: {}" , expectedJson);
+            log.debug("Actual: {}" , actualJson);
             JSONAssert.assertEquals(expectedJson, actualJson, false);
             i++;
         }
@@ -153,31 +136,31 @@ public class AvroRecordWriterTest {
         return file.getPath();
     }
 
+    @Test
+    public void avroDataWriteTombstone() throws IOException, JSONException {
+        final Schema valueSchema = SchemaBuilder.struct()
+                .field(TEXT_FIELD_NAME, SchemaBuilder.string().build())
+                .field(ID_FIELD_NAME, SchemaBuilder.int32().build())
+                .build();
+        final Schema keySchema = SchemaBuilder.struct()
+                .field(STR_ID_FIELD_NAME, SchemaBuilder.string().build())
+                .field(ID_FIELD_NAME, SchemaBuilder.int32().build())
+                .build();
+
+        String serializedTombstonePath = this.writeRecordsToAvroFile(valueSchema, keySchema,
+                (i, schema) -> null,
+                (i, schema) -> new Struct(schema)
+                        .put(STR_ID_FIELD_NAME, STR_ID_FIELD_NAME + i)
+                        .put(ID_FIELD_NAME, i));
+
+        validate(serializedTombstonePath, i -> new HashMap<>());
+    }
+
     @NotNull
-    private Map<String, Object> getExpectedResults(int i, Function<Integer,Map<String,Object>> resultFunction) {
+    private Map<String, Object> getExpectedResults(int i, @NotNull Function<Integer, Map<String, Object>> resultFunction) {
         Map<String, Object> expectedJsonMap = resultFunction.apply(i);
-        Map<String, Map<?, ?>> metadata = getMetaDataMap(i);
+        Map<String, Map<?, ?>> metadata = getMetaDataMap(i, AVRO_TEST_TOPIC);
         expectedJsonMap.put(METADATA_FIELD, metadata);
         return expectedJsonMap;
-    }
-
-    @NotNull
-    private Map<String, Map<?, ?>> getMetaDataMap(int i) {
-        Map<String, Map<?, ?>> metadata = new HashMap<>();
-        Map<String, String> headers = getHeaders(i);
-        Map<String, String> keys = getKeyFields(i);
-        Map<String, String> kafkaMetadata = getKafkaMetadata(i);
-        metadata.put(HEADERS_FIELD, headers);
-        metadata.put(KEYS_FIELD, keys);
-        metadata.put(KAFKA_METADATA_FIELD, kafkaMetadata);
-        return metadata;
-    }
-
-    @NotNull
-    private Map<String, String> getKeyFields(int i) {
-        Map<String, String> keys = new HashMap<>();
-        keys.put(STR_ID_FIELD_NAME, STR_ID_FIELD_NAME + i);
-        keys.put(ID_FIELD_NAME, String.valueOf(i));
-        return keys;
     }
 }

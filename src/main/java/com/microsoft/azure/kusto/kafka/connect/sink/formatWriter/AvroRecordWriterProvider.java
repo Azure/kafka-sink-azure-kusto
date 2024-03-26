@@ -40,7 +40,7 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
             public void write(SinkRecord record) throws IOException {
                 Schema valueSchema = record.valueSchema();
                 if (updatedSchema == null) {
-                    updatedSchema = createSchemaWithHeaders(valueSchema);
+                    updatedSchema = createSchemaWithHeaders(valueSchema, record.value()==null);
                     try {
                         log.debug("Opening record writer for: {}", filename);
                         org.apache.avro.Schema avroSchema = avroData.fromConnectSchema(updatedSchema);
@@ -50,7 +50,7 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
                         throw new ConnectException(e);
                     }
                 }
-                Object messageValue = avroData.fromConnectData(valueSchema, record.value());
+                Object messageValue = record.value() == null ? null : avroData.fromConnectData(valueSchema, record.value());
                 // AvroData wraps primitive types so their schema can be included. We need to unwrap
                 // NonRecordContainers to just their value to properly handle these types
                 final Struct updatedValue = new Struct(updatedSchema);
@@ -59,22 +59,25 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
                 if (!record.headers().isEmpty()) {
                     metadataMap.put(HEADERS_FIELD, getHeadersAsMap(record));
                 }
-
                 if (!Objects.isNull(record.key())) {
                     metadataMap.put(KEYS_FIELD, getKeysMap(record));
                 }
                 metadataMap.put(KAFKA_METADATA_FIELD, getKafkaMetaDataAsMap(record));
                 updatedValue.put(METADATA_FIELD, metadataMap);
-                if (messageValue instanceof NonRecordContainer) {
-                    updatedValue.put(valueSchema.name(), ((NonRecordContainer) messageValue).getValue());
-                } else {
-                    for (Field field : valueSchema.fields()) {
-                        if (messageValue instanceof Struct) {
-                            updatedValue.put(field.name(), ((Struct) messageValue).get(field));
-                        } else if (messageValue instanceof GenericData.Record) {
-                            updatedValue.put(field.name(), ((GenericData.Record) messageValue).get(field.name()));
-                        } else {
-                            throw new DataException("Unsupported record type: " + messageValue.getClass());
+                if(messageValue != null) {
+                    if (messageValue instanceof NonRecordContainer) {
+                        updatedValue.put(valueSchema.name(), ((NonRecordContainer) messageValue).getValue());
+                    } else {
+                        if (valueSchema != null) {
+                            for (Field field : valueSchema.fields()) {
+                                if (messageValue instanceof Struct) {
+                                    updatedValue.put(field.name(), ((Struct) messageValue).get(field));
+                                } else if (messageValue instanceof GenericData.Record) {
+                                    updatedValue.put(field.name(), ((GenericData.Record) messageValue).get(field.name()));
+                                } else {
+                                    throw new DataException("Unsupported record type: " + messageValue.getClass());
+                                }
+                            }
                         }
                     }
                 }
@@ -102,14 +105,16 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
     }
 
 
-    private Schema createSchemaWithHeaders(Schema baseSchemaStruct) {
-        final SchemaBuilder builder = SchemaUtil.copySchemaBasics(baseSchemaStruct, SchemaBuilder.struct());
-        if (!baseSchemaStruct.type().isPrimitive()) {
-            for (Field field : baseSchemaStruct.fields()) {
-                builder.field(field.name(), field.schema());
+    private Schema createSchemaWithHeaders(Schema baseSchemaStruct, boolean isTombstone) {
+        final SchemaBuilder builder = isTombstone ? SchemaBuilder.struct(): SchemaUtil.copySchemaBasics(baseSchemaStruct, SchemaBuilder.struct());
+        if(!isTombstone) {
+            if (!baseSchemaStruct.type().isPrimitive()) {
+                for (Field field : baseSchemaStruct.fields()) {
+                    builder.field(field.name(), field.schema());
+                }
+            } else {
+                builder.field(baseSchemaStruct.name(), baseSchemaStruct);
             }
-        } else {
-            builder.field(baseSchemaStruct.name(), baseSchemaStruct);
         }
         // Schema will be a map to map of strings
         /*

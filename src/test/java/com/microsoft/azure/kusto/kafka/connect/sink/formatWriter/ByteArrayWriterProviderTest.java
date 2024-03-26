@@ -1,10 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +27,7 @@ public class ByteArrayWriterProviderTest {
         restrictPermissions(file);
         file.deleteOnExit();
         try (OutputStream out = Files.newOutputStream(file.toPath());
-                BufferedReader br = new BufferedReader(new FileReader(file))) {
+             BufferedReader br = new BufferedReader(new FileReader(file))) {
             ByteRecordWriterProvider writer = new ByteRecordWriterProvider();
             RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
             for (SinkRecord record : records) {
