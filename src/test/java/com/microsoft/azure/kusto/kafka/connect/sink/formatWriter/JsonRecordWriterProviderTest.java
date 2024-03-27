@@ -97,7 +97,7 @@ public class JsonRecordWriterProviderTest extends AbstractRecordWriterTest {
 
     public String writeRecordsToJsonFile(Function<Integer, Object> keyGenerator, Function<Integer, Object> valueGenerator) throws IOException {
         List<SinkRecord> records = new ArrayList<>();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 10; i++) {
             Object value = valueGenerator.apply(i);
             Object key = keyGenerator.apply(i);
             SinkRecord recordToWrite = new SinkRecord(JSON_TEST_TOPIC, i % 3, null, key, null, value, i);
