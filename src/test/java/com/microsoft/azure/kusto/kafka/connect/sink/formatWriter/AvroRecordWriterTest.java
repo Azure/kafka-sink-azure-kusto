@@ -21,12 +21,12 @@ import org.json.JSONException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider.METADATA_FIELD;
 

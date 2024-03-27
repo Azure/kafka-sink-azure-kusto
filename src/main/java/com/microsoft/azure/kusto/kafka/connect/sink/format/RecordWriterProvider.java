@@ -1,9 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.format;
 
 import java.io.OutputStream;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import org.apache.kafka.connect.data.ConnectSchema;
 import org.apache.kafka.connect.data.Schema;
@@ -11,6 +9,10 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.NotNull;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public interface RecordWriterProvider {
     String METADATA_FIELD = "metadata";
@@ -21,6 +23,12 @@ public interface RecordWriterProvider {
     String TOPIC = "topic";
     String PARTITION = "partition";
     String OFFSET = "offset";
+    ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
+            = new TypeReference<Map<String, Object>>() {
+    };
+
 
     RecordWriter getRecordWriter(String fileName, OutputStream out);
 
@@ -34,11 +42,11 @@ public interface RecordWriterProvider {
     @NotNull
     default Map<String, String> getKeysMap(@NotNull SinkRecord record) {
         Map<String, String> keys = new HashMap<>();
-        if(record.key() == null) {
+        if (record.key() == null) {
             return keys;
         }
         Object key = record.key();
-        if(record.keySchema()!=null) {
+        if (record.keySchema() != null) {
             record.keySchema().fields().forEach(field -> {
                 String fieldName = field.name();
                 if (record.key() instanceof Struct) {
@@ -58,25 +66,29 @@ public interface RecordWriterProvider {
                 case BOOLEAN:
                 case FLOAT32:
                 case FLOAT64:
-                case STRING:
                 case ARRAY:
                     keys.put(KEY_FIELD, String.valueOf(key));
                     break;
                 case BYTES:
                     keys.put(KEY_FIELD, Base64.getEncoder().encodeToString((byte[]) key));
                     break;
+                case STRING:
+                    getKeyObject(key.toString()).forEach((k, v) -> keys.put(k,
+                            Objects.toString(v)));
+                    break;
                 case MAP:
                     Map<?, ?> mapFields = (Map<?, ?>) key;
-                    if(mapFields!= null) {
+                    if (mapFields != null) {
                         for (Map.Entry<?, ?> entry : mapFields.entrySet()) {
-                            if(entry.getKey() != null && entry.getValue() != null) {
+                            if (entry.getKey() != null && entry.getValue() != null) {
                                 keys.put(entry.getKey().toString(), entry.getValue().toString());
                             }
                         }
                     }
+                    break;
                 case STRUCT:
                     Struct keyStruct = (Struct) key;
-                    if(keyStruct!=null&&keyStruct.schema()!=null) {
+                    if (keyStruct != null && keyStruct.schema() != null) {
                         keyStruct.schema().fields().forEach(field -> {
                             String fieldName = field.name();
                             if (keyStruct.get(fieldName) != null) {
@@ -90,6 +102,14 @@ public interface RecordWriterProvider {
             }
         }
         return keys;
+    }
+
+    default Map<String, Object> getKeyObject(@NotNull String keyValue) {
+        try {
+            return OBJECT_MAPPER.readValue(keyValue, MAP_TYPE_REFERENCE);
+        } catch (JsonProcessingException e) {
+            return Collections.singletonMap(KEY_FIELD, keyValue);
+        }
     }
 
 

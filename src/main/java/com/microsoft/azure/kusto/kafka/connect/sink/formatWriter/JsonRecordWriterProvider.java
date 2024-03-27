@@ -13,12 +13,11 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 
@@ -27,10 +26,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
     private static final String LINE_SEPARATOR = System.lineSeparator();
     private static final byte[] LINE_SEPARATOR_BYTES = LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8);
 
-    TypeReference<Map<String,Object>> typeRef
-            = new TypeReference<Map<String,Object>>() {};
 
-    private final ObjectMapper mapper = new ObjectMapper();
     private final JsonConverter converter = new JsonConverter();
 
     public JsonRecordWriterProvider() {
@@ -45,17 +41,18 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
         try {
             log.debug("Opening record writer for: {}", filename);
             return new RecordWriter() {
-                final JsonGenerator writer = mapper.getFactory()
+                final JsonGenerator writer = OBJECT_MAPPER.getFactory()
                         .createGenerator(out)
                         .setRootValueSeparator(null);
+
                 @Override
                 public void write(SinkRecord record) {
                     log.trace("Sink record: {}", record);
                     try {
                         Object value = record.value();
                         Object rawData = (value instanceof Struct) ? extractStruct(record, value) : value;
-                        if(rawData!=null) {
-                            Map<String,Object> serializedValues = mapper.readValue(rawData.toString(), typeRef);
+                        if (rawData != null) {
+                            Map<String, Object> serializedValues = OBJECT_MAPPER.readValue(rawData.toString(), MAP_TYPE_REFERENCE);
                             Map<String, Map<String, String>> metadataMap = new HashMap<>();
                             if (!record.headers().isEmpty()) {
                                 metadataMap.put(HEADERS_FIELD, getHeadersAsMap(record));
@@ -65,7 +62,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
                             }
                             metadataMap.put(KAFKA_METADATA_FIELD, getKafkaMetaDataAsMap(record));
                             serializedValues.put(METADATA_FIELD, metadataMap);
-                            out.write(mapper.writeValueAsBytes(serializedValues));
+                            out.write(OBJECT_MAPPER.writeValueAsBytes(serializedValues));
                             out.write(LINE_SEPARATOR_BYTES);
                         }
                     } catch (IOException e) {
@@ -97,8 +94,8 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
         }
     }
 
-    private Object extractStruct(SinkRecord record, Object value) throws IOException {
-            byte[] rawJson = converter.fromConnectData(record.topic(), record.valueSchema(), value);
-            return ArrayUtils.isEmpty(rawJson) ? null : new String(rawJson, StandardCharsets.UTF_8);
+    private @Nullable Object extractStruct(SinkRecord record, Object value) throws IOException {
+        byte[] rawJson = converter.fromConnectData(record.topic(), record.valueSchema(), value);
+        return ArrayUtils.isEmpty(rawJson) ? null : new String(rawJson, StandardCharsets.UTF_8);
     }
 }

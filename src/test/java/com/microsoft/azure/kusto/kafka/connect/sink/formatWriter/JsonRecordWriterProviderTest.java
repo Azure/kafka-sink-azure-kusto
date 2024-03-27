@@ -36,20 +36,20 @@ public class JsonRecordWriterProviderTest extends AbstractRecordWriterTest {
     @Test
     public void jsonDataWriteStruct() throws IOException, JSONException {
         String serializedFilePath = this.writeRecordsToJsonFile(
-                i-> {
+                i -> {
                     try {
                         return JSON_MAPPER.writeValueAsString(new HashMap<String, Object>() {{
-                            put(TEXT_FIELD_NAME, String.format(RECORD_FORMAT, i));
-                            put(ID_FIELD_NAME, i);
-                        }}
+                                                                  put(STR_ID_FIELD_NAME, STR_ID_FIELD_NAME + i);
+                                                                  put(ID_FIELD_NAME, i);
+                                                              }}
                         );
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException(e);
                     }
-                },i-> {
+                }, i -> {
                     try {
                         return JSON_MAPPER.writeValueAsString(new HashMap<String, Object>() {{
-                                                                  put(STR_ID_FIELD_NAME, STR_ID_FIELD_NAME + i);
+                                                                  put(TEXT_FIELD_NAME, String.format(RECORD_FORMAT, i));
                                                                   put(ID_FIELD_NAME, i);
                                                               }}
                         );
@@ -95,7 +95,7 @@ public class JsonRecordWriterProviderTest extends AbstractRecordWriterTest {
         }
     }
 
-    public String writeRecordsToJsonFile(Function<Integer, Object> keyGenerator,Function<Integer,Object> valueGenerator) throws IOException {
+    public String writeRecordsToJsonFile(Function<Integer, Object> keyGenerator, Function<Integer, Object> valueGenerator) throws IOException {
         List<SinkRecord> records = new ArrayList<>();
         for (int i = 0; i < 1; i++) {
             Object value = valueGenerator.apply(i);
