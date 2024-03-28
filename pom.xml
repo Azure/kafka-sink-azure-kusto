@@ -13,7 +13,7 @@
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
         <commoncodec.version>1.16.0</commoncodec.version>
-        <commonio.version>2.13.0</commonio.version>
+        <commonio.version>2.15.1</commonio.version>
         <dependency-check-maven.version>9.0.10</dependency-check-maven.version>
         <formatter.version>2.20.0</formatter.version>
         <impsort.version>1.6.2</impsort.version>
@@ -32,11 +32,11 @@
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <mockito.version>4.11.0</mockito.version>
         <!-- Added to override vulnerable deps -->
-        <netty.version>4.1.104.Final</netty.version>
+        <netty.version>4.1.106.Final</netty.version>
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snappy.version>1.1.10.4</snappy.version>
-        <testcontainer.version>1.18.3</testcontainer.version>
+        <testcontainer.version>1.19.3</testcontainer.version>
     </properties>
     <build>
         <plugins>
@@ -220,39 +220,12 @@
                     <groupId>com.azure</groupId>
                     <artifactId>azure-core</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-identity</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.microsoft.azure</groupId>
-                    <artifactId>msal4j</artifactId>
-                </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.microsoft.azure</groupId>
-            <artifactId>msal4j</artifactId>
-            <version>${msal4j.version}</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-core</artifactId>
             <version>1.45.1</version>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-core-http-netty</artifactId>
-            <version>1.13.11</version>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-identity</artifactId>
-            <version>1.11.1</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
@@ -282,7 +255,7 @@
         <dependency>
             <groupId>net.minidev</groupId>
             <artifactId>json-smart</artifactId>
-            <version>2.4.11</version>
+            <version>2.5.0</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>

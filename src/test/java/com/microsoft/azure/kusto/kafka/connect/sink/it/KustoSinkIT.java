@@ -6,13 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -26,6 +20,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
@@ -36,6 +31,7 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.comparator.CustomComparator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.lifecycle.Startables;
@@ -76,20 +72,18 @@ public class KustoSinkIT {
     private static final String confluentVersion = "6.2.5";
     private static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:" + confluentVersion))
             .withNetwork(network);
-    private static final ProxyContainer proxyContainer = new ProxyContainer().withNetwork(network);
     private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
             .withNetwork(network).dependsOn(kafkaContainer);
-    private static final List<String> testFormats = Arrays.asList("avro"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
-    private static ITCoordinates coordinates;
+    private static final ProxyContainer proxyContainer = new ProxyContainer().withNetwork(network);
     private static final KustoKafkaConnectContainer connectContainer = new KustoKafkaConnectContainer(confluentVersion)
             .withNetwork(network)
             .withKafka(kafkaContainer)
             .dependsOn(kafkaContainer, proxyContainer, schemaRegistryContainer);
-
+    private static final List<String> testFormats = Collections.singletonList("avro"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
+    private static final String keyColumn = "vlong";
+    private static ITCoordinates coordinates;
     private static Client engineClient = null;
     private static Client dmClient = null;
-
-    private static final String keyColumn = "vlong";
 
     @BeforeAll
     public static void startContainers() throws Exception {
@@ -110,7 +104,20 @@ public class KustoSinkIT {
                     "target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
                     Version.getVersion(), Version.getVersion());
             log.info("Creating connector jar with version {} and mounting it from {},", Version.getVersion(), mountPath);
-            // connectContainer.withFileSystemBind(mountPath, "/kafka/connect/kafka-sink-azure-kusto");
+            connectContainer.withFileSystemBind(mountPath, "/kafka/connect/kafka-sink-azure-kusto", BindMode.READ_ONLY);
+            String libsToCopy = String.format("/code/kafka-sink-azure-kusto/target/components/packages/" +
+                            "microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
+                    Version.getVersion(), Version.getVersion());
+//            File libFolder = new File(libsToCopy);
+//            Arrays.stream(Objects.requireNonNull(libFolder.list())).
+//                    forEach(fileToCopy -> {
+//                                connectContainer.withCopyToContainer(MountableFile.forHostPath(libsToCopy + "/" + fileToCopy),
+//                                        "/kafka/connect/kafka-sink-azure-kusto/" + fileToCopy);
+////                                connectContainer.withCopyToContainer(MountableFile.forHostPath(libsToCopy + "/" + fileToCopy),
+////                                        "/usr/share/java/kafka/" + fileToCopy);
+//                                log.debug("Copying file {} to container", fileToCopy);
+//                            }
+//                    );
             Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
             log.info("Started containers , copying scripts to container and executing them");
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
@@ -158,8 +165,8 @@ public class KustoSinkIT {
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
-       // engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-       // log.info("Finished table clean up. Dropped table {}", coordinates.table);
+         // engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
+         log.info("Finished table clean up. Dropped table {}", coordinates.table);
         dmClient.close();
         engineClient.close();
     }
@@ -176,11 +183,11 @@ public class KustoSinkIT {
             }
             String topicTableMapping = dataFormat.equals("csv")
                     ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping','streaming':'true'}]", dataFormat,
-                            coordinates.database,
-                            coordinates.table, dataFormat, dataFormat)
+                    coordinates.database,
+                    coordinates.table, dataFormat, dataFormat)
                     : String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping'}]", dataFormat,
-                            coordinates.database,
-                            coordinates.table, dataFormat, dataFormat);
+                    coordinates.database,
+                    coordinates.table, dataFormat, dataFormat);
             log.info("Deploying connector for {} , using SR url {}. Using proxy host {} and port {}", dataFormat, srUrl,
                     proxyContainer.getContainerId().substring(0, 12), proxyContainer.getExposedPorts().get(0));
             Map<String, Object> connectorProps = new HashMap<>();
@@ -218,7 +225,7 @@ public class KustoSinkIT {
         });
     }
 
-    private void produceKafkaMessages(String dataFormat) throws IOException {
+    private void produceKafkaMessages(@NotNull String dataFormat) throws IOException {
         log.debug("Producing messages");
         int maxRecords = 10;
         Map<String, Object> producerProperties = new HashMap<>();
@@ -300,9 +307,9 @@ public class KustoSinkIT {
                         new CustomComparator(LENIENT,
                                 // there are sometimes round off errors in the double values but they are close enough to 8 precision
                                 new Customization("vdec", (vdec1,
-                                        vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001),
+                                                           vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001),
                                 new Customization("vreal", (vreal1,
-                                        vreal2) -> Math.abs(Double.parseDouble(vreal1.toString()) - Double.parseDouble(vreal2.toString())) < 0.0001)));
+                                                            vreal2) -> Math.abs(Double.parseDouble(vreal1.toString()) - Double.parseDouble(vreal2.toString())) < 0.0001)));
             } catch (JSONException e) {
                 fail(e);
             }
@@ -310,7 +317,7 @@ public class KustoSinkIT {
         assertEquals(maxRecords, actualRecordsIngested.size());
     }
 
-    private Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
+    private @NotNull Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
         String query = String.format("%s | where type == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat, keyColumn);
         Predicate<Object> predicate = (results) -> {
             if (results != null) {
