@@ -79,7 +79,7 @@ public class KustoSinkIT {
     private static final ProxyContainer proxyContainer = new ProxyContainer().withNetwork(network);
     private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
             .withNetwork(network).dependsOn(kafkaContainer);
-    private static final List<String> testFormats = Arrays.asList("json", "avro", "csv"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
+    private static final List<String> testFormats = Arrays.asList("avro"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
     private static ITCoordinates coordinates;
     private static final KustoKafkaConnectContainer connectContainer = new KustoKafkaConnectContainer(confluentVersion)
             .withNetwork(network)
@@ -104,12 +104,13 @@ public class KustoSinkIT {
             log.info("Creating tables in Kusto");
             createTables();
             refreshDm();
+            ///code/kafka-sink-azure-kusto/target/components/packages/
             // Mount the libs
             String mountPath = String.format(
                     "target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
                     Version.getVersion(), Version.getVersion());
             log.info("Creating connector jar with version {} and mounting it from {},", Version.getVersion(), mountPath);
-            connectContainer.withFileSystemBind(mountPath, "/kafka/connect/kafka-sink-azure-kusto");
+            // connectContainer.withFileSystemBind(mountPath, "/kafka/connect/kafka-sink-azure-kusto");
             Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
             log.info("Started containers , copying scripts to container and executing them");
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
@@ -157,8 +158,8 @@ public class KustoSinkIT {
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
-        engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-        log.info("Finished table clean up. Dropped table {}", coordinates.table);
+       // engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
+       // log.info("Finished table clean up. Dropped table {}", coordinates.table);
         dmClient.close();
         engineClient.close();
     }

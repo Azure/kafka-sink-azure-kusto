@@ -7,12 +7,18 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.skyscreamer.jsonassert.JSONAssert;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -23,7 +29,6 @@ import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 
 import static com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider.METADATA_FIELD;
 
-// TODO: Significant duplication among these 4 classes
 public class JsonRecordWriterProviderTest extends AbstractRecordWriterTest {
     public static final String JSON_TEST_TOPIC = "json.test.topic";
     private static ObjectMapper JSON_MAPPER;
@@ -31,6 +36,23 @@ public class JsonRecordWriterProviderTest extends AbstractRecordWriterTest {
     @BeforeAll
     public static void setUp() {
         JSON_MAPPER = new ObjectMapper();
+    }
+
+    private static @NotNull Stream<Arguments> getKeysMapSimpleTypeTestGenerator() {
+        return Stream.of(
+                Arguments.of("key-1", null, Collections.singletonMap("key", "key-1")),
+                Arguments.of(1, null, Collections.singletonMap("key", "1")),
+                Arguments.of("{\"keystring\":\"value\"}", null, Collections.singletonMap("keystring", "value")),
+                Arguments.of("[1,2,4]", null, Collections.singletonMap("key", "[1,2,4]")),
+                Arguments.of("message".getBytes(), null, Collections.singletonMap("key", Base64.getEncoder().encodeToString("message".getBytes()))),
+                Arguments.of("{\"str-id\":\"str-1\",\"id\":1}", SchemaBuilder.struct()
+                        .field(STR_ID_FIELD_NAME, SchemaBuilder.string().build())
+                        .field(ID_FIELD_NAME, SchemaBuilder.int32().build())
+                        .build(), new HashMap<String, String>() {{
+                    put(STR_ID_FIELD_NAME, "str-1");
+                    put(ID_FIELD_NAME, "1");
+                }})
+        );
     }
 
     @Test
@@ -66,20 +88,6 @@ public class JsonRecordWriterProviderTest extends AbstractRecordWriterTest {
         });
     }
 
-//    @Test
-//    public void jsonDataWriteSimple() throws IOException, JSONException {
-//        String serializedFilePath = this.writeRecordsToJsonFile((i) -> i,
-//                (i) -> new Struct(schema)
-//                        .put(STR_ID_FIELD_NAME, STR_ID_FIELD_NAME + i)
-//                        .put(ID_FIELD_NAME, i));
-//
-//        validate(serializedFilePath, i -> {
-//            Map<String, Object> result = new HashMap<>();
-//            result.put(ID_FIELD_NAME, i);
-//            return result;
-//        });
-//    }
-
     public void validate(String path, Function<Integer, Map<String, Object>> resultFunction) throws IOException, JSONException {
         // Warns if the types are not generified
         List<String> actualJsonLines = Files.readAllLines(Paths.get(path));
@@ -88,8 +96,6 @@ public class JsonRecordWriterProviderTest extends AbstractRecordWriterTest {
         for (String actualJson : actualJsonLines) {
             Map<String, Object> expectedJsonMap = getExpectedResults(i, resultFunction);
             String expectedJson = JSON_MAPPER.writeValueAsString(expectedJsonMap);
-            System.out.println("Expected: " + expectedJson);
-            System.out.println("Actual: " + actualJson);
             JSONAssert.assertEquals(expectedJson, actualJson, false);
             i++;
         }
@@ -126,5 +132,33 @@ public class JsonRecordWriterProviderTest extends AbstractRecordWriterTest {
         Map<String, Map<?, ?>> metadata = getMetaDataMap(i, JSON_TEST_TOPIC);
         expectedJsonMap.put(METADATA_FIELD, metadata);
         return expectedJsonMap;
+    }
+
+    @Test
+    void getRecordWriter() {
+    }
+
+    @Test
+    void getHeadersAsMap() {
+    }
+
+    @ParameterizedTest
+    @MethodSource("getKeysMapSimpleTypeTestGenerator")
+    void getKeysMapSimpleTypeTest(Object keyValue, Schema keySchema, Map<String, String> expectedResults) {
+        JsonRecordWriterProvider recordWriterProvider = new JsonRecordWriterProvider();
+        for (int i = 0; i < 10; i++) {
+            // testing only the headers here
+            SinkRecord recordToWrite = new SinkRecord(JSON_TEST_TOPIC, i % 3, keySchema, keyValue, null, null, i);
+            Map<String, String> actualKeyMap = recordWriterProvider.getKeysMap(recordToWrite);
+            assert actualKeyMap.equals(expectedResults);
+        }
+    }
+
+    @Test
+    void getKeyObject() {
+    }
+
+    @Test
+    void getKafkaMetaDataAsMap() {
     }
 }

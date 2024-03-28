@@ -303,7 +303,7 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public void initializeRecordWriter(SinkRecord record) {
+    public void initializeRecordWriter(@NotNull SinkRecord record) {
         if (record.value() instanceof Map) {
             recordWriterProvider = new JsonRecordWriterProvider();
         } else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {

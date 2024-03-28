@@ -40,13 +40,13 @@ public interface RecordWriterProvider {
     }
 
     @NotNull
-    default Map<String, String> getKeysMap(@NotNull SinkRecord record) {
+        default Map<String, String> getKeysMap(@NotNull SinkRecord record) {
         Map<String, String> keys = new HashMap<>();
         if (record.key() == null) {
             return keys;
         }
         Object key = record.key();
-        if (record.keySchema() != null) {
+        if (record.keySchema() != null && record.keySchema() instanceof Struct) {
             record.keySchema().fields().forEach(field -> {
                 String fieldName = field.name();
                 if (record.key() instanceof Struct) {

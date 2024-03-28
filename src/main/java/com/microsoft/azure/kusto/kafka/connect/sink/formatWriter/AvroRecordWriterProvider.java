@@ -81,6 +81,9 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
                         }
                     }
                 }
+                System.out.println("------------------------------------------------------------------");
+                System.out.println(updatedSchema);
+                System.out.println("------------------------------------------------------------------");
                 writer.append(avroData.fromConnectData(updatedSchema, updatedValue));
             }
 
