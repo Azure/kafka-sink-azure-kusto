@@ -104,7 +104,6 @@ public class FileWriter implements Closeable {
         String filePath = getFilePath.apply(offset);
         fileProps.path = filePath;
         // Sanitize the file name just be sure and make sure it has the R/W permissions only
-
         String sanitizedFilePath = FilenameUtils.normalize(filePath);
         if (sanitizedFilePath == null) {
             /*

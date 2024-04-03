@@ -18,14 +18,11 @@ public class StringRecordWriterProvider implements RecordWriterProvider {
     @Override
     public RecordWriter getRecordWriter(String filename, OutputStream out) {
         return new RecordWriter() {
-
             @Override
             public void write(SinkRecord record) throws IOException {
-                byte[] value = null;
-                value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
+                byte[] value = String.format("%s\n", record.value()).getBytes(StandardCharsets.UTF_8);
                 out.write(value);
             }
-
             @Override
             public void close() {
                 try {
@@ -34,7 +31,6 @@ public class StringRecordWriterProvider implements RecordWriterProvider {
                     throw new DataException(e);
                 }
             }
-
             @Override
             public void commit() {
                 try {
@@ -45,5 +41,4 @@ public class StringRecordWriterProvider implements RecordWriterProvider {
             }
         };
     }
-
 }

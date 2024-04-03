@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import org.apache.avro.specific.SpecificData;
+import org.apache.kafka.connect.converters.ByteArrayConverter;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
@@ -14,7 +17,6 @@ import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 
 public class ByteRecordWriterProvider implements RecordWriterProvider {
     private static final Logger log = LoggerFactory.getLogger(ByteRecordWriterProvider.class);
-
     @Override
     public RecordWriter getRecordWriter(String filename, OutputStream out) {
         return new RecordWriter() {
