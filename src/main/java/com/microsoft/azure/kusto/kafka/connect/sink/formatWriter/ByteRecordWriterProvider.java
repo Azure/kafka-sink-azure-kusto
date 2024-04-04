@@ -14,11 +14,9 @@ import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 
 public class ByteRecordWriterProvider implements RecordWriterProvider {
     private static final Logger log = LoggerFactory.getLogger(ByteRecordWriterProvider.class);
-
     @Override
     public RecordWriter getRecordWriter(String filename, OutputStream out) {
         return new RecordWriter() {
-
             @Override
             public void write(SinkRecord record) throws IOException {
                 byte[] value = null;
