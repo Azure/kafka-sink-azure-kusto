@@ -13,18 +13,18 @@
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
         <commoncodec.version>1.16.0</commoncodec.version>
-        <commonio.version>2.13.0</commonio.version>
+        <commonio.version>2.15.1</commonio.version>
         <dependency-check-maven.version>9.0.10</dependency-check-maven.version>
         <formatter.version>2.20.0</formatter.version>
         <impsort.version>1.6.2</impsort.version>
-        <jackson.version>2.15.2</jackson.version>
+        <jackson.version>2.16.1</jackson.version>
         <java.release.version>1.8</java.release.version>
         <jsonassert.version>1.5.1</jsonassert.version>
         <!-- Added to override vulnerable deps -->
         <jsonsmart.version>2.4.10</jsonsmart.version>
-        <junit.version>5.10.0</junit.version>
+        <junit.version>5.10.1</junit.version>
         <kafka.connect.avro.converter.version>7.6.0</kafka.connect.avro.converter.version>
-        <kafka.version>3.5.1</kafka.version>
+        <kafka.version>3.6.0</kafka.version>
         <kusto.sdk.version>5.0.5</kusto.sdk.version>
         <msal4j.version>1.14.3</msal4j.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
@@ -37,7 +37,7 @@
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snappy.version>1.1.10.4</snappy.version>
-        <testcontainer.version>1.18.3</testcontainer.version>
+        <testcontainer.version>1.19.4</testcontainer.version>
     </properties>
     <build>
         <plugins>
@@ -340,6 +340,12 @@
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
@@ -348,6 +354,12 @@
             <groupId>io.confluent.avro</groupId>
             <artifactId>avro-random-generator</artifactId>
             <version>${avro.random.generator.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>tech.allegro.schema.json2avro</groupId>
+            <artifactId>converter</artifactId>
+            <version>0.2.15</version>
             <scope>test</scope>
         </dependency>
         <dependency>
