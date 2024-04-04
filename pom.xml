@@ -288,6 +288,12 @@
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
@@ -296,6 +302,12 @@
             <groupId>io.confluent.avro</groupId>
             <artifactId>avro-random-generator</artifactId>
             <version>${avro.random.generator.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>tech.allegro.schema.json2avro</groupId>
+            <artifactId>converter</artifactId>
+            <version>0.2.15</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -332,7 +344,7 @@
     <repositories>
         <repository>
             <id>jitpack</id>
-            <url>https://jitpack.io</url>            
+            <url>https://jitpack.io</url>
         </repository>
         <repository>
             <id>confluent</id>
