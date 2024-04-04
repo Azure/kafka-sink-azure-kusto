@@ -23,7 +23,7 @@ import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.avro.AvroRecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
@@ -303,7 +303,7 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public void initializeRecordWriter(SinkRecord sinkRecord) {
+    public void initializeRecordWriter(@NotNull SinkRecord sinkRecord) {
         if (sinkRecord.value() instanceof Map) {
             recordWriterProvider = new JsonRecordWriterProvider();
         } else if ((sinkRecord.valueSchema() != null) && (sinkRecord.valueSchema().type() == Schema.Type.STRUCT)) {
