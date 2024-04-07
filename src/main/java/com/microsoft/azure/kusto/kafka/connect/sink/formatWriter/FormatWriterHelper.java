@@ -26,7 +26,6 @@ public class FormatWriterHelper {
     public static String KEY_FIELD = "key";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final AvroData AVRO_DATA = new AvroData(50);
-
     private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
             = new TypeReference<Map<String, Object>>() {
     };

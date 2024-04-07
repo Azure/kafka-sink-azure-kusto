@@ -26,10 +26,7 @@ public class AvroRecordWriter extends HeaderAndMetadataWriter implements RecordW
     private final JsonGenerator writer;
     private Schema schema;
 
-    private final OutputStream out;
-
     public AvroRecordWriter(String filename, OutputStream out) {
-        this.out = out;
         this.filename = filename;
         try {
             this.writer = OBJECT_MAPPER.getFactory()
@@ -47,9 +44,8 @@ public class AvroRecordWriter extends HeaderAndMetadataWriter implements RecordW
                 schema = record.valueSchema();
                 LOGGER.debug("Opening record writer for: {}", filename);
             }
-            Object messageValue = record.value();
-            Map<String, Object> updatedValue = new HashMap<>(FormatWriterHelper.convertAvroRecordToMap(schema, messageValue));
-            updatedValue.put(KEYS_FIELD, getKeysMap(record));
+            Map<String, Object> updatedValue = new HashMap<>(convertSinkRecordToMap(record, false));
+            updatedValue.put(KEYS_FIELD, convertSinkRecordToMap(record,true));
             updatedValue.put(KAFKA_METADATA_FIELD, getKafkaMetaDataAsMap(record));
             writer.writeObject(updatedValue);
             writer.writeRaw(LINE_SEPARATOR);
