@@ -2,6 +2,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
 
 import org.apache.avro.generic.GenericData;
+import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.NotNull;
 
@@ -13,6 +14,8 @@ public abstract class HeaderAndMetadataWriter {
     public String METADATA_FIELD = "metadata";
     public String HEADERS_FIELD = "headers";
     public String KEYS_FIELD = "keys";
+    public String KEY_FIELD = "key";
+    public String VALUE_FIELD = "value";
 
     public String KAFKA_METADATA_FIELD = "kafka-md";
     public String TOPIC = "topic";
@@ -27,24 +30,26 @@ public abstract class HeaderAndMetadataWriter {
     }
 
     @NotNull
-    public Map<String, Object> getKeysMap(@NotNull SinkRecord record) throws IOException {
-        Object keyValue = record.key();
-        if(keyValue == null) {
+    public Map<String, Object> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey) throws IOException {
+        Object recordValue = isKey ? record.key() : record.value();
+        Schema schema = isKey ? record.keySchema() : record.valueSchema();
+        if(recordValue == null) {
             return Collections.emptyMap();
         }
         // Is Avro Data
-        if(keyValue instanceof GenericData.Record) {
-            return FormatWriterHelper.convertAvroRecordToMap(record.keySchema(), keyValue);
+        if(recordValue instanceof GenericData.Record) {
+            return FormatWriterHelper.convertAvroRecordToMap(schema, recordValue);
         }
         // String or JSON
-        if(keyValue instanceof String) {
-            return FormatWriterHelper.convertStringToMap(keyValue);
+        if(recordValue instanceof String) {
+            return FormatWriterHelper.convertStringToMap(recordValue);
         }
         // is a byte array
-        if(keyValue instanceof byte[]) {
-            return FormatWriterHelper.convertBytesToMap((byte[])keyValue);
+        if(recordValue instanceof byte[]) {
+            return FormatWriterHelper.convertBytesToMap((byte[])recordValue);
         }
-        return Collections.singletonMap("KEY_FIELD", keyValue);
+        String fieldName = isKey ? KEY_FIELD : schema.name();
+        return Collections.singletonMap(fieldName, recordValue);
     }
 
 

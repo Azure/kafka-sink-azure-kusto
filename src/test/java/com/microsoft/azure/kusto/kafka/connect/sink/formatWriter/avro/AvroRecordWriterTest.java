@@ -17,7 +17,6 @@ import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,10 +56,6 @@ public class AvroRecordWriterTest {
             sinkRecord.headers().addInt("HeaderInt",1);
             sinkRecord.headers().addString("HeaderStr","1");
             records.add(sinkRecord);
-//            String json = new String(converter.convertToJson((GenericData.Record)sinkRecord.value()), StandardCharsets.UTF_8);
-//            System.out.println("-----------------------------------------------------------------------------");
-//            System.out.println(json);
-//            System.out.println("-----------------------------------------------------------------------------");
         }
         File file = new File("abc.avro");
         Utils.restrictPermissions(file);
