@@ -1,11 +1,10 @@
-package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
+package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import com.fasterxml.jackson.core.JacksonException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.confluent.connect.avro.AvroData;
-import io.confluent.kafka.serializers.NonRecordContainer;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.*;
+
+import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -14,13 +13,15 @@ import org.apache.avro.io.*;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.jetbrains.annotations.NotNull;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.*;
-
-import org.apache.avro.file.DataFileConstants;
 import org.jetbrains.annotations.Nullable;
+
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.confluent.connect.avro.AvroData;
+import io.confluent.kafka.serializers.NonRecordContainer;
 
 public class FormatWriterHelper {
     public static String KEY_FIELD = "key";
@@ -39,8 +40,7 @@ public class FormatWriterHelper {
                 updatedValue.put(schema.name(), ((NonRecordContainer) value).getValue());
             } else {
                 if (value instanceof GenericData.Record) {
-                    org.apache.avro.Schema avroSchema = AVRO_DATA.fromConnectSchema(schema);
-                    updatedValue.putAll(extractGenericDataRecord(value, avroSchema));
+                    updatedValue.putAll(avroToJson((GenericData.Record) value));
                 }
             }
         }
@@ -64,6 +64,14 @@ public class FormatWriterHelper {
             encoder.flush();
             return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(baos.toByteArray());
         }
+    }
+
+    /**
+     * Convert a given avro record to json and return the encoded bytes.
+     * @param record The GenericRecord to convert
+     */
+    private static Map<String, Object> avroToJson(@NotNull GenericRecord record) throws IOException {
+        return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(record.toString());
     }
 
     public static @NotNull Map<String, Object> convertStringToMap(Object value) throws IOException {

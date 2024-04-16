@@ -19,6 +19,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +59,7 @@ public class TopicPartitionWriter {
     private final ReentrantReadWriteLock reentrantReadWriteLock;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-            KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
+                         @NotNull KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -75,13 +76,13 @@ public class TopicPartitionWriter {
         this.dlqProducer = dlqProducer;
     }
 
-    static String getTempDirectoryName(String tempDirPath) {
+    static @NotNull String getTempDirectoryName(String tempDirPath) {
         String tempDir = String.format("kusto-sink-connector-%s", UUID.randomUUID());
         Path path = Paths.get(tempDirPath, tempDir).toAbsolutePath();
         return path.toString();
     }
 
-    public void handleRollFile(SourceFile fileDescriptor) {
+    public void handleRollFile(@NotNull SourceFile fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
 
         /*
@@ -123,7 +124,7 @@ public class TopicPartitionWriter {
         }
     }
 
-    private boolean hasStreamingSucceeded(IngestionStatus status) {
+    private boolean hasStreamingSucceeded(@NotNull IngestionStatus status) {
         switch (status.status) {
             case Succeeded:
             case Queued:
@@ -175,7 +176,7 @@ public class TopicPartitionWriter {
         }
     }
 
-    public void sendFailedRecordToDlq(SinkRecord record) {
+    public void sendFailedRecordToDlq(@NotNull SinkRecord record) {
         byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
                 + "topic=%s, partition=%s, offset=%s.",
                 record.topic(),
@@ -203,7 +204,7 @@ public class TopicPartitionWriter {
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? offset + 1 : offset;
 
         return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset,
-                ingestionProps.ingestionProperties.getDataFormat(), COMPRESSION_EXTENSION)).toString();
+                "json", COMPRESSION_EXTENSION)).toString();
     }
 
     void writeRecord(SinkRecord record) throws ConnectException {
