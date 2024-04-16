@@ -1,16 +1,25 @@
-package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
-
-
-import org.apache.avro.generic.GenericData;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.sink.SinkRecord;
-import org.jetbrains.annotations.NotNull;
+package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
 import java.io.IOException;
 import java.util.*;
+
+import org.apache.avro.generic.GenericData;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.sink.SinkRecord;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 // TODO tests for byte[]
 
 public abstract class HeaderAndMetadataWriter {
+    public static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
+    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    public static final String LINE_SEPARATOR = System.lineSeparator();
+
     public String METADATA_FIELD = "metadata";
     public String HEADERS_FIELD = "headers";
     public String KEYS_FIELD = "keys";
@@ -23,9 +32,9 @@ public abstract class HeaderAndMetadataWriter {
     public String OFFSET = "offset";
 
     @NotNull
-    public Map<String, String> getHeadersAsMap(@NotNull SinkRecord record) {
-        Map<String, String> headers = new HashMap<>();
-        record.headers().forEach(header -> headers.put(header.key(), header.value().toString()));
+    public Map<String, Object> getHeadersAsMap(@NotNull SinkRecord record) {
+        Map<String, Object> headers = new HashMap<>();
+        record.headers().forEach(header -> headers.put(header.key(), header.value()));
         return headers;
     }
 
@@ -48,7 +57,8 @@ public abstract class HeaderAndMetadataWriter {
         if(recordValue instanceof byte[]) {
             return FormatWriterHelper.convertBytesToMap((byte[])recordValue);
         }
-        String fieldName = isKey ? KEY_FIELD : schema.name();
+        String fieldName = schema!=null ? StringUtils.defaultIfBlank(schema.name(),
+                isKey ? KEY_FIELD : VALUE_FIELD):isKey ? KEY_FIELD : VALUE_FIELD;
         return Collections.singletonMap(fieldName, recordValue);
     }
 

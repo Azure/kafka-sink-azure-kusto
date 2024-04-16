@@ -1,4 +1,4 @@
-package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
+package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -7,36 +7,33 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Test;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 
+import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.restrictPermissions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-// TODO: Significant duplication among these 4 classes
-public class JsonRecordWriterProviderTest {
+public class ByteArrayWriterProviderTest {
     @Test
-    public void testJsonData() throws IOException {
+    public void testByteData() throws IOException {
         List<SinkRecord> records = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            Map<String, Integer> map = new HashMap<>();
-            map.put("hello", i);
-            records.add(new SinkRecord("mytopic", 0, null, null, null, map, i));
+            records.add(new SinkRecord("mytopic", 0, null, null, Schema.BYTES_SCHEMA,
+                    String.format("hello-%s", i).getBytes(), i));
         }
-        File file = new File("abc.json");
+        File file = new File("abc.bin");
+        restrictPermissions(file);
         file.deleteOnExit();
-        Utils.restrictPermissions(file);
-        JsonRecordWriterProvider jsonWriter = new JsonRecordWriterProvider();
         try (OutputStream out = Files.newOutputStream(file.toPath());
                 BufferedReader br = new BufferedReader(new FileReader(file))) {
-            RecordWriter rd = jsonWriter.getRecordWriter(file.getPath(), out);
+            ByteRecordWriterProvider writer = new ByteRecordWriterProvider();
+            RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
             for (SinkRecord record : records) {
                 rd.write(record);
             }
@@ -44,10 +41,10 @@ public class JsonRecordWriterProviderTest {
             String st;
             int i = 0;
             while ((st = br.readLine()) != null) {
-                assertEquals(st, String.format("{\"hello\":%s}", i));
+                assertEquals(st, String.format("hello-%s", i));
                 i++;
             }
-            FileUtils.deleteQuietly(file);
         }
+        FileUtils.deleteQuietly(file);
     }
 }
