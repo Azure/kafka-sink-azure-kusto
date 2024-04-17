@@ -1,20 +1,15 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Test;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import java.io.*;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.restrictPermissions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,7 +26,7 @@ public class ByteArrayWriterProviderTest {
         restrictPermissions(file);
         file.deleteOnExit();
         try (OutputStream out = Files.newOutputStream(file.toPath());
-                BufferedReader br = new BufferedReader(new FileReader(file))) {
+             BufferedReader br = new BufferedReader(new FileReader(file))) {
             ByteRecordWriterProvider writer = new ByteRecordWriterProvider();
             RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
             for (SinkRecord record : records) {
