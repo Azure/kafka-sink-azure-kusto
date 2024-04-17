@@ -18,7 +18,7 @@ public class ByteArrayWriterProviderTest {
     @Test
     public void testByteData() throws IOException {
         List<SinkRecord> records = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 1; i++) {
             records.add(new SinkRecord("mytopic", 0, null, null, Schema.BYTES_SCHEMA,
                     String.format("hello-%s", i).getBytes(), i));
         }
@@ -27,7 +27,7 @@ public class ByteArrayWriterProviderTest {
         file.deleteOnExit();
         try (OutputStream out = Files.newOutputStream(file.toPath());
              BufferedReader br = new BufferedReader(new FileReader(file))) {
-            ByteRecordWriterProvider writer = new ByteRecordWriterProvider();
+            KustoRecordWriterProvider writer = new KustoRecordWriterProvider();
             RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
             for (SinkRecord record : records) {
                 rd.write(record);

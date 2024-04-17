@@ -1,26 +1,24 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import java.io.IOException;
-import java.util.*;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.avro.generic.GenericData;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 // TODO tests for byte[]
 
 public abstract class HeaderAndMetadataWriter {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     public static final String LINE_SEPARATOR = System.lineSeparator();
-
-    public String METADATA_FIELD = "metadata";
+    protected static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
     public String HEADERS_FIELD = "headers";
     public String KEYS_FIELD = "keys";
     public String KEY_FIELD = "key";
@@ -39,29 +37,29 @@ public abstract class HeaderAndMetadataWriter {
     }
 
     @NotNull
-    @SuppressWarnings (value="unchecked")
+    @SuppressWarnings(value = "unchecked")
     public Map<String, Object> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey) throws IOException {
         Object recordValue = isKey ? record.key() : record.value();
         Schema schema = isKey ? record.keySchema() : record.valueSchema();
         String rawField = isKey ? KEY_FIELD : VALUE_FIELD;
-        if(recordValue == null) {
+        if (recordValue == null) {
             return Collections.emptyMap();
         }
         // Is Avro Data
-        if(recordValue instanceof GenericData.Record) {
+        if (recordValue instanceof GenericData.Record) {
             return FormatWriterHelper.convertAvroRecordToMap(schema, recordValue);
         }
         // String or JSON
-        if(recordValue instanceof String) {
-            return FormatWriterHelper.convertStringToMap(recordValue,rawField);
+        if (recordValue instanceof String) {
+            return FormatWriterHelper.convertStringToMap(recordValue, rawField);
         }
         // Map
-        if(recordValue instanceof Map) {
+        if (recordValue instanceof Map) {
             return (Map<String, Object>) recordValue;
         }
         // is a byte array
-        if(recordValue instanceof byte[]) {
-            return FormatWriterHelper.convertBytesToMap((byte[])recordValue);
+        if (recordValue instanceof byte[]) {
+            return FormatWriterHelper.convertBytesToMap((byte[]) recordValue);
         }
 /*
         String fieldName = schema!=null ? StringUtils.defaultIfBlank(schema.name(),
@@ -70,7 +68,6 @@ public abstract class HeaderAndMetadataWriter {
         String fieldName = isKey ? KEY_FIELD : VALUE_FIELD;
         return Collections.singletonMap(fieldName, recordValue);
     }
-
 
 
     public Map<String, String> getKafkaMetaDataAsMap(@NotNull SinkRecord record) {

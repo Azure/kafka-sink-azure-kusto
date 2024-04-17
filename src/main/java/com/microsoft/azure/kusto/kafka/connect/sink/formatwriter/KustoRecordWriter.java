@@ -1,17 +1,16 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
-
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 public class KustoRecordWriter extends HeaderAndMetadataWriter implements RecordWriter {
     private final String filename;
@@ -36,9 +35,14 @@ public class KustoRecordWriter extends HeaderAndMetadataWriter implements Record
                 schema = record.valueSchema();
                 LOGGER.debug("Opening record writer for: {}", filename);
             }
-            Map<String, Object> updatedValue = new HashMap<>(convertSinkRecordToMap(record, false));
-            updatedValue.put(KEYS_FIELD, convertSinkRecordToMap(record, true));
-            updatedValue.put(HEADERS_FIELD, getHeadersAsMap(record));
+            Map<String, Object> updatedValue = (record.value() == null) ? new HashMap<>() :
+                    new HashMap<>(convertSinkRecordToMap(record, false));
+            if (record.key() != null) {
+                updatedValue.put(KEYS_FIELD, convertSinkRecordToMap(record, true));
+            }
+            if (record.headers() != null && !record.headers().isEmpty()) {
+                updatedValue.put(HEADERS_FIELD, getHeadersAsMap(record));
+            }
             updatedValue.put(KAFKA_METADATA_FIELD, getKafkaMetaDataAsMap(record));
             writer.writeObject(updatedValue);
             writer.writeRaw(LINE_SEPARATOR);
