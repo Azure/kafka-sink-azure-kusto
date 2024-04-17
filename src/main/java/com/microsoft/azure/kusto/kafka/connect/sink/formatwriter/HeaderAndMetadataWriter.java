@@ -59,7 +59,7 @@ public abstract class HeaderAndMetadataWriter {
         }
         // is a byte array
         if (recordValue instanceof byte[]) {
-            return FormatWriterHelper.convertBytesToMap((byte[]) recordValue);
+            return FormatWriterHelper.convertBytesToMap((byte[]) recordValue,isKey);
         }
 /*
         String fieldName = schema!=null ? StringUtils.defaultIfBlank(schema.name(),
