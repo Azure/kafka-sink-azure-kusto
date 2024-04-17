@@ -13,6 +13,7 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -60,7 +61,8 @@ public class KustoRecordWriterTest {
                 Arguments.of(stringToIntSchema, stringToOptionalIntSchema, stringToIntMap, stringToOptionalIntMapMultiple, false, false),
                 Arguments.of(stringToIntSchema, arrayOfInts, stringToIntMap, new Integer[]{1, 2, 3, 5, 8, 13, 21}, false, true),
                 Arguments.of(simpleLongSchema, structSchema, Collections.singletonMap("recordKey", 42L),
-                        "{\"field1\":true,\"field2\":\"Field-@42\"}", false, false)
+                        "{\"field1\":true,\"field2\":\"Field-@42\"}", false, false),
+                Arguments.of(simpleLongSchema, structSchema, Collections.singletonMap("recordKey", 42L), null, false, false)
         );
     }
 
@@ -136,7 +138,12 @@ public class KustoRecordWriterTest {
             actualMap.remove(KAFKA_MD);
             // Now actualMap contains only the value
             String actualValues = RESULT_MAPPER.writeValueAsString(actualMap);
-            JSONAssert.assertEquals(expected[2], actualValues, false);
+            if (expected[2] == null) {
+                // there are no fields or no keys
+                Assertions.assertTrue(actualMap.keySet().isEmpty(), "Expected null value for tombstone record");
+            } else {
+                JSONAssert.assertEquals(expected[2], actualValues, false);
+            }
         }
     }
 
@@ -209,9 +216,16 @@ public class KustoRecordWriterTest {
         String expectedKeyString = isSimpleKey ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key", keyValues))
                 : RESULT_MAPPER.writeValueAsString(keyValues);
         // Sometimes the input is a JSON string. No need to double encode. Check the struct test
-        String expectedValueString = (expectedValues instanceof String) ? expectedValues.toString() :
-                (isSimpleValue ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", expectedValues))
-                        : RESULT_MAPPER.writeValueAsString(expectedValues));
+        String expectedValueString;
+        if (expectedValues == null) {
+            expectedValueString = null;
+        } else if (expectedValues instanceof String) {
+            expectedValueString = expectedValues.toString();
+        } else if (isSimpleValue) {
+            expectedValueString = RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", expectedValues));
+        } else {
+            expectedValueString = RESULT_MAPPER.writeValueAsString(expectedValues);
+        }
         String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(
                 Collections.singletonMap(String.format("HeaderInt-%s", 0), 0));
         expectedResultsMap.put(0, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
