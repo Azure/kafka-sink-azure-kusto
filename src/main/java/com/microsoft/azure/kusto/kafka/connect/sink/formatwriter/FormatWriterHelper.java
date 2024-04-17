@@ -32,7 +32,8 @@ public class FormatWriterHelper {
     private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
             = new TypeReference<Map<String, Object>>() {
     };
-    public static String KEY_FIELD = "key";
+    private static  final String KEY_FIELD = "key";
+    private static final String VALUE_FIELD = "value";
 
     private FormatWriterHelper() {
     }
@@ -51,28 +52,17 @@ public class FormatWriterHelper {
         return updatedValue;
     }
 
-    public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes) throws IOException {
+    public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes,boolean isKey) throws IOException {
         GenericRecord genericRecord = bytesToAvroRecord(messageBytes);
         if (genericRecord != null) {
             return convertAvroRecordToMap(AVRO_DATA.toConnectSchema(genericRecord.getSchema()), genericRecord);
         } else {
-            return Collections.singletonMap(KEY_FIELD, Base64.getEncoder().encodeToString(messageBytes));
-        }
-    }
-
-    private static Map<String, Object> extractGenericDataRecord(Object value, org.apache.avro.Schema avroSchema) throws IOException {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            JsonEncoder encoder = EncoderFactory.get().jsonEncoder(avroSchema, baos);
-            DatumWriter<Object> writer = new GenericDatumWriter<>(avroSchema);
-            writer.write(value, encoder);
-            encoder.flush();
-            return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(baos.toByteArray());
+            return Collections.singletonMap(isKey ? KEY_FIELD : VALUE_FIELD, Base64.getEncoder().encodeToString(messageBytes));
         }
     }
 
     /**
      * Convert a given avro record to json and return the encoded bytes.
-     *
      * @param record The GenericRecord to convert
      */
     private static Map<String, Object> avroToJson(@NotNull GenericRecord record) throws IOException {
