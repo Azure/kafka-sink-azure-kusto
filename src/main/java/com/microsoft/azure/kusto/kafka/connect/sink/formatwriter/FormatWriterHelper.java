@@ -14,8 +14,11 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,8 +27,11 @@ import io.confluent.connect.avro.AvroData;
 import io.confluent.kafka.serializers.NonRecordContainer;
 
 public class FormatWriterHelper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
+
     public static String KEY_FIELD = "key";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+    private static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final AvroData AVRO_DATA = new AvroData(50);
     private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
             = new TypeReference<Map<String, Object>>() {
@@ -74,18 +80,22 @@ public class FormatWriterHelper {
         return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(record.toString());
     }
 
-    public static @NotNull Map<String, Object> convertStringToMap(Object value) throws IOException {
+    public static @NotNull Map<String, Object> convertStringToMap(Object value,String rawField) throws IOException {
         String objStr = (String) value;
-        if(isJson(objStr)) {
+        if(isJson(rawField,objStr)) {
             return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(objStr);
         } else {
-            return Collections.singletonMap(KEY_FIELD, objStr);
+            return Collections.singletonMap(rawField, objStr);
         }
     }
-    private static boolean isJson(String json) {
-        try {
+    private static boolean isJson(String rawKey,String json) {
+        try(JsonParser parser  = JSON_FACTORY.createParser(json)) {
+            if(!parser.nextToken().isStructStart()){
+                LOGGER.debug("No start token found for json {}. Is key {} ",json, rawKey);
+                return false;
+            }
             OBJECT_MAPPER.readTree(json);
-        } catch (JacksonException e) {
+        } catch (IOException e) {
             return false;
         }
         return true;
