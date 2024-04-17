@@ -128,10 +128,6 @@ public class KustoRecordWriterTest {
             String[] expected = expectedResultsMap.get(i);
             String actualKeys = RESULT_MAPPER.writeValueAsString(actualMap.get(KEYS));
             String actualHeaders = RESULT_MAPPER.writeValueAsString(actualMap.get(HEADERS));
-            System.out.println("-------------------------------------------");
-            System.out.println("Expected " + expected[1]);
-            System.out.println("Actual " + actualKeys);
-            System.out.println("-------------------------------------------");
             JSONAssert.assertEquals(expected[1], actualKeys, false);
             JSONAssert.assertEquals(expected[0], actualHeaders, false);
             // to get the values it is to remove keys and headers , then get all the fields and compare
