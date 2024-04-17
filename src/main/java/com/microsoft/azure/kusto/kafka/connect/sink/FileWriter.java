@@ -24,8 +24,8 @@ import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnEr
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.ByteRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.StringRecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.KustoRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.StringRecordWriterProvider;
 
 /**
  * This class is used to write gzipped rolling files.

@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 // TODO tests for byte[]
 
 public abstract class HeaderAndMetadataWriter {
-    public static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
+    protected static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     public static final String LINE_SEPARATOR = System.lineSeparator();
 
@@ -39,9 +39,11 @@ public abstract class HeaderAndMetadataWriter {
     }
 
     @NotNull
+    @SuppressWarnings (value="unchecked")
     public Map<String, Object> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey) throws IOException {
         Object recordValue = isKey ? record.key() : record.value();
         Schema schema = isKey ? record.keySchema() : record.valueSchema();
+        String rawField = isKey ? KEY_FIELD : VALUE_FIELD;
         if(recordValue == null) {
             return Collections.emptyMap();
         }
@@ -51,14 +53,21 @@ public abstract class HeaderAndMetadataWriter {
         }
         // String or JSON
         if(recordValue instanceof String) {
-            return FormatWriterHelper.convertStringToMap(recordValue);
+            return FormatWriterHelper.convertStringToMap(recordValue,rawField);
+        }
+        // Map
+        if(recordValue instanceof Map) {
+            return (Map<String, Object>) recordValue;
         }
         // is a byte array
         if(recordValue instanceof byte[]) {
             return FormatWriterHelper.convertBytesToMap((byte[])recordValue);
         }
+/*
         String fieldName = schema!=null ? StringUtils.defaultIfBlank(schema.name(),
                 isKey ? KEY_FIELD : VALUE_FIELD):isKey ? KEY_FIELD : VALUE_FIELD;
+*/
+        String fieldName = isKey ? KEY_FIELD : VALUE_FIELD;
         return Collections.singletonMap(fieldName, recordValue);
     }
 
