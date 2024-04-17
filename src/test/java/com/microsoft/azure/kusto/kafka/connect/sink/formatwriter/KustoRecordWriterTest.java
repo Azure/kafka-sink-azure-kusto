@@ -55,12 +55,12 @@ public class KustoRecordWriterTest {
         stringToOptionalIntMapMultiple.put("String-42", 32);
 
         return Stream.of(
-                Arguments.of(intToIntSchema, stringToIntSchema, intToIntMap, stringToIntMap,false,false),
-                Arguments.of(stringToIntSchema, stringToOptionalIntSchema, stringToIntMap, stringToOptionalIntMap,false,false),
-                Arguments.of(stringToIntSchema, stringToOptionalIntSchema, stringToIntMap, stringToOptionalIntMapMultiple,false,false),
-                Arguments.of(stringToIntSchema, arrayOfInts, stringToIntMap, new Integer[]{1,2,3,5,8,13,21},false,true),
-                Arguments.of(simpleLongSchema, structSchema, Collections.singletonMap("recordKey",42L),
-                        "{\"field1\":true,\"field2\":\"Field-@42\"}",false,false)
+                Arguments.of(intToIntSchema, stringToIntSchema, intToIntMap, stringToIntMap, false, false),
+                Arguments.of(stringToIntSchema, stringToOptionalIntSchema, stringToIntMap, stringToOptionalIntMap, false, false),
+                Arguments.of(stringToIntSchema, stringToOptionalIntSchema, stringToIntMap, stringToOptionalIntMapMultiple, false, false),
+                Arguments.of(stringToIntSchema, arrayOfInts, stringToIntMap, new Integer[]{1, 2, 3, 5, 8, 13, 21}, false, true),
+                Arguments.of(simpleLongSchema, structSchema, Collections.singletonMap("recordKey", 42L),
+                        "{\"field1\":true,\"field2\":\"Field-@42\"}", false, false)
         );
     }
 
@@ -210,12 +210,12 @@ public class KustoRecordWriterTest {
                 expectedValues,
                 0);
         sinkRecord.headers().addInt(String.format("HeaderInt-%s", 0), 0);
-        String expectedKeyString = isSimpleKey ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key",keyValues))
-                :RESULT_MAPPER.writeValueAsString(keyValues);
+        String expectedKeyString = isSimpleKey ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key", keyValues))
+                : RESULT_MAPPER.writeValueAsString(keyValues);
         // Sometimes the input is a JSON string. No need to double encode. Check the struct test
-        String expectedValueString  = (expectedValues instanceof String) ? expectedValues.toString() :
-                (isSimpleValue ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value",expectedValues))
-                :RESULT_MAPPER.writeValueAsString(expectedValues));
+        String expectedValueString = (expectedValues instanceof String) ? expectedValues.toString() :
+                (isSimpleValue ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", expectedValues))
+                        : RESULT_MAPPER.writeValueAsString(expectedValues));
         String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(
                 Collections.singletonMap(String.format("HeaderInt-%s", 0), 0));
         expectedResultsMap.put(0, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
