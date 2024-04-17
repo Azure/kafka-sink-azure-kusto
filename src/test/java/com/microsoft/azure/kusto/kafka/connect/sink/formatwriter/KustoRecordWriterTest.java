@@ -1,38 +1,70 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import io.confluent.avro.random.generator.Generator;
+import io.confluent.connect.avro.AvroData;
+import org.apache.avro.generic.GenericData;
+import org.apache.commons.io.FileUtils;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.sink.SinkRecord;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONException;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.skyscreamer.jsonassert.JSONAssert;
+import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-
-import org.apache.avro.generic.GenericData;
-import org.apache.commons.io.FileUtils;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.sink.SinkRecord;
-import org.json.JSONException;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.skyscreamer.jsonassert.JSONAssert;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-
-import io.confluent.avro.random.generator.Generator;
-import io.confluent.connect.avro.AvroData;
-import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
+import java.util.stream.Stream;
 
 public class KustoRecordWriterTest {
     public static final String KEYS = "keys";
     public static final String HEADERS = "headers";
+    public static final String KAFKA_MD = "kafka-md";
     private static final ObjectMapper RESULT_MAPPER = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> GENERIC_MAP = new TypeReference<Map<String, Object>>() {
     };
 
-    @ParameterizedTest
+    private static @NotNull Stream<Arguments> testMapSchemaJson() {
+        // Key schema, value schema, expectedKey, expectedValue
+        Schema intToIntSchema = SchemaBuilder.map(Schema.INT32_SCHEMA, Schema.INT32_SCHEMA).name("IntToIntMap").build();
+        Schema stringToIntSchema = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.INT32_SCHEMA).name("StringToIntMap").build();
+        Schema stringToOptionalIntSchema = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.OPTIONAL_INT32_SCHEMA).name("StringToOptionalInt").build();
+        Schema arrayOfInts = SchemaBuilder.array(Schema.INT32_SCHEMA).name("ArrayOfInts").build();
+        Schema simpleLongSchema = SchemaBuilder.struct().field("recordKey", Schema.INT64_SCHEMA).
+                name("SimpleLongSchema").build();
+        Schema structSchema = SchemaBuilder.struct().field("field1", Schema.BOOLEAN_SCHEMA)
+                .field("field2", Schema.STRING_SCHEMA).name("StructSchema").build();
+
+        Map<Integer, Integer> intToIntMap = Collections.singletonMap(0, 12);
+        Map<String, Integer> stringToIntMap = Collections.singletonMap("String-42", 32);
+        Map<String, Integer> stringToOptionalIntMap = Collections.singletonMap("NullString-42", null);
+        Map<String, Integer> stringToOptionalIntMapMultiple = new HashMap<>();
+        stringToOptionalIntMapMultiple.put("NullString-42", null);
+        stringToOptionalIntMapMultiple.put("String-42", 32);
+
+        return Stream.of(
+                Arguments.of(intToIntSchema, stringToIntSchema, intToIntMap, stringToIntMap,false,false),
+                Arguments.of(stringToIntSchema, stringToOptionalIntSchema, stringToIntMap, stringToOptionalIntMap,false,false),
+                Arguments.of(stringToIntSchema, stringToOptionalIntSchema, stringToIntMap, stringToOptionalIntMapMultiple,false,false),
+                Arguments.of(stringToIntSchema, arrayOfInts, stringToIntMap, new Integer[]{1,2,3,5,8,13,21},false,true),
+                Arguments.of(simpleLongSchema, structSchema, Collections.singletonMap("recordKey",42L),
+                        "{\"field1\":true,\"field2\":\"Field-@42\"}",false,false)
+        );
+    }
+
+    @ParameterizedTest(name = "AVRO Data to be serialized with key schema {0} and value schema {1} isSimpleKey {2} isSimpleValue {3}")
     @CsvSource({
             "avro-simple-schema.json,avro-struct-schema.json,true,false",
             "avro-struct-schema.json,avro-struct-schema.json,false,false",
@@ -48,9 +80,9 @@ public class KustoRecordWriterTest {
         Generator randomAvroKeyData = new Generator.Builder().schemaStream(
                 Objects.requireNonNull(this.getClass().getClassLoader().
                         getResourceAsStream(String.format("avro-schemas/%s", keySchemaPath)))).build();
-        AvroData x = new AvroData(50);
-        Schema keySchema = x.toConnectSchema(randomAvroKeyData.schema());
-        Schema valueSchema = x.toConnectSchema(randomAvroValueData.schema());
+        AvroData avroDataCache = new AvroData(50);
+        Schema keySchema = avroDataCache.toConnectSchema(randomAvroKeyData.schema());
+        Schema valueSchema = avroDataCache.toConnectSchema(randomAvroValueData.schema());
         JsonAvroConverter converter = new JsonAvroConverter();
         Map<Integer, String[]> expectedResultsMap = new HashMap<>();
         for (int i = 0; i < 10; i++) {
@@ -96,23 +128,27 @@ public class KustoRecordWriterTest {
             String[] expected = expectedResultsMap.get(i);
             String actualKeys = RESULT_MAPPER.writeValueAsString(actualMap.get(KEYS));
             String actualHeaders = RESULT_MAPPER.writeValueAsString(actualMap.get(HEADERS));
+            System.out.println("-------------------------------------------");
+            System.out.println("Expected " + expected[1]);
+            System.out.println("Actual " + actualKeys);
+            System.out.println("-------------------------------------------");
             JSONAssert.assertEquals(expected[1], actualKeys, false);
             JSONAssert.assertEquals(expected[0], actualHeaders, false);
-
             // to get the values it is to remove keys and headers , then get all the fields and compare
             actualMap.remove(KEYS);
             actualMap.remove(HEADERS);
+            actualMap.remove(KAFKA_MD);
             // Now actualMap contains only the value
             String actualValues = RESULT_MAPPER.writeValueAsString(actualMap);
             JSONAssert.assertEquals(expected[2], actualValues, false);
         }
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "JSON Data to be serialized with key schema {0} and value schema {1} isSimpleKey {2} isSimpleValue {3}")
     @CsvSource({
             "avro-simple-schema.json,avro-struct-schema.json,true,false",
-//            "avro-struct-schema.json,avro-struct-schema.json,false,false",
-//            "avro-simple-schema.json,avro-simple-schema.json,true,true"
+            "avro-struct-schema.json,avro-struct-schema.json,false,false",
+            "avro-simple-schema.json,avro-simple-schema.json,true,true"
     }
     )
     public void validateJsonDataToBeSerialized(String keySchemaPath, String valueSchemaPath, boolean isSimpleKey, boolean isSimpleValue)
@@ -126,7 +162,7 @@ public class KustoRecordWriterTest {
                         getResourceAsStream(String.format("avro-schemas/%s", keySchemaPath)))).build();
 
         Map<Integer, String[]> expectedResultsMap = new HashMap<>();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 10; i++) {
             Object key = randomAvroKeyData.generate().toString();
             Object value = randomAvroValueData.generate().toString();
             SinkRecord sinkRecord = new SinkRecord("json.record.topic", i % 3,
@@ -159,7 +195,42 @@ public class KustoRecordWriterTest {
         rd.close();
         FileUtils.deleteQuietly(file);
     }
+
+    @ParameterizedTest(name = "Map Data to be serialized with key schema {0}.name() and value schema {1}.name()")
+    @MethodSource("testMapSchemaJson")
+    public void collectionsSerializationTests(Schema keySchema, Schema valueSchema,
+                                              Map<?, ?> keyValues, Object expectedValues,
+                                              boolean isSimpleKey, boolean isSimpleValue) throws IOException, JSONException {
+        // Set up
+        Map<Integer, String[]> expectedResultsMap = new HashMap<>();
+        SinkRecord sinkRecord = new SinkRecord("json.map.record.topic", 0,
+                keySchema,
+                keyValues,
+                valueSchema,
+                expectedValues,
+                0);
+        sinkRecord.headers().addInt(String.format("HeaderInt-%s", 0), 0);
+        String expectedKeyString = isSimpleKey ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key",keyValues))
+                :RESULT_MAPPER.writeValueAsString(keyValues);
+        // Sometimes the input is a JSON string. No need to double encode. Check the struct test
+        String expectedValueString  = (expectedValues instanceof String) ? expectedValues.toString() :
+                (isSimpleValue ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value",expectedValues))
+                :RESULT_MAPPER.writeValueAsString(expectedValues));
+        String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(
+                Collections.singletonMap(String.format("HeaderInt-%s", 0), 0));
+        expectedResultsMap.put(0, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
+
+        // Act
+        File file = new File(String.format("%s.%s", UUID.randomUUID(), "json"));
+        Utils.restrictPermissions(file);
+        KustoRecordWriterProvider writer = new KustoRecordWriterProvider();
+        OutputStream out = Files.newOutputStream(file.toPath());
+        RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
+        rd.write(sinkRecord);
+        //verify
+        validate(file.getPath(), expectedResultsMap);
+        rd.commit();
+        rd.close();
+        FileUtils.deleteQuietly(file);
+    }
 }
-
-
-
