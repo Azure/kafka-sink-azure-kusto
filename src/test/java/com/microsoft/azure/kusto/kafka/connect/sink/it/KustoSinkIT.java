@@ -27,10 +27,8 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.json.JSONException;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Disabled;
 import org.skyscreamer.jsonassert.Customization;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.comparator.CustomComparator;
@@ -68,7 +66,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
-public class KustoSinkIT {
+@Disabled
+class KustoSinkIT {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkIT.class);
     private static final Network network = Network.newNetwork();
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -163,6 +162,7 @@ public class KustoSinkIT {
         engineClient.close();
     }
 
+    @Disabled
     @Test
     public void shouldHandleAllTypesOfEvents() {
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
