@@ -8,7 +8,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>4.0.7</version>
+    <version>4.0.8</version>
     <properties>
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
@@ -33,7 +33,7 @@
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <mockito.version>4.11.0</mockito.version>
         <!-- Added to override vulnerable deps -->
-        <netty.version>4.1.104.Final</netty.version>
+        <netty.version>4.1.108.Final</netty.version>
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snappy.version>1.1.10.4</snappy.version>
