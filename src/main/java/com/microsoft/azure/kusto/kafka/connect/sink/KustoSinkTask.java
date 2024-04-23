@@ -20,6 +20,9 @@ import org.apache.kafka.connect.sink.SinkTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.azure.core.credential.AccessToken;
+import com.azure.core.credential.TokenRequestContext;
+import com.azure.identity.AzureCliCredentialBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
@@ -91,7 +94,20 @@ public class KustoSinkTask extends SinkTask {
                         clusterUrl,
                         config.getAuthAppId());
                 break;
+            case AZ_CLI_DEV_TEST:
+                log.warn("Using DEV-TEST mode, use this for development only. NOT recommended for production scenarios");
+                String clusterScope = String.format("%s/.default", clusterUrl);
+                String tenantId = StringUtils.defaultIfBlank(config.getAuthAuthority(),"microsoft.com");
+                TokenRequestContext tokenRequestContext = new TokenRequestContext()
+                        .setScopes(Collections.singletonList(clusterScope))
+                        .setTenantId(tenantId);
 
+                AccessToken accessToken = new AzureCliCredentialBuilder().
+                        tenantId(tenantId).build().getTokenSync(tokenRequestContext);
+                kcsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(
+                        clusterUrl,
+                        accessToken.getToken());
+                break;
             default:
                 throw new ConfigException("Failed to initialize KustoIngestClient, please " +
                         "provide valid credentials. Either Kusto managed identity or " +

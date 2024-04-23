@@ -16,7 +16,7 @@ class ITCoordinates {
     ITCoordinates(String appId, String appKey, String authority, String cluster, String ingestCluster, String database, String table) {
         this.appId = appId;
         this.appKey = appKey;
-        this.authority = authority;
+        this.authority = StringUtils.defaultIfBlank(authority,"microsoft.com");
         this.ingestCluster = ingestCluster;
         this.cluster = cluster;
         this.database = database;
@@ -24,7 +24,7 @@ class ITCoordinates {
     }
 
     boolean isValidConfig() {
-        return StringUtils.isNotEmpty(appId) && StringUtils.isNotEmpty(appKey) && StringUtils.isNotEmpty(authority) && StringUtils.isNotEmpty(cluster)
+        return StringUtils.isNotEmpty(authority) && StringUtils.isNotEmpty(cluster)
                 && StringUtils.isNotEmpty(ingestCluster);
     }
 }

@@ -314,7 +314,9 @@ public class KustoSinkConfig extends AbstractConfig {
                                 KustoAuthenticationStrategy.APPLICATION.name(),
                                 KustoAuthenticationStrategy.MANAGED_IDENTITY.name(),
                                 KustoAuthenticationStrategy.APPLICATION.name().toLowerCase(Locale.ENGLISH),
-                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase(Locale.ENGLISH)),
+                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase(Locale.ENGLISH),
+                                KustoAuthenticationStrategy.AZ_CLI_DEV_TEST.name(),
+                                KustoAuthenticationStrategy.AZ_CLI_DEV_TEST.name().toLowerCase(Locale.ENGLISH)),
                         Importance.HIGH,
                         KUSTO_AUTH_STRATEGY_DOC,
                         connectionGroupName,
@@ -465,6 +467,6 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     enum KustoAuthenticationStrategy {
-        APPLICATION, MANAGED_IDENTITY
+        APPLICATION, MANAGED_IDENTITY, AZ_CLI_DEV_TEST
     }
 }
