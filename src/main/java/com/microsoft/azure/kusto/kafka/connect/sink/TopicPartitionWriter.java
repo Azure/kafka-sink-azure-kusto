@@ -34,7 +34,7 @@ import com.microsoft.azure.kusto.ingest.result.IngestionStatusResult;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 
-class TopicPartitionWriter {
+public class TopicPartitionWriter {
 
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
     private static final String COMPRESSION_EXTENSION = ".gz";

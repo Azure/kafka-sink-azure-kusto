@@ -92,12 +92,13 @@ class KustoSinkIT {
 
     @BeforeAll
     public static void startContainers() throws Exception {
+
         coordinates = getConnectorProperties();
         if (coordinates.isValidConfig()) {
-            ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.cluster,
-                    coordinates.appId, coordinates.appKey, coordinates.authority);
-            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.ingestCluster,
-                    coordinates.appId, coordinates.appKey, coordinates.authority);
+            ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(coordinates.cluster,
+                    coordinates.accessToken);
+            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.
+                    createWithAadAccessTokenAuthentication(coordinates.ingestCluster,coordinates.accessToken);
             engineClient = ClientFactory.createClient(engineCsb);
             dmClient = ClientFactory.createClient(dmCsb);
             log.info("Creating tables in Kusto");
@@ -190,8 +191,8 @@ class KustoSinkIT {
             connectorProps.put("topics", String.format("e2e.%s.topic", dataFormat));
             connectorProps.put("kusto.tables.topics.mapping", topicTableMapping);
             connectorProps.put("aad.auth.authority", coordinates.authority);
-            connectorProps.put("aad.auth.appid", coordinates.appId);
-            connectorProps.put("aad.auth.appkey", coordinates.appKey);
+            connectorProps.put("aad.auth.accesstoken", coordinates.accessToken);
+            connectorProps.put("aad.auth.strategy", "AZ_DEV_TOKEN".toLowerCase());
             connectorProps.put("kusto.query.url", coordinates.cluster);
             connectorProps.put("kusto.ingestion.url", coordinates.ingestCluster);
             connectorProps.put("schema.registry.url", srUrl);

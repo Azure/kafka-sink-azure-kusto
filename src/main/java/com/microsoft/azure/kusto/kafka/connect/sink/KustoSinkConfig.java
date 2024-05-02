@@ -15,6 +15,7 @@ import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.common.config.ConfigException;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +57,9 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_CONNECTION_PROXY_PORT_DISPLAY = "Proxy port used to connect to Kusto";
 
     private static final String KUSTO_AUTH_APPKEY_DISPLAY = "Kusto Auth AppKey";
+    static final String KUSTO_AUTH_ACCESS_TOKEN_CONF = "aad.auth.accesstoken";
+    private static final String KUSTO_AUTH_ACCESS_TOKEN_DISPLAY = "Kusto Auth AccessToken";
+    private static final String KUSTO_AUTH_ACCESS_TOKEN_DOC = "Kusto Access Token for Azure Active Directory authentication";
     private static final String KUSTO_AUTH_AUTHORITY_DOC = "Azure Active Directory tenant.";
     private static final String KUSTO_AUTH_AUTHORITY_DISPLAY = "Kusto Auth Authority";
     private static final String KUSTO_AUTH_STRATEGY_DOC = "Strategy to authenticate against Azure Active Directory, either ``application`` (default) or ``managed_identity``.";
@@ -277,6 +281,16 @@ public class KustoSinkConfig extends AbstractConfig {
                         Width.MEDIUM,
                         KUSTO_AUTH_APPKEY_DISPLAY)
                 .define(
+                        KUSTO_AUTH_ACCESS_TOKEN_CONF,
+                        Type.PASSWORD,
+                        null,
+                        Importance.LOW,
+                        KUSTO_AUTH_ACCESS_TOKEN_DOC,
+                        connectionGroupName,
+                        connectionGroupOrder++,
+                        Width.MEDIUM,
+                        KUSTO_AUTH_ACCESS_TOKEN_DISPLAY)
+                .define(
                         KUSTO_AUTH_APPID_CONF,
                         Type.STRING,
                         null,
@@ -314,7 +328,9 @@ public class KustoSinkConfig extends AbstractConfig {
                                 KustoAuthenticationStrategy.APPLICATION.name(),
                                 KustoAuthenticationStrategy.MANAGED_IDENTITY.name(),
                                 KustoAuthenticationStrategy.APPLICATION.name().toLowerCase(Locale.ENGLISH),
-                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase(Locale.ENGLISH)),
+                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase(Locale.ENGLISH),
+                                KustoAuthenticationStrategy.AZ_DEV_TOKEN.name(),
+                                KustoAuthenticationStrategy.AZ_DEV_TOKEN.name().toLowerCase(Locale.ENGLISH)),
                         Importance.HIGH,
                         KUSTO_AUTH_STRATEGY_DOC,
                         connectionGroupName,
@@ -357,6 +373,9 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public String getAuthAppKey() {
         return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
+    }
+    public String getAuthAccessToken() {
+        return this.getPassword(KUSTO_AUTH_ACCESS_TOKEN_CONF).value();
     }
 
     public String getAuthAuthority() {
@@ -456,7 +475,7 @@ public class KustoSinkConfig extends AbstractConfig {
          *
          * @return array of available behavior on error mode names
          */
-        public static String[] getNames() {
+        public static String @NotNull [] getNames() {
             return Arrays
                     .stream(BehaviorOnError.class.getEnumConstants())
                     .map(Enum::name)
@@ -465,6 +484,6 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     enum KustoAuthenticationStrategy {
-        APPLICATION, MANAGED_IDENTITY
+        APPLICATION, MANAGED_IDENTITY, AZ_DEV_TOKEN
     }
 }

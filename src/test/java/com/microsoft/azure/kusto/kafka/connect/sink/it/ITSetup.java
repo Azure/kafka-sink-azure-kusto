@@ -1,9 +1,14 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.it;
 
+import java.util.Collections;
 import java.util.UUID;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+
+import com.azure.core.credential.AccessToken;
+import com.azure.core.credential.TokenRequestContext;
+import com.azure.identity.AzureCliCredentialBuilder;
 
 public class ITSetup {
     static ITCoordinates getConnectorProperties() {
@@ -16,7 +21,15 @@ public class ITSetup {
         String database = getProperty("database", "e2e", true);
         String defaultTable = testPrefix + UUID.randomUUID().toString().replace('-', '_');
         String table = getProperty("table", defaultTable, true);
-        return new ITCoordinates(appId, appKey, authority, cluster, ingestCluster, database, table);
+        return new ITCoordinates(appId, appKey, authority,getAccessToken(cluster), cluster, ingestCluster, database, table);
+    }
+
+    private static String getAccessToken(String cluster) {
+        String clusterScope = String.format("%s/.default", cluster);
+        TokenRequestContext tokenRequestContext = new TokenRequestContext()
+                .setScopes(Collections.singletonList(clusterScope));
+        AccessToken accessTokenObj = new AzureCliCredentialBuilder().build().getTokenSync(tokenRequestContext);
+        return accessTokenObj.getToken();
     }
 
     private static String getProperty(String attribute, String defaultValue, boolean sanitize) {
