@@ -66,7 +66,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
-@Disabled
 class KustoSinkIT {
     private static final Logger log = LoggerFactory.getLogger(KustoSinkIT.class);
     private static final Network network = Network.newNetwork();
