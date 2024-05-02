@@ -17,6 +17,7 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.NotFoundException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,11 +70,11 @@ public class KustoSinkTask extends SinkTask {
         // TODO we should check ingestor role differently
     }
 
-    private static boolean isStreamingEnabled(KustoSinkConfig config) throws JsonProcessingException {
+    private static boolean isStreamingEnabled(@NotNull KustoSinkConfig config) throws JsonProcessingException {
         return Arrays.stream(config.getTopicToTableMapping()).anyMatch(TopicToTableMapping::isStreaming);
     }
 
-    public static ConnectionStringBuilder createKustoEngineConnectionString(KustoSinkConfig config, String clusterUrl) {
+    public static @NotNull ConnectionStringBuilder createKustoEngineConnectionString(KustoSinkConfig config, String clusterUrl) {
         final ConnectionStringBuilder kcsb;
 
         switch (config.getAuthStrategy()) {
@@ -94,19 +95,11 @@ public class KustoSinkTask extends SinkTask {
                         clusterUrl,
                         config.getAuthAppId());
                 break;
-            case AZ_CLI_DEV_TEST:
+            case AZ_DEV_TOKEN:
                 log.warn("Using DEV-TEST mode, use this for development only. NOT recommended for production scenarios");
-                String clusterScope = String.format("%s/.default", clusterUrl);
-                String tenantId = StringUtils.defaultIfBlank(config.getAuthAuthority(),"microsoft.com");
-                TokenRequestContext tokenRequestContext = new TokenRequestContext()
-                        .setScopes(Collections.singletonList(clusterScope))
-                        .setTenantId(tenantId);
-
-                AccessToken accessToken = new AzureCliCredentialBuilder().
-                        tenantId(tenantId).build().getTokenSync(tokenRequestContext);
                 kcsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(
                         clusterUrl,
-                        accessToken.getToken());
+                        config.getAuthAccessToken());
                 break;
             default:
                 throw new ConfigException("Failed to initialize KustoIngestClient, please " +

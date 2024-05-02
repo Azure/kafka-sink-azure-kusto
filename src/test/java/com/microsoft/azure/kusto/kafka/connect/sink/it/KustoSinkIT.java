@@ -95,21 +95,20 @@ class KustoSinkIT {
 
     @BeforeAll
     public static void startContainers() throws Exception {
-        coordinates = getConnectorProperties();
+        String clusterScope = String.format("%s/.default", coordinates.cluster);
+        TokenRequestContext tokenRequestContext = new TokenRequestContext()
+                .setScopes(Collections.singletonList(clusterScope))
+                .setTenantId(coordinates.authority);
+        AccessToken accessTokenObj = new AzureCliCredentialBuilder().
+                tenantId(coordinates.authority).build().getTokenSync(tokenRequestContext);
+        String accessToken = accessTokenObj.getToken();
+
+        coordinates = getConnectorProperties(accessToken);
         if (coordinates.isValidConfig()) {
-            String clusterScope = String.format("%s/.default", coordinates.cluster);
-
-            TokenRequestContext tokenRequestContext = new TokenRequestContext()
-                    .setScopes(Collections.singletonList(clusterScope))
-                    .setTenantId(coordinates.authority);
-
-            AccessToken accessToken = new AzureCliCredentialBuilder().
-                    tenantId(coordinates.authority).build().getTokenSync(tokenRequestContext);
-
             ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(coordinates.cluster,
-                    accessToken.getToken());
+                    accessToken);
             ConnectionStringBuilder dmCsb = ConnectionStringBuilder.
-                    createWithAadAccessTokenAuthentication(coordinates.ingestCluster,accessToken.getToken());
+                    createWithAadAccessTokenAuthentication(coordinates.ingestCluster,accessToken);
             engineClient = ClientFactory.createClient(engineCsb);
             dmClient = ClientFactory.createClient(dmCsb);
             log.info("Creating tables in Kusto");
@@ -202,7 +201,8 @@ class KustoSinkIT {
             connectorProps.put("topics", String.format("e2e.%s.topic", dataFormat));
             connectorProps.put("kusto.tables.topics.mapping", topicTableMapping);
             connectorProps.put("aad.auth.authority", coordinates.authority);
-            connectorProps.put("aad.auth.strategy", "AZ_CLI_DEV_TEST");
+            connectorProps.put("aad.auth.accesstoken", coordinates.accessToken);
+            connectorProps.put("aad.auth.strategy", "AZ_DEV_TOKEN".toLowerCase());
             connectorProps.put("kusto.query.url", coordinates.cluster);
             connectorProps.put("kusto.ingestion.url", coordinates.ingestCluster);
             connectorProps.put("schema.registry.url", srUrl);

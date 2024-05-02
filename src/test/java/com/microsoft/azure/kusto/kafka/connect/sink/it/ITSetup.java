@@ -6,7 +6,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 
 public class ITSetup {
-    static ITCoordinates getConnectorProperties() {
+    static ITCoordinates getConnectorProperties(String accessToken) {
         String testPrefix = "tmpKafkaSinkIT_";
         String appId = getProperty("appId", "", false);
         String appKey = getProperty("appKey", "", false);
@@ -16,7 +16,7 @@ public class ITSetup {
         String database = getProperty("database", "e2e", true);
         String defaultTable = testPrefix + UUID.randomUUID().toString().replace('-', '_');
         String table = getProperty("table", defaultTable, true);
-        return new ITCoordinates(appId, appKey, authority, cluster, ingestCluster, database, table);
+        return new ITCoordinates(appId, appKey, authority, accessToken, cluster, ingestCluster, database, table);
     }
 
     private static String getProperty(String attribute, String defaultValue, boolean sanitize) {
