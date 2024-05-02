@@ -41,9 +41,6 @@ import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
-import com.azure.core.credential.AccessToken;
-import com.azure.core.credential.TokenRequestContext;
-import com.azure.identity.AzureCliCredentialBuilder;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
@@ -95,20 +92,13 @@ class KustoSinkIT {
 
     @BeforeAll
     public static void startContainers() throws Exception {
-        String clusterScope = String.format("%s/.default", coordinates.cluster);
-        TokenRequestContext tokenRequestContext = new TokenRequestContext()
-                .setScopes(Collections.singletonList(clusterScope))
-                .setTenantId(coordinates.authority);
-        AccessToken accessTokenObj = new AzureCliCredentialBuilder().
-                tenantId(coordinates.authority).build().getTokenSync(tokenRequestContext);
-        String accessToken = accessTokenObj.getToken();
 
-        coordinates = getConnectorProperties(accessToken);
+        coordinates = getConnectorProperties();
         if (coordinates.isValidConfig()) {
             ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(coordinates.cluster,
-                    accessToken);
+                    coordinates.accessToken);
             ConnectionStringBuilder dmCsb = ConnectionStringBuilder.
-                    createWithAadAccessTokenAuthentication(coordinates.ingestCluster,accessToken);
+                    createWithAadAccessTokenAuthentication(coordinates.ingestCluster,coordinates.accessToken);
             engineClient = ClientFactory.createClient(engineCsb);
             dmClient = ClientFactory.createClient(dmCsb);
             log.info("Creating tables in Kusto");
