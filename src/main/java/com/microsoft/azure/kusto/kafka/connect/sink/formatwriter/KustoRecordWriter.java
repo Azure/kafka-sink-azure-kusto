@@ -1,16 +1,17 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 
 public class KustoRecordWriter extends HeaderAndMetadataWriter implements RecordWriter {
     private final String filename;

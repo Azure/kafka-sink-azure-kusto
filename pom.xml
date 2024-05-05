@@ -37,7 +37,7 @@
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snappy.version>1.1.10.4</snappy.version>
-        <testcontainer.version>1.19.4</testcontainer.version>
+        <testcontainer.version>1.19.7</testcontainer.version>
     </properties>
     <build>
         <plugins>

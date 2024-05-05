@@ -1,16 +1,12 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.confluent.connect.avro.AvroData;
-import io.confluent.kafka.serializers.NonRecordContainer;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.*;
 import org.apache.commons.lang3.ArrayUtils;
@@ -20,9 +16,14 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.*;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.confluent.connect.avro.AvroData;
+import io.confluent.kafka.serializers.NonRecordContainer;
 
 public class FormatWriterHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
@@ -52,12 +53,19 @@ public class FormatWriterHelper {
         return updatedValue;
     }
 
-    public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes,boolean isKey) throws IOException {
+    public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes,String defaultKeyOrValueField) throws IOException {
+        if(messageBytes == null || messageBytes.length == 0) {
+            return Collections.emptyMap();
+        }
         GenericRecord genericRecord = bytesToAvroRecord(messageBytes);
         if (genericRecord != null) {
             return convertAvroRecordToMap(AVRO_DATA.toConnectSchema(genericRecord.getSchema()), genericRecord);
+        }
+        String bytesAsJson = new String(messageBytes, StandardCharsets.UTF_8);
+        if (isJson(defaultKeyOrValueField, bytesAsJson )) {
+            return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(bytesAsJson);
         } else {
-            return Collections.singletonMap(isKey ? KEY_FIELD : VALUE_FIELD, Base64.getEncoder().encodeToString(messageBytes));
+            return Collections.singletonMap(defaultKeyOrValueField, Base64.getEncoder().encodeToString(messageBytes));
         }
     }
 
@@ -69,19 +77,19 @@ public class FormatWriterHelper {
         return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(record.toString());
     }
 
-    public static @NotNull Map<String, Object> convertStringToMap(Object value, String rawField) throws IOException {
+    public static @NotNull Map<String, Object> convertStringToMap(Object value, String defaultKeyOrValueField) throws IOException {
         String objStr = (String) value;
-        if (isJson(rawField, objStr)) {
+        if (isJson(defaultKeyOrValueField, objStr)) {
             return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(objStr);
         } else {
-            return Collections.singletonMap(rawField, objStr);
+            return Collections.singletonMap(defaultKeyOrValueField, objStr);
         }
     }
 
-    private static boolean isJson(String rawKey, String json) {
+    private static boolean isJson(String defaultKeyOrValueField, String json) {
         try (JsonParser parser = JSON_FACTORY.createParser(json)) {
             if (!parser.nextToken().isStructStart()) {
-                LOGGER.debug("No start token found for json {}. Is key {} ", json, rawKey);
+                LOGGER.debug("No start token found for json {}. Is key {} ", json, defaultKeyOrValueField);
                 return false;
             }
             OBJECT_MAPPER.readTree(json);
