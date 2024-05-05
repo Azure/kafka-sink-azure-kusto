@@ -12,15 +12,15 @@ import org.skyscreamer.jsonassert.JSONAssert;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 public abstract class KustoRecordWriterBase {
     protected static final String KEYS = "keys";
     protected static final String HEADERS = "headers";
     protected static final String KAFKA_MD = "kafka-md";
-    protected static final ObjectMapper RESULT_MAPPER = new ObjectMapper();
+    protected static final ObjectMapper RESULT_MAPPER = new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
     protected static final TypeReference<Map<String, Object>> GENERIC_MAP = new TypeReference<Map<String, Object>>() {
     };
-
     protected void validate(String actualFilePath, Map<Integer, String[]> expectedResultsMap) throws IOException, JSONException {
         // Warns if the types are not generified
         List<String> actualJson = Files.readAllLines(Paths.get(actualFilePath));

@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
@@ -239,7 +240,7 @@ public class TopicPartitionWriter {
                 this::getFilePath,
                 flushInterval,
                 reentrantReadWriteLock,
-                ingestionProps.ingestionProperties.getDataFormat(),
+                IngestionProperties.DataFormat.JSON,
                 behaviorOnError,
                 isDlqEnabled);
     }
