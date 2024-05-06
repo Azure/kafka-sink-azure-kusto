@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -166,7 +165,7 @@ class KustoSinkIT {
     @ParameterizedTest
     @CsvSource({"avro", "json"})
     //TODO add test for CSV
-    public void shouldHandleAllTypesOfEvents(String dataFormat) {
+    public void shouldHandleAllTypesOfEvents(@NotNull String dataFormat) {
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
         String srUrl = String.format("http://%s:%s", schemaRegistryContainer.getContainerId().substring(0, 12), 8081);
         String valueFormat = "org.apache.kafka.connect.storage.StringConverter";
