@@ -149,16 +149,4 @@ public class FormatWriterHelper {
         Decoder decoder = DecoderFactory.get().binaryDecoder(received_message, null);
         return avroBytesReader.read(null, decoder);
     }
-
-    // Convert byte[] to object
-    public static Object bytesToObject(byte[] bytes)
-            throws IOException {
-        InputStream is = new ByteArrayInputStream(bytes);
-        try (ObjectInputStream ois = new ObjectInputStream(is)) {
-            return ois.readObject();
-        } catch (ClassNotFoundException e){
-            LOGGER.error("Error deserializing object from bytes , the record will be converted to a Base64 array", e);
-            return Base64.getEncoder().encodeToString(bytes);
-        }
-    }
 }
