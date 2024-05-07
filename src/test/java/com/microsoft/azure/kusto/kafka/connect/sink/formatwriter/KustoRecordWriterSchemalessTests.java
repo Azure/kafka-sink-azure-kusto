@@ -61,7 +61,7 @@ public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
                     new String(converter.convertToJson((GenericRecord) avroValue), StandardCharsets.UTF_8);
             String expectedKeyString = isSimpleKey ?
                     RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key", avroKey)) :
-                    new String(converter.convertToJson((GenericRecord) avroKey), StandardCharsets.UTF_8);;
+                    new String(converter.convertToJson((GenericRecord) avroKey), StandardCharsets.UTF_8);
             String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(Collections.singletonMap(
                     String.format("HeaderInt-%s", i), i));
             expectedResultsMap.put(i, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
