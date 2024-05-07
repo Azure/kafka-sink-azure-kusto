@@ -21,8 +21,8 @@ import static com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.FormatWr
 public class KustoRecordWriter extends HeaderAndMetadataWriter implements RecordWriter {
     private final String filename;
     private final JsonGenerator writer;
-    private Schema schema;
     private final OutputStream plainOutputStream;
+    private Schema schema;
 
     public KustoRecordWriter(String filename, OutputStream out) {
         this.filename = filename;
@@ -46,14 +46,14 @@ public class KustoRecordWriter extends HeaderAndMetadataWriter implements Record
             Map<String, Object> parsedHeaders = getHeadersAsMap(record);
             Map<String, String> kafkaMd = getKafkaMetaDataAsMap(record);
             if (isCsv(dataFormat)) {
-                String serializedKeys = StringEscapeUtils.escapeCsv(convertSinkRecordToCsv(record,true));
-                String serializedValues = convertSinkRecordToCsv(record,false);
+                String serializedKeys = StringEscapeUtils.escapeCsv(convertSinkRecordToCsv(record, true));
+                String serializedValues = convertSinkRecordToCsv(record, false);
                 String serializedHeaders = StringEscapeUtils.escapeCsv(OBJECT_MAPPER.writeValueAsString(parsedHeaders));
                 String serializedMetadata = StringEscapeUtils.escapeCsv(OBJECT_MAPPER.writeValueAsString(kafkaMd));
                 String formattedRecord = String.format("%s,%s,%s,%s", serializedValues, serializedKeys,
                         serializedHeaders, serializedMetadata);
                 LOGGER.trace("Writing record to file: Keys {} , Values {} , Headers {} , OverallRecord {}",
-                        serializedKeys,serializedValues,serializedHeaders,formattedRecord);
+                        serializedKeys, serializedValues, serializedHeaders, formattedRecord);
                 this.plainOutputStream.write(
                         formattedRecord.getBytes(StandardCharsets.UTF_8));
                 this.plainOutputStream.write(LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8));
@@ -63,7 +63,11 @@ public class KustoRecordWriter extends HeaderAndMetadataWriter implements Record
                 Map<String, Object> updatedValue = (record.value() == null) ? new HashMap<>() :
                         new HashMap<>(parsedValues);
                 if (record.key() != null) {
-                    updatedValue.put(KEYS_FIELD, parsedKeys);
+                    if (parsedKeys.size() == 1 && parsedKeys.containsKey(KEY_FIELD)) {
+                        updatedValue.put(KEYS_FIELD, parsedKeys.get(KEY_FIELD));
+                    } else {
+                        updatedValue.put(KEYS_FIELD, parsedKeys);
+                    }
                 }
                 if (record.headers() != null && !record.headers().isEmpty()) {
                     updatedValue.put(HEADERS_FIELD, parsedHeaders);
