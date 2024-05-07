@@ -131,10 +131,7 @@ class KustoSinkIT {
                 log.error("Failed to execute kql: {}", kql, e);
             }
         });
-        log.info("-----------------------------------------------------------------");
         log.info("Created table {} and associated mappings", coordinates.table);
-        log.info("-----------------------------------------------------------------");
-        Thread.sleep(30000);
     }
 
     private static void refreshDm() throws Exception {
