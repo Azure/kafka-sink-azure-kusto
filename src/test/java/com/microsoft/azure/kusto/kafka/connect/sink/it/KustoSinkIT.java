@@ -132,7 +132,10 @@ class KustoSinkIT {
                 log.error("Failed to execute kql: {}", kql, e);
             }
         });
+        log.info("-----------------------------------------------------------------");
         log.info("Created table {} and associated mappings", coordinates.table);
+        log.info("-----------------------------------------------------------------");
+        Thread.sleep(30000);
     }
 
     private static void refreshDm() throws Exception {
@@ -163,20 +166,20 @@ class KustoSinkIT {
     }
 
     @ParameterizedTest
-    @CsvSource({"avro", "json"})
+    @CsvSource({"json","avro","csv"}) // "json","avro",
     //TODO add test for CSV
     public void shouldHandleAllTypesOfEvents(@NotNull String dataFormat) {
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
         String srUrl = String.format("http://%s:%s", schemaRegistryContainer.getContainerId().substring(0, 12), 8081);
         String valueFormat = "org.apache.kafka.connect.storage.StringConverter";
+        String keyFormat = "org.apache.kafka.connect.storage.StringConverter";
         if (dataFormat.equals("avro")) {
             valueFormat = AvroConverter.class.getName();
             log.debug("Using value format: {}", valueFormat);
         }
         String topicTableMapping = dataFormat.equals("csv")
-                ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping','streaming':'true'}]", dataFormat,
-                        coordinates.database,
-                        coordinates.table, dataFormat)
+                ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'csv_mapping','streaming':'true'}]",
+                dataFormat,coordinates.database,coordinates.table, dataFormat)
                 : String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping'}]", dataFormat,
                         coordinates.database,
                         coordinates.table, dataFormat);
@@ -196,7 +199,7 @@ class KustoSinkIT {
         connectorProps.put("kusto.ingestion.url", coordinates.ingestCluster);
         connectorProps.put("schema.registry.url", srUrl);
         connectorProps.put("value.converter.schema.registry.url", srUrl);
-        connectorProps.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+        connectorProps.put("key.converter", keyFormat);
         connectorProps.put("value.converter", valueFormat);
         connectorProps.put("proxy.host", proxyContainer.getContainerId().substring(0, 12));
         connectorProps.put("proxy.port", proxyContainer.getExposedPorts().get(0));
@@ -208,7 +211,7 @@ class KustoSinkIT {
                 connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));
         try {
             produceKafkaMessages(dataFormat);
-            Thread.sleep(10000);
+            Thread.sleep(30000);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }

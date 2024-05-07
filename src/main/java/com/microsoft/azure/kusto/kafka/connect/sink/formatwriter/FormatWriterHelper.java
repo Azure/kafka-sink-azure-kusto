@@ -1,15 +1,19 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.*;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -24,6 +28,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
 import io.confluent.connect.avro.AvroData;
 import io.confluent.kafka.serializers.NonRecordContainer;
@@ -36,7 +41,17 @@ public class FormatWriterHelper {
     private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
             = new TypeReference<Map<String, Object>>() {
     };
+
     private FormatWriterHelper() {
+    }
+
+    protected static boolean isAvro(IngestionProperties.DataFormat dataFormat) {
+        return IngestionProperties.DataFormat.AVRO.equals(dataFormat)
+                || IngestionProperties.DataFormat.APACHEAVRO.equals(dataFormat);
+    }
+
+    public static boolean isCsv(IngestionProperties.DataFormat dataFormat) {
+        return IngestionProperties.DataFormat.CSV.equals(dataFormat);
     }
 
     public static @NotNull Map<String, Object> convertAvroRecordToMap(Schema schema, Object value) throws IOException {
@@ -53,18 +68,33 @@ public class FormatWriterHelper {
         return updatedValue;
     }
 
+    /**
+     * @param messageBytes Raw message bytes to transform
+     * @param defaultKeyOrValueField Default value for Key or Value
+     * @param dataformat JSON or Avro
+     * @return a Map of the K-V of JSON
+     */
     public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes,
-                                                                 String defaultKeyOrValueField) throws IOException {
-        if(messageBytes == null || messageBytes.length == 0) {
+                                                                 String defaultKeyOrValueField,
+                                                                 IngestionProperties.DataFormat dataformat) throws IOException {
+        if (messageBytes == null || messageBytes.length == 0) {
             return Collections.emptyMap();
         }
-        GenericRecord genericRecord = bytesToAvroRecord(messageBytes);
-        if (genericRecord != null) {
-            return convertAvroRecordToMap(AVRO_DATA.toConnectSchema(genericRecord.getSchema()), genericRecord);
+        if (isAvro(dataformat)) {
+            GenericRecord genericRecord = bytesToAvroRecord(messageBytes);
+            if (genericRecord != null) {
+                return convertAvroRecordToMap(AVRO_DATA.toConnectSchema(genericRecord.getSchema()), genericRecord);
+            } else {
+                LOGGER.error("Failed to convert bytes to Avro record. Bytes: {}", ArrayUtils.toString(messageBytes));
+                throw new IOException("Unable to convert bytes to AVRO record");
+            }
         }
         String bytesAsJson = new String(messageBytes, StandardCharsets.UTF_8);
-        if (isJson(defaultKeyOrValueField, bytesAsJson )) {
-            return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(bytesAsJson);
+        if (isJson(dataformat)) {
+            return isValidJson(defaultKeyOrValueField,bytesAsJson) ?
+                    OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(bytesAsJson) :
+                    Collections.singletonMap(defaultKeyOrValueField,
+                            OBJECT_MAPPER.readTree(messageBytes));
         } else {
             return Collections.singletonMap(defaultKeyOrValueField, Base64.getEncoder().encodeToString(messageBytes));
         }
@@ -83,17 +113,7 @@ public class FormatWriterHelper {
         return fields.stream().collect(Collectors.toMap(Field::name, recordData::get));
     }
 
-    public static @NotNull Map<String, Object> convertStringToMap(Object value,
-                                                                  String defaultKeyOrValueField) throws IOException {
-        String objStr = (String) value;
-        if (isJson(defaultKeyOrValueField, objStr)) {
-            return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(objStr);
-        } else {
-            return Collections.singletonMap(defaultKeyOrValueField, objStr);
-        }
-    }
-
-    private static boolean isJson(String defaultKeyOrValueField, String json) {
+    private static boolean isValidJson(String defaultKeyOrValueField, String json) {
         try (JsonParser parser = JSON_FACTORY.createParser(json)) {
             if (!parser.nextToken().isStructStart()) {
                 LOGGER.debug("No start token found for json {}. Is key {} ", json, defaultKeyOrValueField);
@@ -106,18 +126,39 @@ public class FormatWriterHelper {
         return true;
     }
 
+
+    public static @NotNull Map<String, Object> convertStringToMap(Object value,
+                                                                  String defaultKeyOrValueField,
+                                                                  IngestionProperties.DataFormat dataFormat) throws IOException {
+        String objStr = (String) value;
+        if (isJson(dataFormat) && isValidJson(defaultKeyOrValueField,objStr)) {
+            return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(objStr);
+        } else {
+            return Collections.singletonMap(defaultKeyOrValueField, objStr);
+        }
+    }
+
+    private static boolean isJson(IngestionProperties.DataFormat dataFormat) {
+        return IngestionProperties.DataFormat.JSON.equals(dataFormat)
+                || IngestionProperties.DataFormat.MULTIJSON.equals(dataFormat)
+                || IngestionProperties.DataFormat.SINGLEJSON.equals(dataFormat);
+    }
+
     private static @Nullable GenericRecord bytesToAvroRecord(byte[] received_message) throws IOException {
-        if (ArrayUtils.isEmpty(received_message)) {
-            return null;
+        DatumReader<GenericRecord> avroBytesReader = new GenericDatumReader<>();
+        Decoder decoder = DecoderFactory.get().binaryDecoder(received_message, null);
+        return avroBytesReader.read(null, decoder);
+    }
+
+    // Convert byte[] to object
+    public static Object bytesToObject(byte[] bytes)
+            throws IOException {
+        InputStream is = new ByteArrayInputStream(bytes);
+        try (ObjectInputStream ois = new ObjectInputStream(is)) {
+            return ois.readObject();
+        } catch (ClassNotFoundException e){
+            LOGGER.error("Error deserializing object from bytes , the record will be converted to a Base64 array", e);
+            return Base64.getEncoder().encodeToString(bytes);
         }
-        if (received_message.length < DataFileConstants.MAGIC.length) {
-            return null;
-        }
-        if (Arrays.equals(DataFileConstants.MAGIC, Arrays.copyOf(received_message, DataFileConstants.MAGIC.length))) {
-            DatumReader<GenericRecord> avroBytesReader = new GenericDatumReader<>();
-            Decoder decoder = DecoderFactory.get().binaryDecoder(received_message, null);
-            return avroBytesReader.read(null, decoder);
-        }
-        return null;
     }
 }
