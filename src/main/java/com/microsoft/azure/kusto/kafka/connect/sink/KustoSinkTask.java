@@ -126,20 +126,17 @@ public class KustoSinkTask extends SinkTask {
                 String format = mapping.getFormat();
                 log.debug("Using format {} ", format);
                 if (format != null && !format.isEmpty()) {
-                    if (isSchemaType(format)) {
-                        props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
-                    } else {
-                        props.setDataFormat(format);
-                    }
+                    props.setDataFormat(format);
+//                    if (isSchemaType(format)) {
+//                        props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
+//                    } else {
+//                        props.setDataFormat(format);
+//                    }
                 }
                 String mappingRef = mapping.getMapping();
-                if (mappingRef != null && !mappingRef.isEmpty() && format != null) {
-                    if (isSchemaType(format)) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
-                    } else {
+                if (StringUtils.isNotEmpty(mappingRef) && StringUtils.isNotEmpty(format)) {
                         props.setIngestionMapping(mappingRef,
                                 IngestionMapping.IngestionMappingKind.valueOf(format.toUpperCase(Locale.ROOT)));
-                    }
                 }
                 TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
                 topicIngestionProperties.ingestionProperties = props;
@@ -150,14 +147,6 @@ public class KustoSinkTask extends SinkTask {
         } catch (Exception ex) {
             throw new ConfigException("Error while parsing kusto ingestion properties.", ex);
         }
-    }
-
-    private static boolean isSchemaType(@NotNull String format) {
-        return format.equalsIgnoreCase(IngestionProperties.DataFormat.JSON.name())
-                || format.equalsIgnoreCase(IngestionProperties.DataFormat.SINGLEJSON.name())
-                || format.equalsIgnoreCase(IngestionProperties.DataFormat.MULTIJSON.name())
-                || format.equalsIgnoreCase(IngestionProperties.DataFormat.APACHEAVRO.name())
-                || format.equalsIgnoreCase(IngestionProperties.DataFormat.AVRO.name());
     }
 
     /**
@@ -176,9 +165,6 @@ public class KustoSinkTask extends SinkTask {
         String format = mapping.getFormat();
         String mappingName = mapping.getMapping();
         boolean streamingEnabled = mapping.isStreaming();
-        if (isSchemaType(format)) {
-            format = IngestionProperties.DataFormat.JSON.name();
-        }
         boolean hasAccess = false;
         boolean shouldCheckStreaming = streamingEnabled;
 

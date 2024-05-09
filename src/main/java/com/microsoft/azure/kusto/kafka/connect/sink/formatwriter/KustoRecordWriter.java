@@ -36,6 +36,11 @@ public class KustoRecordWriter extends HeaderAndMetadataWriter implements Record
         }
     }
 
+    /**
+     * @param record the record to persist.
+     * @param dataFormat the data format to use.
+     * @throws IOException if an error occurs while writing the record.
+     */
     @Override
     public void write(SinkRecord record, IngestionProperties.DataFormat dataFormat) throws IOException {
         try {
