@@ -112,7 +112,6 @@ public class FormatWriterHelper {
     }
 
     private static boolean isValidJson(String defaultKeyOrValueField, String json) {
-        LOGGER.info("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Step-1");
         try (JsonParser parser = JSON_FACTORY.createParser(json)) {
             if (!parser.nextToken().isStructStart()) {
                 LOGGER.debug("No start token found for json {}. Is key {} ", json, defaultKeyOrValueField);
@@ -120,7 +119,7 @@ public class FormatWriterHelper {
             }
             OBJECT_MAPPER.readTree(json);
         } catch (IOException e) {
-            LOGGER.error("An error has occurred",e);
+            LOGGER.debug("Parsed data is not json {} , failed with {}", json, e.getMessage());
             return false;
         }
         return true;
