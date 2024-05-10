@@ -27,7 +27,7 @@ import io.confluent.avro.random.generator.Generator;
 import io.confluent.connect.avro.AvroData;
 import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
 
-public class KustoRecordWriterSchemaTests extends KustoRecordWriterBase {
+public class KustoKustoRecordWriterSchemaTests extends KustoRecordWriterBase {
     private static @NotNull Stream<Arguments> testMapSchemaJson() {
         // Key schema, value schema, expectedKey, expectedValue
         Schema intToIntSchema = SchemaBuilder.map(Schema.INT32_SCHEMA, Schema.INT32_SCHEMA).name("IntToIntMap").build();
@@ -93,7 +93,7 @@ public class KustoRecordWriterSchemaTests extends KustoRecordWriterBase {
                     RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", value)) :
                     new String(converter.convertToJson((GenericData.Record) value));
             String expectedKeyString = isSimpleKey ?
-                    RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key", key)) :
+                    key.toString() :
                     new String(converter.convertToJson((GenericData.Record) key));
             String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(Collections.singletonMap(String.format("HeaderInt-%s", i), i));
             expectedResultsMap.put(i, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
@@ -147,7 +147,7 @@ public class KustoRecordWriterSchemaTests extends KustoRecordWriterBase {
                     RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", value)) :
                     value.toString();
             String expectedKeyString = isSimpleKey ?
-                    RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key", key)) :
+                    RESULT_MAPPER.writeValueAsString(key) :
                     key.toString();
             String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(Collections.singletonMap(String.format("HeaderInt-%s", i), i));
             expectedResultsMap.put(i, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
