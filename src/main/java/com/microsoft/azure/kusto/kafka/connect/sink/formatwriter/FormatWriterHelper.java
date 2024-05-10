@@ -1,22 +1,21 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.file.SeekableByteArrayInput;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,16 +29,24 @@ import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import io.confluent.connect.avro.AvroData;
 import io.confluent.kafka.serializers.NonRecordContainer;
 
+import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.*;
+import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.SINGLEJSON;
+
 public class FormatWriterHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
-    private static final AvroData AVRO_DATA = new AvroData(50);
     private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
             = new TypeReference<Map<String, Object>>() {
     };
 
     private FormatWriterHelper() {
+    }
+
+    public static boolean isSchemaFormat(IngestionProperties.DataFormat dataFormat) {
+        return dataFormat == JSON || dataFormat == MULTIJSON
+                || dataFormat == AVRO || dataFormat == SINGLEJSON;
+
     }
 
     protected static boolean isAvro(IngestionProperties.DataFormat dataFormat) {
@@ -78,13 +85,7 @@ public class FormatWriterHelper {
             return Collections.emptyMap();
         }
         if (isAvro(dataformat)) {
-            GenericRecord genericRecord = bytesToAvroRecord(messageBytes);
-            if (genericRecord != null) {
-                return convertAvroRecordToMap(AVRO_DATA.toConnectSchema(genericRecord.getSchema()), genericRecord);
-            } else {
-                LOGGER.error("Failed to convert bytes to Avro record. Bytes: {}", ArrayUtils.toString(messageBytes));
-                throw new IOException("Unable to convert bytes to AVRO record");
-            }
+            return bytesToAvroRecord(defaultKeyOrValueField,messageBytes);
         }
         String bytesAsJson = new String(messageBytes, StandardCharsets.UTF_8);
         if (isJson(dataformat)) {
@@ -118,6 +119,7 @@ public class FormatWriterHelper {
             }
             OBJECT_MAPPER.readTree(json);
         } catch (IOException e) {
+            LOGGER.debug("Parsed data is not json {} , failed with {}", json, e.getMessage());
             return false;
         }
         return true;
@@ -141,9 +143,44 @@ public class FormatWriterHelper {
                 || IngestionProperties.DataFormat.SINGLEJSON.equals(dataFormat);
     }
 
-    private static @Nullable GenericRecord bytesToAvroRecord(byte[] received_message) throws IOException {
-        DatumReader<GenericRecord> avroBytesReader = new GenericDatumReader<>();
-        Decoder decoder = DecoderFactory.get().binaryDecoder(received_message, null);
-        return avroBytesReader.read(null, decoder);
+    private static Map<String, Object> bytesToAvroRecord(String defaultKeyOrValueField,byte[] received_message) {
+        Map<String, Object> returnValue = new HashMap<>();
+        try {
+            // avro input parser
+            DatumReader<GenericRecord> datumReader = new GenericDatumReader<>();
+            DataFileReader<GenericRecord> dataFileReader;
+            try {
+                dataFileReader = new DataFileReader<>(new SeekableByteArrayInput(received_message), datumReader);
+            } catch (Exception e) {
+                LOGGER.error("Failed to parse AVRO record(1)\n{}", e.getMessage());
+                throw new ConnectException(
+                        "Failed to parse AVRO " + "record\n" + e.getMessage());
+            }
+            while (dataFileReader.hasNext()) {
+                String jsonString = dataFileReader.next().toString();
+                try {
+                    Map<String, Object> nodeMap = OBJECT_MAPPER.readValue(jsonString, MAP_TYPE_REFERENCE);
+                    returnValue.putAll(nodeMap);
+                } catch (IOException e) {
+                    throw new ConnectException(
+                            "Failed to parse JSON"
+                                    + " "
+                                    + "record\nInput String: "
+                                    + jsonString
+                                    + "\n"
+                                    + e.getMessage());
+                }
+            }
+            try {
+                dataFileReader.close();
+            } catch (IOException e) {
+                throw new ConnectException(
+                        "Failed to parse AVRO (2) " + "record\n" + e);
+            }
+            return returnValue;
+        } catch (Exception e) {
+            LOGGER.error("Failed to parse AVRO record (3) \n", e);
+            return Collections.singletonMap(defaultKeyOrValueField, Base64.getEncoder().encodeToString(received_message));
+        }
     }
 }

@@ -122,7 +122,7 @@ public class KustoSinkTaskTest {
             assertEquals("Mapping", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getIngestionMapping().getIngestionMappingReference());
             assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
             assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
-            assertEquals(IngestionProperties.DataFormat.MULTIJSON, kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
+            assertEquals(IngestionProperties.DataFormat.JSON, kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
             Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
         }
     }
@@ -141,7 +141,7 @@ public class KustoSinkTaskTest {
             assertEquals(IngestionProperties.DataFormat.CSV, kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDataFormat());
             assertEquals("db2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
             assertEquals("table2", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
-            assertEquals(IngestionProperties.DataFormat.MULTIJSON, kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
+            assertEquals(IngestionProperties.DataFormat.JSON, kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDataFormat());
             Assertions.assertNull(kustoSinkTaskSpy.getIngestionProps("topic3"));
         }
     }
