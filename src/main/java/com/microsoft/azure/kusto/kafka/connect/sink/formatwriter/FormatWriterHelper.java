@@ -26,7 +26,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
-import io.confluent.connect.avro.AvroData;
 import io.confluent.kafka.serializers.NonRecordContainer;
 
 import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.*;
