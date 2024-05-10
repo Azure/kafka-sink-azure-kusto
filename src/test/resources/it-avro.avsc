@@ -103,7 +103,9 @@
                     "options": [
                         "avro",
                         "json",
-                        "csv"
+                        "csv",
+                        "bytes-avro",
+                        "bytes-json"
                     ]
                 }
             }

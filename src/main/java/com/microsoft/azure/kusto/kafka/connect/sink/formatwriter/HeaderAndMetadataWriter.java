@@ -1,6 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +20,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
 import io.confluent.kafka.serializers.NonRecordContainer;
+
+import static com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.FormatWriterHelper.isSchemaFormat;
 
 public abstract class HeaderAndMetadataWriter {
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
@@ -90,11 +93,20 @@ public abstract class HeaderAndMetadataWriter {
             return (Map<String, Object>) recordValue;
         }
         // is a byte array
-        if (recordValue instanceof byte[]) {
-            return FormatWriterHelper.convertBytesToMap((byte[]) recordValue, defaultKeyOrValueField, dataFormat);
+        if(isSchemaFormat(dataFormat)){
+            if (recordValue instanceof byte[]) {
+                return FormatWriterHelper.convertBytesToMap((byte[]) recordValue, defaultKeyOrValueField, dataFormat);
+            }
+            else {
+                String fieldName = isKey ? KEY_FIELD : VALUE_FIELD;
+                return Collections.singletonMap(fieldName, recordValue);
+            }
+        } else {
+            String errorMessage = String.format("DataFormat %s is not supported in the connector though " +
+                    "it may be supported for ingestion in ADX. Please raise a feature request if a " +
+                    "new format has to be supported.", dataFormat);
+            throw new ConnectException(errorMessage);
         }
-        String fieldName = isKey ? KEY_FIELD : VALUE_FIELD;
-        return Collections.singletonMap(fieldName, recordValue);
     }
 
 
