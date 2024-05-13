@@ -6,9 +6,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -159,12 +157,11 @@ class KustoSinkIT {
     @AfterAll
     public static void stopContainers() throws Exception {
         log.info("Finished table clean up. Dropped tables {} and {}", coordinates.table, COMPLEX_AVRO_BYTES_TABLE_TEST);
-        Thread.sleep(60_000);
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
         engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-        // engineClient.execute(coordinates.database, String.format(".drop table %s", COMPLEX_AVRO_BYTES_TABLE_TEST));
+        engineClient.execute(coordinates.database, String.format(".drop table %s", COMPLEX_AVRO_BYTES_TABLE_TEST));
         dmClient.close();
         engineClient.close();
     }
@@ -207,7 +204,6 @@ class KustoSinkIT {
                 connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));
     }
 
-    @Disabled
     @ParameterizedTest
     @CsvSource({"json", "avro" , "csv" , "bytes-json"})
     public void shouldHandleAllTypesOfEvents(@NotNull String dataFormat) {
@@ -239,7 +235,7 @@ class KustoSinkIT {
         deployConnector(dataFormat, topicTableMapping, srUrl, keyFormat, valueFormat);
         try {
             produceKafkaMessages(dataFormat);
-            Thread.sleep(30000);
+            Thread.sleep(10_000);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -362,11 +358,12 @@ class KustoSinkIT {
         log.info("Produced messages for format {}", dataFormat);
         String query = String.format("%s | where vtype == '%s' | project  %s,vresult = pack_all()",
                 coordinates.table, dataFormat, keyColumn);
-        Map<Long, String> actualRecordsIngested = getRecordsIngested(query, maxRecords);
+        Map<Object, String> actualRecordsIngested = getRecordsIngested(query, maxRecords);
         actualRecordsIngested.keySet().parallelStream().forEach(key -> {
+            long keyLong = Long.parseLong(key.toString());
             log.debug("Actual record : {}", actualRecordsIngested.get(key));
             try {
-                JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),
+                JSONAssert.assertEquals(expectedRecordsProduced.get(keyLong), actualRecordsIngested.get(key),
                         new CustomComparator(LENIENT,
                                 // there are sometimes round off errors in the double values but they are close enough to 8 precision
                                 new Customization("vdec", (vdec1,
@@ -381,10 +378,11 @@ class KustoSinkIT {
     }
 
     @Test
-    public void shouldHandleComplexAvroMessage() {
+    public void shouldHandleComplexAvroMessage() throws IOException {
         String dataFormat = "bytes-avro";
+        int maxRecords = 8;
         String srUrl = String.format("http://%s:%s", schemaRegistryContainer.getContainerId().substring(0, 12), 8081);
-        String producerSrUrl = String.format("http://localhost:%s",  schemaRegistryContainer.getMappedPort(8081));
+        String producerSrUrl = String.format("http://localhost:%s", schemaRegistryContainer.getMappedPort(8081));
         Map<String, Object> producerProperties = new HashMap<>();
         producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
         producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "io.confluent.kafka.serializers.KafkaAvroSerializer");
@@ -398,7 +396,7 @@ class KustoSinkIT {
         String topicTableMapping = String.format("[{'topic': '%s','db': '%s', " +
                         "'table': '%s','format':'%s','mapping':'%s_mapping'}]", topicName,
                 coordinates.database,
-                COMPLEX_AVRO_BYTES_TABLE_TEST, dataFormat.split("-")[1],COMPLEX_AVRO_BYTES_TABLE_TEST);
+                COMPLEX_AVRO_BYTES_TABLE_TEST, dataFormat.split("-")[1], COMPLEX_AVRO_BYTES_TABLE_TEST);
         deployConnector(dataFormat, topicTableMapping, srUrl,
                 AvroConverter.class.getName(),
                 "org.apache.kafka.connect.converters.ByteArrayConverter",
@@ -409,11 +407,19 @@ class KustoSinkIT {
                 .name("IterationKey").type().stringType().noDefault()
                 .name("Timestamp").type().nullable().longType().noDefault()
                 .endRecord();
-        long keyInstantStart = Instant.now(Clock.systemUTC()).toEpochMilli();
-        for (int i = 1; i < 9; i++) {
-            try (KafkaProducer<GenericData.Record, byte[]> producer = new KafkaProducer<>(producerProperties)) {
+        long keyStart = 100000L;
+
+        InputStream expectedResultsStream = Objects.requireNonNull(this.getClass().getClassLoader().
+                getResourceAsStream("avro-complex-data/expected-results.txt"));
+        String expectedResults = IOUtils.toString(expectedResultsStream, StandardCharsets.UTF_8);
+        Map<String, String> expectedResultMap =
+                Arrays.stream(expectedResults.split("\n"))
+                        .map(line -> line.split("~"))
+                        .collect(Collectors.toMap(arr -> arr[0], arr -> arr[1]));
+        try (KafkaProducer<GenericData.Record, byte[]> producer = new KafkaProducer<>(producerProperties)) {
+            for (int i = 1; i <= maxRecords; i++) {
                 //complex-avro-1.avro
-                long keyTick = keyInstantStart + i;
+                long keyTick = keyStart + i;
                 GenericData.Record keyRecord = new GenericData.Record(keySchema);
                 keyRecord.put("IterationKey", String.valueOf(i));
                 keyRecord.put("Timestamp", keyTick);
@@ -425,10 +431,18 @@ class KustoSinkIT {
                 producerRecord.headers().add("iteration", String.valueOf(i).getBytes());
                 RecordMetadata rmd = producer.send(producerRecord).get();
                 log.info("Avro bytes sent to topic {} with offset {} of size {}", topicName, rmd.offset(), testData.length);
-            } catch (Exception e) {
-                log.error("Failed to send record to topic {}", topicName, e);
             }
+            Thread.sleep(30_000);
+        } catch (Exception e) {
+            log.error("Failed to send record to topic {}", topicName, e);
+            fail("Failed sending message to Kafka for testing Avro-Bytes scenario.");
         }
+
+        String countLongQuery = String.format("%s | summarize c = count() by event_id | project %s=event_id, " +
+                        "vresult = bag_pack('event_id',event_id,'count',c)", COMPLEX_AVRO_BYTES_TABLE_TEST, keyColumn);
+
+        Map<Object, String> actualRecordsIngested = getRecordsIngested(countLongQuery, maxRecords);
+        assertEquals(expectedResultMap, actualRecordsIngested);
     }
 
     /**
@@ -437,7 +451,7 @@ class KustoSinkIT {
      * @param maxRecords The maximum number of records to poll for
      * @return A map of the records ingested
      */
-    private @NotNull Map<Long, String> getRecordsIngested(String query , int maxRecords) {
+    private @NotNull Map<Object, String> getRecordsIngested(String query , int maxRecords) {
         Predicate<Object> predicate = (results) -> {
             if (results != null) {
                 log.info("Retrieved records count {}", ((Map<?, ?>) results).size());
@@ -452,13 +466,14 @@ class KustoSinkIT {
                 .build();
         RetryRegistry registry = RetryRegistry.of(config);
         Retry retry = registry.retry("ingestRecordService", config);
-        Supplier<Map<Long, String>> recordSearchSupplier = () -> {
+        Supplier<Map<Object, String>> recordSearchSupplier = () -> {
             try {
                 log.debug("Executing query {} ", query);
                 KustoResultSetTable resultSet = engineClient.execute(coordinates.database, query).getPrimaryResults();
-                Map<Long, String> actualResults = new HashMap<>();
+                Map<Object, String> actualResults = new HashMap<>();
                 while (resultSet.next()) {
-                    Long key = (long) resultSet.getInt(keyColumn);
+                    Object keyObject = resultSet.getObject(keyColumn);
+                    Object key = keyObject instanceof Number ? Long.parseLong(keyObject.toString()) : keyObject.toString();
                     String vResult = resultSet.getString("vresult");
                     log.debug("Record queried from DB: {}", vResult);
                     actualResults.put(key, vResult);

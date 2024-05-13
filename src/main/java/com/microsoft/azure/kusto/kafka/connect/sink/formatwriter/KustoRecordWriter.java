@@ -63,24 +63,35 @@ public class KustoRecordWriter extends HeaderAndMetadataWriter implements Record
                     formattedRecord.getBytes(StandardCharsets.UTF_8));
             this.plainOutputStream.write(LINE_SEPARATOR.getBytes(StandardCharsets.UTF_8));
         } else {
-            Collection<Map<String, Object>> parsedKeys = convertSinkRecordToMap(record, true, dataFormat);
+            Map<String, Object> parsedKeys = convertSinkRecordToMap(record, true, dataFormat).stream().reduce(new HashMap<>(),
+                    (acc, map) -> {
+                        acc.putAll(map);
+                        return acc;
+                    });
             Collection<Map<String, Object>> parsedValues = convertSinkRecordToMap(record, false, dataFormat);
 
             parsedValues.forEach(parsedValue -> {
                 Map<String, Object> updatedValue = (record.value() == null) ? new HashMap<>() :
                         new HashMap<>(parsedValue);
+                /* Add all the key fields */
                 if (record.key() != null) {
-                    if (parsedValue.size() == 1 && parsedValue.containsKey(KEY_FIELD)) {
-                        updatedValue.put(KEYS_FIELD, parsedValue.get(KEY_FIELD));
+                    if (parsedKeys.size() == 1 && parsedKeys.containsKey(KEY_FIELD)) {
+                        updatedValue.put(KEYS_FIELD, parsedKeys.get(KEY_FIELD));
                     } else {
-                        updatedValue.put(KEYS_FIELD, parsedValue);
+                        updatedValue.put(KEYS_FIELD, parsedKeys);
                     }
                 }
+                /* End add key fields */
+                /* Add record headers */
                 if (record.headers() != null && !record.headers().isEmpty()) {
-                    updatedValue.put(HEADERS_FIELD, parsedValue);
+                    updatedValue.put(HEADERS_FIELD, parsedHeaders);
                 }
+                /* End record headers */
+                /* Add metadata fields */
                 updatedValue.put(KAFKA_METADATA_FIELD, kafkaMd);
+                /* End metadata fields */
                 try {
+                    /* Write out each value row with key and header fields */
                     writer.writeObject(updatedValue);
                     writer.writeRaw(LINE_SEPARATOR);
                 } catch (IOException e) {

@@ -12,13 +12,10 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +23,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
@@ -91,12 +89,25 @@ public class FormatWriterHelper {
         String bytesAsJson = new String(messageBytes, StandardCharsets.UTF_8);
         if (isJson(dataformat)) {
             return isValidJson(defaultKeyOrValueField, bytesAsJson) ?
-                    OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(bytesAsJson) :
+                    parseJson(bytesAsJson) :
                     Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
                             OBJECT_MAPPER.readTree(messageBytes)));
         } else {
             return Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
                     Base64.getEncoder().encodeToString(messageBytes)));
+        }
+    }
+
+    private static @NotNull Collection<Map<String, Object>> parseJson(String json) throws IOException {
+        JsonNode jsonData = OBJECT_MAPPER.readTree(json);
+        if(jsonData.isArray()){
+            List<Map<String, Object>> result = new ArrayList<>();
+            for(JsonNode node : jsonData){
+                result.add(OBJECT_MAPPER.convertValue(node, MAP_TYPE_REFERENCE));
+            }
+            return result;
+        } else {
+            return Collections.singletonList(OBJECT_MAPPER.convertValue(jsonData, MAP_TYPE_REFERENCE));
         }
     }
 
@@ -192,11 +203,5 @@ public class FormatWriterHelper {
                     Collections.singletonMap(defaultKeyOrValueField,
                             Base64.getEncoder().encodeToString(received_message)));
         }
-    }
-
-    private static @Nullable GenericRecord bytesToAvroRecord2(byte[] received_message) throws IOException {
-        DatumReader<GenericRecord> avroBytesReader = new GenericDatumReader<>();
-        Decoder decoder = DecoderFactory.get().binaryDecoder(received_message, null);
-        return avroBytesReader.read(null, decoder);
     }
 }
