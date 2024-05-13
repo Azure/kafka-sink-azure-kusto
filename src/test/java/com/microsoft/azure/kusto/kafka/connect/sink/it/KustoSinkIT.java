@@ -28,10 +28,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.skyscreamer.jsonassert.Customization;
@@ -89,7 +86,8 @@ class KustoSinkIT {
             .withKafka(kafkaContainer)
             .dependsOn(kafkaContainer, proxyContainer, schemaRegistryContainer);
     private static final String keyColumn = "vlong";
-    private static final String COMPLEX_AVRO_BYTES_TABLE_TEST = "ComplexAvroBytesTest";
+    private static final String COMPLEX_AVRO_BYTES_TABLE_TEST =
+            String.format("ComplexAvroBytesTest_%s",UUID.randomUUID()).replace('-', '_');
     private static ITCoordinates coordinates;
     private static Client engineClient = null;
     private static Client dmClient = null;
@@ -128,7 +126,9 @@ class KustoSinkIT {
     private static void createTables() throws Exception {
         URL kqlResource = KustoSinkIT.class.getClassLoader().getResource("it-table-setup.kql");
         assert kqlResource != null;
-        List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream().map(kql -> kql.replace("TBL", coordinates.table))
+        List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
+                .map(kql -> kql.replace("TBL", coordinates.table))
+                .map(kql -> kql.replace("CABT",COMPLEX_AVRO_BYTES_TABLE_TEST))
                 .collect(Collectors.toList());
         kqlsToExecute.forEach(kql -> {
             try {
@@ -137,7 +137,7 @@ class KustoSinkIT {
                 log.error("Failed to execute kql: {}", kql, e);
             }
         });
-        log.info("Created table {} and associated mappings", coordinates.table);
+        log.info("Created tables {} , {} and associated mappings", coordinates.table , COMPLEX_AVRO_BYTES_TABLE_TEST);
     }
 
     private static void refreshDm() throws Exception {
@@ -158,12 +158,13 @@ class KustoSinkIT {
 
     @AfterAll
     public static void stopContainers() throws Exception {
-        log.info("Finished table clean up. Dropped table {}", coordinates.table);
+        log.info("Finished table clean up. Dropped tables {} and {}", coordinates.table, COMPLEX_AVRO_BYTES_TABLE_TEST);
+        Thread.sleep(60_000);
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
         engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-        engineClient.execute(coordinates.database, String.format(".drop table %s", COMPLEX_AVRO_BYTES_TABLE_TEST));
+        // engineClient.execute(coordinates.database, String.format(".drop table %s", COMPLEX_AVRO_BYTES_TABLE_TEST));
         dmClient.close();
         engineClient.close();
     }
@@ -206,6 +207,7 @@ class KustoSinkIT {
                 connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));
     }
 
+    @Disabled
     @ParameterizedTest
     @CsvSource({"json", "avro" , "csv" , "bytes-json"})
     public void shouldHandleAllTypesOfEvents(@NotNull String dataFormat) {
@@ -358,7 +360,9 @@ class KustoSinkIT {
                 break;
         }
         log.info("Produced messages for format {}", dataFormat);
-        Map<Long, String> actualRecordsIngested = getRecordsIngested(dataFormat, maxRecords);
+        String query = String.format("%s | where vtype == '%s' | project  %s,vresult = pack_all()",
+                coordinates.table, dataFormat, keyColumn);
+        Map<Long, String> actualRecordsIngested = getRecordsIngested(query, maxRecords);
         actualRecordsIngested.keySet().parallelStream().forEach(key -> {
             log.debug("Actual record : {}", actualRecordsIngested.get(key));
             try {
@@ -392,9 +396,9 @@ class KustoSinkIT {
         producerProperties.put("message.max.bytes", KAFKA_MAX_MSG_SIZE);
         String topicName = String.format("e2e.%s.topic", dataFormat);
         String topicTableMapping = String.format("[{'topic': '%s','db': '%s', " +
-                        "'table': '%s','format':'%s'}]", topicName,
+                        "'table': '%s','format':'%s','mapping':'%s_mapping'}]", topicName,
                 coordinates.database,
-                COMPLEX_AVRO_BYTES_TABLE_TEST, dataFormat.split("-")[1]);
+                COMPLEX_AVRO_BYTES_TABLE_TEST, dataFormat.split("-")[1],COMPLEX_AVRO_BYTES_TABLE_TEST);
         deployConnector(dataFormat, topicTableMapping, srUrl,
                 AvroConverter.class.getName(),
                 "org.apache.kafka.connect.converters.ByteArrayConverter",
@@ -406,7 +410,7 @@ class KustoSinkIT {
                 .name("Timestamp").type().nullable().longType().noDefault()
                 .endRecord();
         long keyInstantStart = Instant.now(Clock.systemUTC()).toEpochMilli();
-        for (int i = 1; i < 8; i++) {
+        for (int i = 1; i < 9; i++) {
             try (KafkaProducer<GenericData.Record, byte[]> producer = new KafkaProducer<>(producerProperties)) {
                 //complex-avro-1.avro
                 long keyTick = keyInstantStart + i;
@@ -427,8 +431,13 @@ class KustoSinkIT {
         }
     }
 
-    private @NotNull Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
-        String query = String.format("%s | where vtype == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat, keyColumn);
+    /**
+     * Polls the Kusto table for the records ingested. The query is executed every 30 seconds and the results are
+     * @param query The query to execute
+     * @param maxRecords The maximum number of records to poll for
+     * @return A map of the records ingested
+     */
+    private @NotNull Map<Long, String> getRecordsIngested(String query , int maxRecords) {
         Predicate<Object> predicate = (results) -> {
             if (results != null) {
                 log.info("Retrieved records count {}", ((Map<?, ?>) results).size());

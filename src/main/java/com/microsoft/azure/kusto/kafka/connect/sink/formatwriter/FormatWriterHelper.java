@@ -12,10 +12,13 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +32,6 @@ import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import io.confluent.kafka.serializers.NonRecordContainer;
 
 import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.*;
-import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.SINGLEJSON;
 
 public class FormatWriterHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
@@ -72,33 +74,35 @@ public class FormatWriterHelper {
     }
 
     /**
-     * @param messageBytes Raw message bytes to transform
+     * @param messageBytes           Raw message bytes to transform
      * @param defaultKeyOrValueField Default value for Key or Value
-     * @param dataformat JSON or Avro
+     * @param dataformat             JSON or Avro
      * @return a Map of the K-V of JSON
      */
-    public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes,
-                                                                 String defaultKeyOrValueField,
-                                                                 IngestionProperties.DataFormat dataformat) throws IOException {
+    public static @NotNull Collection<Map<String, Object>> convertBytesToMap(byte[] messageBytes,
+                                                                             String defaultKeyOrValueField,
+                                                                             IngestionProperties.DataFormat dataformat) throws IOException {
         if (messageBytes == null || messageBytes.length == 0) {
-            return Collections.emptyMap();
+            return Collections.emptyList();
         }
         if (isAvro(dataformat)) {
-            return bytesToAvroRecord(defaultKeyOrValueField,messageBytes);
+            return bytesToAvroRecord(defaultKeyOrValueField, messageBytes);
         }
         String bytesAsJson = new String(messageBytes, StandardCharsets.UTF_8);
         if (isJson(dataformat)) {
-            return isValidJson(defaultKeyOrValueField,bytesAsJson) ?
+            return isValidJson(defaultKeyOrValueField, bytesAsJson) ?
                     OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(bytesAsJson) :
-                    Collections.singletonMap(defaultKeyOrValueField,
-                            OBJECT_MAPPER.readTree(messageBytes));
+                    Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
+                            OBJECT_MAPPER.readTree(messageBytes)));
         } else {
-            return Collections.singletonMap(defaultKeyOrValueField, Base64.getEncoder().encodeToString(messageBytes));
+            return Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
+                    Base64.getEncoder().encodeToString(messageBytes)));
         }
     }
 
     /**
      * Convert a given avro record to json and return the encoded bytes.
+     *
      * @param record The GenericRecord to convert
      */
     private static Map<String, Object> avroToJson(@NotNull GenericRecord record) throws IOException {
@@ -129,7 +133,7 @@ public class FormatWriterHelper {
                                                                   String defaultKeyOrValueField,
                                                                   IngestionProperties.DataFormat dataFormat) throws IOException {
         String objStr = (String) value;
-        if (isJson(dataFormat) && isValidJson(defaultKeyOrValueField,objStr)) {
+        if (isJson(dataFormat) && isValidJson(defaultKeyOrValueField, objStr)) {
             return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(objStr);
         } else {
             return Collections.singletonMap(defaultKeyOrValueField, objStr);
@@ -142,7 +146,7 @@ public class FormatWriterHelper {
                 || IngestionProperties.DataFormat.SINGLEJSON.equals(dataFormat);
     }
 
-    private static Map<String, Object> bytesToAvroRecord(String defaultKeyOrValueField,byte[] received_message) {
+    private static Collection<Map<String, Object>> bytesToAvroRecord(String defaultKeyOrValueField, byte[] received_message) {
         Map<String, Object> returnValue = new HashMap<>();
         try {
             // avro input parser
@@ -155,11 +159,16 @@ public class FormatWriterHelper {
                 throw new ConnectException(
                         "Failed to parse AVRO " + "record\n" + e.getMessage());
             }
+            List<Map<String, Object>> nodes = new ArrayList<>();
             while (dataFileReader.hasNext()) {
                 String jsonString = dataFileReader.next().toString();
+                LOGGER.info("---------------------------------------------------------------------------");
+                LOGGER.info(jsonString);
+                LOGGER.info("---------------------------------------------------------------------------");
                 try {
                     Map<String, Object> nodeMap = OBJECT_MAPPER.readValue(jsonString, MAP_TYPE_REFERENCE);
                     returnValue.putAll(nodeMap);
+                    nodes.add(returnValue);
                 } catch (IOException e) {
                     throw new ConnectException(
                             "Failed to parse JSON"
@@ -176,10 +185,18 @@ public class FormatWriterHelper {
                 throw new ConnectException(
                         "Failed to parse AVRO (2) " + "record\n" + e);
             }
-            return returnValue;
+            return nodes;
         } catch (Exception e) {
             LOGGER.error("Failed to parse AVRO record (3) \n", e);
-            return Collections.singletonMap(defaultKeyOrValueField, Base64.getEncoder().encodeToString(received_message));
+            return Collections.singletonList(
+                    Collections.singletonMap(defaultKeyOrValueField,
+                            Base64.getEncoder().encodeToString(received_message)));
         }
+    }
+
+    private static @Nullable GenericRecord bytesToAvroRecord2(byte[] received_message) throws IOException {
+        DatumReader<GenericRecord> avroBytesReader = new GenericDatumReader<>();
+        Decoder decoder = DecoderFactory.get().binaryDecoder(received_message, null);
+        return avroBytesReader.read(null, decoder);
     }
 }
