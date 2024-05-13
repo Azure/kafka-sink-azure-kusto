@@ -23,13 +23,13 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
 import io.confluent.kafka.serializers.NonRecordContainer;
 
 import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.*;
-import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.SINGLEJSON;
 
 public class FormatWriterHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
@@ -72,33 +72,48 @@ public class FormatWriterHelper {
     }
 
     /**
-     * @param messageBytes Raw message bytes to transform
+     * @param messageBytes           Raw message bytes to transform
      * @param defaultKeyOrValueField Default value for Key or Value
-     * @param dataformat JSON or Avro
+     * @param dataformat             JSON or Avro
      * @return a Map of the K-V of JSON
      */
-    public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes,
-                                                                 String defaultKeyOrValueField,
-                                                                 IngestionProperties.DataFormat dataformat) throws IOException {
+    public static @NotNull Collection<Map<String, Object>> convertBytesToMap(byte[] messageBytes,
+                                                                             String defaultKeyOrValueField,
+                                                                             IngestionProperties.DataFormat dataformat) throws IOException {
         if (messageBytes == null || messageBytes.length == 0) {
-            return Collections.emptyMap();
+            return Collections.emptyList();
         }
         if (isAvro(dataformat)) {
-            return bytesToAvroRecord(defaultKeyOrValueField,messageBytes);
+            return bytesToAvroRecord(defaultKeyOrValueField, messageBytes);
         }
         String bytesAsJson = new String(messageBytes, StandardCharsets.UTF_8);
         if (isJson(dataformat)) {
-            return isValidJson(defaultKeyOrValueField,bytesAsJson) ?
-                    OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(bytesAsJson) :
-                    Collections.singletonMap(defaultKeyOrValueField,
-                            OBJECT_MAPPER.readTree(messageBytes));
+            return isValidJson(defaultKeyOrValueField, bytesAsJson) ?
+                    parseJson(bytesAsJson) :
+                    Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
+                            OBJECT_MAPPER.readTree(messageBytes)));
         } else {
-            return Collections.singletonMap(defaultKeyOrValueField, Base64.getEncoder().encodeToString(messageBytes));
+            return Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
+                    Base64.getEncoder().encodeToString(messageBytes)));
+        }
+    }
+
+    private static @NotNull Collection<Map<String, Object>> parseJson(String json) throws IOException {
+        JsonNode jsonData = OBJECT_MAPPER.readTree(json);
+        if(jsonData.isArray()){
+            List<Map<String, Object>> result = new ArrayList<>();
+            for(JsonNode node : jsonData){
+                result.add(OBJECT_MAPPER.convertValue(node, MAP_TYPE_REFERENCE));
+            }
+            return result;
+        } else {
+            return Collections.singletonList(OBJECT_MAPPER.convertValue(jsonData, MAP_TYPE_REFERENCE));
         }
     }
 
     /**
      * Convert a given avro record to json and return the encoded bytes.
+     *
      * @param record The GenericRecord to convert
      */
     private static Map<String, Object> avroToJson(@NotNull GenericRecord record) throws IOException {
@@ -129,7 +144,7 @@ public class FormatWriterHelper {
                                                                   String defaultKeyOrValueField,
                                                                   IngestionProperties.DataFormat dataFormat) throws IOException {
         String objStr = (String) value;
-        if (isJson(dataFormat) && isValidJson(defaultKeyOrValueField,objStr)) {
+        if (isJson(dataFormat) && isValidJson(defaultKeyOrValueField, objStr)) {
             return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(objStr);
         } else {
             return Collections.singletonMap(defaultKeyOrValueField, objStr);
@@ -142,7 +157,7 @@ public class FormatWriterHelper {
                 || IngestionProperties.DataFormat.SINGLEJSON.equals(dataFormat);
     }
 
-    private static Map<String, Object> bytesToAvroRecord(String defaultKeyOrValueField,byte[] received_message) {
+    private static Collection<Map<String, Object>> bytesToAvroRecord(String defaultKeyOrValueField, byte[] received_message) {
         Map<String, Object> returnValue = new HashMap<>();
         try {
             // avro input parser
@@ -155,11 +170,16 @@ public class FormatWriterHelper {
                 throw new ConnectException(
                         "Failed to parse AVRO " + "record\n" + e.getMessage());
             }
+            List<Map<String, Object>> nodes = new ArrayList<>();
             while (dataFileReader.hasNext()) {
                 String jsonString = dataFileReader.next().toString();
+                LOGGER.info("---------------------------------------------------------------------------");
+                LOGGER.info(jsonString);
+                LOGGER.info("---------------------------------------------------------------------------");
                 try {
                     Map<String, Object> nodeMap = OBJECT_MAPPER.readValue(jsonString, MAP_TYPE_REFERENCE);
                     returnValue.putAll(nodeMap);
+                    nodes.add(returnValue);
                 } catch (IOException e) {
                     throw new ConnectException(
                             "Failed to parse JSON"
@@ -176,10 +196,12 @@ public class FormatWriterHelper {
                 throw new ConnectException(
                         "Failed to parse AVRO (2) " + "record\n" + e);
             }
-            return returnValue;
+            return nodes;
         } catch (Exception e) {
             LOGGER.error("Failed to parse AVRO record (3) \n", e);
-            return Collections.singletonMap(defaultKeyOrValueField, Base64.getEncoder().encodeToString(received_message));
+            return Collections.singletonList(
+                    Collections.singletonMap(defaultKeyOrValueField,
+                            Base64.getEncoder().encodeToString(received_message)));
         }
     }
 }
