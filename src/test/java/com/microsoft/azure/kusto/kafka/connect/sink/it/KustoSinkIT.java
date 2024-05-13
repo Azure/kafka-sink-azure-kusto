@@ -6,9 +6,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -28,10 +26,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.skyscreamer.jsonassert.Customization;
@@ -89,7 +84,8 @@ class KustoSinkIT {
             .withKafka(kafkaContainer)
             .dependsOn(kafkaContainer, proxyContainer, schemaRegistryContainer);
     private static final String keyColumn = "vlong";
-    private static final String COMPLEX_AVRO_BYTES_TABLE_TEST = "ComplexAvroBytesTest";
+    private static final String COMPLEX_AVRO_BYTES_TABLE_TEST =
+            String.format("ComplexAvroBytesTest_%s",UUID.randomUUID()).replace('-', '_');
     private static ITCoordinates coordinates;
     private static Client engineClient = null;
     private static Client dmClient = null;
@@ -127,7 +123,9 @@ class KustoSinkIT {
     private static void createTables() throws Exception {
         URL kqlResource = KustoSinkIT.class.getClassLoader().getResource("it-table-setup.kql");
         assert kqlResource != null;
-        List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream().map(kql -> kql.replace("TBL", coordinates.table))
+        List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
+                .map(kql -> kql.replace("TBL", coordinates.table))
+                .map(kql -> kql.replace("CABT",COMPLEX_AVRO_BYTES_TABLE_TEST))
                 .collect(Collectors.toList());
         kqlsToExecute.forEach(kql -> {
             try {
@@ -136,7 +134,7 @@ class KustoSinkIT {
                 log.error("Failed to execute kql: {}", kql, e);
             }
         });
-        log.info("Created table {} and associated mappings", coordinates.table);
+        log.info("Created tables {} , {} and associated mappings", coordinates.table , COMPLEX_AVRO_BYTES_TABLE_TEST);
     }
 
     private static void refreshDm() throws Exception {
@@ -157,7 +155,7 @@ class KustoSinkIT {
 
     @AfterAll
     public static void stopContainers() throws Exception {
-        log.info("Finished table clean up. Dropped table {}", coordinates.table);
+        log.info("Finished table clean up. Dropped tables {} and {}", coordinates.table, COMPLEX_AVRO_BYTES_TABLE_TEST);
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
@@ -236,7 +234,7 @@ class KustoSinkIT {
         deployConnector(dataFormat, topicTableMapping, srUrl, keyFormat, valueFormat);
         try {
             produceKafkaMessages(dataFormat);
-            Thread.sleep(30000);
+            Thread.sleep(10_000);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -357,11 +355,14 @@ class KustoSinkIT {
                 break;
         }
         log.info("Produced messages for format {}", dataFormat);
-        Map<Long, String> actualRecordsIngested = getRecordsIngested(dataFormat, maxRecords);
+        String query = String.format("%s | where vtype == '%s' | project  %s,vresult = pack_all()",
+                coordinates.table, dataFormat, keyColumn);
+        Map<Object, String> actualRecordsIngested = getRecordsIngested(query, maxRecords);
         actualRecordsIngested.keySet().parallelStream().forEach(key -> {
+            long keyLong = Long.parseLong(key.toString());
             log.debug("Record queried in assertion : {}", actualRecordsIngested.get(key));
             try {
-                JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),
+                JSONAssert.assertEquals(expectedRecordsProduced.get(keyLong), actualRecordsIngested.get(key),
                         new CustomComparator(LENIENT,
                                 // there are sometimes round off errors in the double values but they are close enough to 8 precision
                                 new Customization("vdec", (vdec1,
@@ -376,10 +377,11 @@ class KustoSinkIT {
     }
 
     @Test
-    public void shouldHandleComplexAvroMessage() {
+    public void shouldHandleComplexAvroMessage() throws IOException {
         String dataFormat = "bytes-avro";
+        int maxRecords = 8;
         String srUrl = String.format("http://%s:%s", schemaRegistryContainer.getContainerId().substring(0, 12), 8081);
-        String producerSrUrl = String.format("http://localhost:%s",  schemaRegistryContainer.getMappedPort(8081));
+        String producerSrUrl = String.format("http://localhost:%s", schemaRegistryContainer.getMappedPort(8081));
         Map<String, Object> producerProperties = new HashMap<>();
         producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
         producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "io.confluent.kafka.serializers.KafkaAvroSerializer");
@@ -391,9 +393,9 @@ class KustoSinkIT {
         producerProperties.put("message.max.bytes", KAFKA_MAX_MSG_SIZE);
         String topicName = String.format("e2e.%s.topic", dataFormat);
         String topicTableMapping = String.format("[{'topic': '%s','db': '%s', " +
-                        "'table': '%s','format':'%s'}]", topicName,
+                        "'table': '%s','format':'%s','mapping':'%s_mapping'}]", topicName,
                 coordinates.database,
-                COMPLEX_AVRO_BYTES_TABLE_TEST, dataFormat.split("-")[1]);
+                COMPLEX_AVRO_BYTES_TABLE_TEST, dataFormat.split("-")[1], COMPLEX_AVRO_BYTES_TABLE_TEST);
         deployConnector(dataFormat, topicTableMapping, srUrl,
                 AvroConverter.class.getName(),
                 "org.apache.kafka.connect.converters.ByteArrayConverter",
@@ -404,11 +406,19 @@ class KustoSinkIT {
                 .name("IterationKey").type().stringType().noDefault()
                 .name("Timestamp").type().nullable().longType().noDefault()
                 .endRecord();
-        long keyInstantStart = Instant.now(Clock.systemUTC()).toEpochMilli();
-        for (int i = 1; i < 8; i++) {
-            try (KafkaProducer<GenericData.Record, byte[]> producer = new KafkaProducer<>(producerProperties)) {
+        long keyStart = 100000L;
+
+        InputStream expectedResultsStream = Objects.requireNonNull(this.getClass().getClassLoader().
+                getResourceAsStream("avro-complex-data/expected-results.txt"));
+        String expectedResults = IOUtils.toString(expectedResultsStream, StandardCharsets.UTF_8);
+        Map<String, String> expectedResultMap =
+                Arrays.stream(expectedResults.split("\n"))
+                        .map(line -> line.split("~"))
+                        .collect(Collectors.toMap(arr -> arr[0], arr -> arr[1]));
+        try (KafkaProducer<GenericData.Record, byte[]> producer = new KafkaProducer<>(producerProperties)) {
+            for (int i = 1; i <= maxRecords; i++) {
                 //complex-avro-1.avro
-                long keyTick = keyInstantStart + i;
+                long keyTick = keyStart + i;
                 GenericData.Record keyRecord = new GenericData.Record(keySchema);
                 keyRecord.put("IterationKey", String.valueOf(i));
                 keyRecord.put("Timestamp", keyTick);
@@ -420,14 +430,27 @@ class KustoSinkIT {
                 producerRecord.headers().add("iteration", String.valueOf(i).getBytes());
                 RecordMetadata rmd = producer.send(producerRecord).get();
                 log.info("Avro bytes sent to topic {} with offset {} of size {}", topicName, rmd.offset(), testData.length);
-            } catch (Exception e) {
-                log.error("Failed to send record to topic {}", topicName, e);
             }
+            Thread.sleep(30_000);
+        } catch (Exception e) {
+            log.error("Failed to send record to topic {}", topicName, e);
+            fail("Failed sending message to Kafka for testing Avro-Bytes scenario.");
         }
+
+        String countLongQuery = String.format("%s | summarize c = count() by event_id | project %s=event_id, " +
+                        "vresult = bag_pack('event_id',event_id,'count',c)", COMPLEX_AVRO_BYTES_TABLE_TEST, keyColumn);
+
+        Map<Object, String> actualRecordsIngested = getRecordsIngested(countLongQuery, maxRecords);
+        assertEquals(expectedResultMap, actualRecordsIngested);
     }
 
-    private @NotNull Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
-        String query = String.format("%s | where vtype == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat, keyColumn);
+    /**
+     * Polls the Kusto table for the records ingested. The query is executed every 30 seconds and the results are
+     * @param query The query to execute
+     * @param maxRecords The maximum number of records to poll for
+     * @return A map of the records ingested
+     */
+    private @NotNull Map<Object, String> getRecordsIngested(String query , int maxRecords) {
         Predicate<Object> predicate = (results) -> {
             if (results != null) {
                 log.info("Retrieved records count {}", ((Map<?, ?>) results).size());
@@ -442,13 +465,14 @@ class KustoSinkIT {
                 .build();
         RetryRegistry registry = RetryRegistry.of(config);
         Retry retry = registry.retry("ingestRecordService", config);
-        Supplier<Map<Long, String>> recordSearchSupplier = () -> {
+        Supplier<Map<Object, String>> recordSearchSupplier = () -> {
             try {
                 log.debug("Executing query {} ", query);
                 KustoResultSetTable resultSet = engineClient.execute(coordinates.database, query).getPrimaryResults();
-                Map<Long, String> actualResults = new HashMap<>();
+                Map<Object, String> actualResults = new HashMap<>();
                 while (resultSet.next()) {
-                    Long key = (long) resultSet.getInt(keyColumn);
+                    Object keyObject = resultSet.getObject(keyColumn);
+                    Object key = keyObject instanceof Number ? Long.parseLong(keyObject.toString()) : keyObject.toString();
                     String vResult = resultSet.getString("vresult");
                     log.debug("Record queried from DB: {}", vResult);
                     actualResults.put(key, vResult);

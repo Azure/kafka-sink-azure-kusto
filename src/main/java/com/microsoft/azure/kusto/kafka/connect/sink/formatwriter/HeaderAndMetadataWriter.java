@@ -3,6 +3,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,8 +47,9 @@ public abstract class HeaderAndMetadataWriter {
 
     /**
      * Convert SinkRecord to CSV
+     *
      * @param record SinkRecord
-     * @param isKey boolean
+     * @param isKey  boolean
      * @return String
      */
     public String convertSinkRecordToCsv(@NotNull SinkRecord record, boolean isKey) {
@@ -68,38 +70,38 @@ public abstract class HeaderAndMetadataWriter {
 
     @NotNull
     @SuppressWarnings(value = "unchecked")
-    public Map<String, Object> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey,
-                                                      IngestionProperties.DataFormat dataFormat) throws IOException {
+    public Collection<Map<String, Object>> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey,
+                                                                  IngestionProperties.DataFormat dataFormat) throws IOException {
         Object recordValue = isKey ? record.key() : record.value();
         Schema schema = isKey ? record.keySchema() : record.valueSchema();
         String defaultKeyOrValueField = isKey ? KEY_FIELD : VALUE_FIELD;
         if (recordValue == null) {
-            return Collections.emptyMap();
+            return Collections.emptyList();
         }
         if (recordValue instanceof Struct) {
             Struct recordStruct = (Struct) recordValue;
-            return FormatWriterHelper.structToMap(recordStruct);
+            return Collections.singletonList(FormatWriterHelper.structToMap(recordStruct));
         }
         // Is Avro Data
         if (recordValue instanceof GenericData.Record || recordValue instanceof NonRecordContainer) {
-            return FormatWriterHelper.convertAvroRecordToMap(schema, recordValue);
+            return Collections.singletonList(FormatWriterHelper.convertAvroRecordToMap(schema, recordValue));
         }
         // String or JSON
         if (recordValue instanceof String) {
-            return FormatWriterHelper.convertStringToMap(recordValue, defaultKeyOrValueField, dataFormat);
+            return Collections.singletonList(FormatWriterHelper.convertStringToMap(recordValue,
+                    defaultKeyOrValueField, dataFormat));
         }
         // Map
         if (recordValue instanceof Map) {
-            return (Map<String, Object>) recordValue;
+            return Collections.singletonList((Map<String, Object>) recordValue);
         }
         // is a byte array
-        if(isSchemaFormat(dataFormat)){
+        if (isSchemaFormat(dataFormat)) {
             if (recordValue instanceof byte[]) {
                 return FormatWriterHelper.convertBytesToMap((byte[]) recordValue, defaultKeyOrValueField, dataFormat);
-            }
-            else {
+            } else {
                 String fieldName = isKey ? KEY_FIELD : VALUE_FIELD;
-                return Collections.singletonMap(fieldName, recordValue);
+                return Collections.singletonList(Collections.singletonMap(fieldName, recordValue));
             }
         } else {
             String errorMessage = String.format("DataFormat %s is not supported in the connector though " +
