@@ -173,9 +173,7 @@ public class FormatWriterHelper {
             List<Map<String, Object>> nodes = new ArrayList<>();
             while (dataFileReader.hasNext()) {
                 String jsonString = dataFileReader.next().toString();
-                LOGGER.info("---------------------------------------------------------------------------");
-                LOGGER.info(jsonString);
-                LOGGER.info("---------------------------------------------------------------------------");
+                LOGGER.trace("Encoding AVROBytes yielded {}",jsonString);
                 try {
                     Map<String, Object> nodeMap = OBJECT_MAPPER.readValue(jsonString, MAP_TYPE_REFERENCE);
                     returnValue.putAll(nodeMap);
