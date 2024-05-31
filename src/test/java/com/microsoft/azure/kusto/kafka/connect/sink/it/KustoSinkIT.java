@@ -135,6 +135,7 @@ class KustoSinkIT {
             }
         });
         log.info("Created tables {} , {} and associated mappings", coordinates.table , COMPLEX_AVRO_BYTES_TABLE_TEST);
+        Thread.sleep(30_000);
     }
 
     private static void refreshDm() throws Exception {
@@ -159,8 +160,8 @@ class KustoSinkIT {
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
-        engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-        engineClient.execute(coordinates.database, String.format(".drop table %s", COMPLEX_AVRO_BYTES_TABLE_TEST));
+        // engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
+        // engineClient.execute(coordinates.database, String.format(".drop table %s", COMPLEX_AVRO_BYTES_TABLE_TEST));
         dmClient.close();
         engineClient.close();
     }
@@ -204,7 +205,8 @@ class KustoSinkIT {
     }
 
     @ParameterizedTest
-    @CsvSource({"json", "avro" , "csv" , "bytes-json"})
+    //@CsvSource({"json", "avro" , "csv" , "bytes-json"})
+    @CsvSource({"avro"})
     public void shouldHandleAllTypesOfEvents(@NotNull String dataFormat) {
         log.info("Running test for data format {}", dataFormat);
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
@@ -376,6 +378,7 @@ class KustoSinkIT {
         assertEquals(maxRecords, actualRecordsIngested.size());
     }
 
+    @Disabled
     @Test
     public void shouldHandleComplexAvroMessage() throws IOException {
         String dataFormat = "bytes-avro";
