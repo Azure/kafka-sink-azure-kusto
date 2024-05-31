@@ -1,13 +1,10 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import io.confluent.kafka.serializers.NonRecordContainer;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableByteArrayInput;
 import org.apache.avro.generic.GenericData;
@@ -21,10 +18,15 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.ConnectException;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+
+import io.confluent.kafka.serializers.NonRecordContainer;
 
 import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.*;
 
@@ -120,12 +122,10 @@ public class FormatWriterHelper {
         List<Field> fields = recordData.schema().fields();
         Map<String, Object> result = new HashMap<>();
         for (Field field : fields) {
-            if (recordData.get(field) instanceof Struct) {
-                if (field != null && field.name()!= null) {
-                    recordData.put(field.name(), recordData.get(field));
-                } else {
-                    LOGGER.debug("Struct field {} is null!. Is key {}", field,isKey);
-                }
+            if (field != null && field.name()!=null) {
+                result.put(field.name(), recordData.get(field));
+            } else {
+                LOGGER.debug("Struct field {} is null! or name is null!. Is key {}", field,isKey);
             }
         }
         return result;
