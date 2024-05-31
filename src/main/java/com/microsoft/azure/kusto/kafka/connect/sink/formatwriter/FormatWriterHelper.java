@@ -1,11 +1,13 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import java.io.IOException;
-import java.net.ConnectException;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import io.confluent.kafka.serializers.NonRecordContainer;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableByteArrayInput;
 import org.apache.avro.generic.GenericData;
@@ -19,15 +21,10 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-
-import io.confluent.kafka.serializers.NonRecordContainer;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.*;
 
@@ -100,9 +97,9 @@ public class FormatWriterHelper {
 
     private static @NotNull Collection<Map<String, Object>> parseJson(String json) throws IOException {
         JsonNode jsonData = OBJECT_MAPPER.readTree(json);
-        if(jsonData.isArray()){
+        if (jsonData.isArray()) {
             List<Map<String, Object>> result = new ArrayList<>();
-            for(JsonNode node : jsonData){
+            for (JsonNode node : jsonData) {
                 result.add(OBJECT_MAPPER.convertValue(node, MAP_TYPE_REFERENCE));
             }
             return result;
@@ -113,16 +110,25 @@ public class FormatWriterHelper {
 
     /**
      * Convert a given avro record to json and return the encoded bytes.
-     *
      * @param record The GenericRecord to convert
      */
     private static Map<String, Object> avroToJson(@NotNull GenericRecord record) throws IOException {
         return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(record.toString());
     }
 
-    public static @NotNull Map<String, Object> structToMap(@NotNull Struct recordData) {
+    public static @NotNull Map<String, Object> structToMap(@NotNull Struct recordData, boolean isKey) {
         List<Field> fields = recordData.schema().fields();
-        return fields.stream().collect(Collectors.toMap(Field::name, recordData::get));
+        Map<String, Object> result = new HashMap<>();
+        for (Field field : fields) {
+            if (recordData.get(field) instanceof Struct) {
+                if (field != null && field.name()!= null) {
+                    recordData.put(field.name(), recordData.get(field));
+                } else {
+                    LOGGER.debug("Struct field {} is null!. Is key {}", field,isKey);
+                }
+            }
+        }
+        return result;
     }
 
     private static boolean isValidJson(String defaultKeyOrValueField, String json) {
@@ -173,7 +179,7 @@ public class FormatWriterHelper {
             List<Map<String, Object>> nodes = new ArrayList<>();
             while (dataFileReader.hasNext()) {
                 String jsonString = dataFileReader.next().toString();
-                LOGGER.trace("Encoding AVROBytes yielded {}",jsonString);
+                LOGGER.trace("Encoding AVROBytes yielded {}", jsonString);
                 try {
                     Map<String, Object> nodeMap = OBJECT_MAPPER.readValue(jsonString, MAP_TYPE_REFERENCE);
                     returnValue.putAll(nodeMap);
