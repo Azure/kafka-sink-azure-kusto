@@ -204,8 +204,7 @@ class KustoSinkIT {
     }
 
     @ParameterizedTest
-    //@CsvSource({"json", "avro" , "csv" , "bytes-json"})
-    @CsvSource({"avro"})
+    @CsvSource({"json", "avro" , "csv" , "bytes-json"})
     public void shouldHandleAllTypesOfEvents(@NotNull String dataFormat) {
         log.info("Running test for data format {}", dataFormat);
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
@@ -377,7 +376,6 @@ class KustoSinkIT {
         assertEquals(maxRecords, actualRecordsIngested.size());
     }
 
-    @Disabled
     @Test
     public void shouldHandleComplexAvroMessage() throws IOException {
         String dataFormat = "bytes-avro";
