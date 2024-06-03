@@ -135,7 +135,6 @@ class KustoSinkIT {
             }
         });
         log.info("Created tables {} , {} and associated mappings", coordinates.table , COMPLEX_AVRO_BYTES_TABLE_TEST);
-        Thread.sleep(30_000);
     }
 
     private static void refreshDm() throws Exception {
@@ -160,8 +159,8 @@ class KustoSinkIT {
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
-        // engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-        // engineClient.execute(coordinates.database, String.format(".drop table %s", COMPLEX_AVRO_BYTES_TABLE_TEST));
+        engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
+        engineClient.execute(coordinates.database, String.format(".drop table %s", COMPLEX_AVRO_BYTES_TABLE_TEST));
         dmClient.close();
         engineClient.close();
     }
