@@ -80,7 +80,7 @@ public abstract class HeaderAndMetadataWriter {
         }
         if (recordValue instanceof Struct) {
             Struct recordStruct = (Struct) recordValue;
-            return Collections.singletonList(FormatWriterHelper.structToMap(recordStruct,isKey));
+            return Collections.singletonList(FormatWriterHelper.structToMap(record.topic(),recordStruct,isKey));
         }
         // Is Avro Data
         if (recordValue instanceof GenericData.Record || recordValue instanceof NonRecordContainer) {

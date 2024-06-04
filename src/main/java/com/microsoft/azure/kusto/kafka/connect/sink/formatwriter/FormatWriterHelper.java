@@ -11,9 +11,9 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
-import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.json.JsonConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,17 +118,16 @@ public class FormatWriterHelper {
         return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(record.toString());
     }
 
-    public static @NotNull Map<String, Object> structToMap(@NotNull Struct recordData, boolean isKey) {
-        List<Field> fields = recordData.schema().fields();
-        Map<String, Object> result = new HashMap<>();
-        for (Field field : fields) {
-            if (field != null && field.name()!=null) {
-                result.put(field.name(), recordData.get(field));
-            } else {
-                LOGGER.debug("Struct field {} is null! or name is null!. Is key {}", field,isKey);
-            }
+    public static @NotNull Map<String, Object> structToMap(String topicName,
+                                                           @NotNull Struct recordData, boolean isKey)  throws IOException  {
+        try(JsonConverter jsonConverter = new JsonConverter()){
+            jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), isKey);
+            byte[] jsonBytes = jsonConverter.fromConnectData(topicName,recordData.schema(), recordData);
+            return OBJECT_MAPPER.readValue(jsonBytes, MAP_TYPE_REFERENCE);
+        } catch (IOException e) {
+            LOGGER.error("Failed to convert Struct to Map", e);
+            throw e;
         }
-        return result;
     }
 
     private static boolean isValidJson(String defaultKeyOrValueField, String json) {

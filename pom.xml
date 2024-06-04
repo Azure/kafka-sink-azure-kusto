@@ -23,8 +23,8 @@
         <!-- Added to override vulnerable deps -->
         <jsonsmart.version>2.4.10</jsonsmart.version>
         <junit.version>5.10.1</junit.version>
-        <kafka.connect.avro.converter.version>7.6.0</kafka.connect.avro.converter.version>
-        <kafka.version>3.6.0</kafka.version>
+        <kafka.connect.avro.converter.version>7.6.1</kafka.connect.avro.converter.version>
+        <kafka.version>3.7.0</kafka.version>
         <kusto.sdk.version>5.0.5</kusto.sdk.version>
         <msal4j.version>1.14.3</msal4j.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
@@ -323,7 +323,7 @@
             <groupId>io.confluent</groupId>
             <artifactId>kafka-connect-avro-converter</artifactId>
             <version>${kafka.connect.avro.converter.version}</version>
-            <scope>provided</scope>
+            <!--<scope>provided</scope>-->
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
