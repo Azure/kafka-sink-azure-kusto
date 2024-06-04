@@ -22,6 +22,8 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.jetbrains.annotations.NotNull;
@@ -264,8 +266,10 @@ class KustoSinkIT {
                     for (int i = 0; i < maxRecords; i++) {
                         GenericData.Record record = (GenericData.Record) randomDataBuilder.generate();
                         record.put("vtype", dataFormat);
+                        List<Header> headers = new ArrayList<>();
+                        headers.add(new RecordHeader("Iteration", (dataFormat+"-Header"+i).getBytes()));
                         ProducerRecord<String, GenericData.Record> producerRecord =
-                                new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
+                                new ProducerRecord<>("e2e.avro.topic",0, "Key-" + i, record,headers);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                         jsonRecordMap.put("vtype", dataFormat);
@@ -288,8 +292,10 @@ class KustoSinkIT {
                         record.put("vtype", dataFormat);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
-                        ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic", "Key-" + i,
-                                objectMapper.writeValueAsString(jsonRecordMap));
+                        List<Header> headers = new ArrayList<>();
+                        headers.add(new RecordHeader("Iteration", (dataFormat+"-Header"+i).getBytes()));
+                        ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic",
+                                0, "Key-" + i,objectMapper.writeValueAsString(jsonRecordMap), headers);
                         jsonRecordMap.put("vtype", dataFormat);
                         expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
@@ -313,8 +319,10 @@ class KustoSinkIT {
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name()))));
                         String objectsCommaSeparated = jsonRecordMap.values().stream().map(Object::toString).collect(Collectors.joining(","));
                         log.debug("CSV Record produced: {}", objectsCommaSeparated);
-                        ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.csv.topic", "Key-" + i,
-                                objectsCommaSeparated);
+                        List<Header> headers = new ArrayList<>();
+                        headers.add(new RecordHeader("Iteration", (dataFormat+"-Header"+i).getBytes()));
+                        ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.csv.topic", 0,"Key-" + i,
+                                objectsCommaSeparated,headers);
                         jsonRecordMap.put("vtype", dataFormat);
                         expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
