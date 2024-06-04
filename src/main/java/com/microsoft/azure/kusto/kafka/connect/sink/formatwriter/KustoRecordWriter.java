@@ -17,8 +17,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 
-import static com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.FormatWriterHelper.isCsv;
-
 public class KustoRecordWriter extends HeaderAndMetadataWriter implements RecordWriter {
     private final String filename;
     private final JsonGenerator writer;
@@ -50,7 +48,7 @@ public class KustoRecordWriter extends HeaderAndMetadataWriter implements Record
         }
         Map<String, Object> parsedHeaders = getHeadersAsMap(record);
         Map<String, String> kafkaMd = getKafkaMetaDataAsMap(record);
-        if (isCsv(dataFormat)) {
+        if (FormatWriterHelper.getInstance().isCsv(dataFormat)) {
             String serializedKeys = StringEscapeUtils.escapeCsv(convertSinkRecordToCsv(record, true));
             String serializedValues = convertSinkRecordToCsv(record, false);
             String serializedHeaders = StringEscapeUtils.escapeCsv(OBJECT_MAPPER.writeValueAsString(parsedHeaders));
@@ -106,6 +104,7 @@ public class KustoRecordWriter extends HeaderAndMetadataWriter implements Record
     public void close() {
         try {
             writer.close();
+            formatWriterHelper.close();
         } catch (IOException e) {
             throw new DataException(e);
         }
