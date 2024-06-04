@@ -37,26 +37,38 @@ public class FormatWriterHelper {
     private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
             = new TypeReference<Map<String, Object>>() {
     };
+    private final JsonConverter KEY_JSON_CONVERTER = new JsonConverter();
+    private static final JsonConverter VALUE_JSON_CONVERTER = new JsonConverter();
+    private static FormatWriterHelper INSTANCE;
 
-    private FormatWriterHelper() {
+    public static FormatWriterHelper getInstance() {
+        if(INSTANCE == null) {
+            INSTANCE = new FormatWriterHelper();
+        }
+        return INSTANCE;
     }
 
-    public static boolean isSchemaFormat(IngestionProperties.DataFormat dataFormat) {
+    private FormatWriterHelper() {
+        KEY_JSON_CONVERTER.configure(Collections.singletonMap("schemas.enable", "false"), true);
+        VALUE_JSON_CONVERTER.configure(Collections.singletonMap("schemas.enable", "false"), false);
+    }
+
+    public boolean isSchemaFormat(IngestionProperties.DataFormat dataFormat) {
         return dataFormat == JSON || dataFormat == MULTIJSON
                 || dataFormat == AVRO || dataFormat == SINGLEJSON;
 
     }
 
-    protected static boolean isAvro(IngestionProperties.DataFormat dataFormat) {
+    protected boolean isAvro(IngestionProperties.DataFormat dataFormat) {
         return IngestionProperties.DataFormat.AVRO.equals(dataFormat)
                 || IngestionProperties.DataFormat.APACHEAVRO.equals(dataFormat);
     }
 
-    public static boolean isCsv(IngestionProperties.DataFormat dataFormat) {
+    public boolean isCsv(IngestionProperties.DataFormat dataFormat) {
         return IngestionProperties.DataFormat.CSV.equals(dataFormat);
     }
 
-    public static @NotNull Map<String, Object> convertAvroRecordToMap(Schema schema, Object value) throws IOException {
+    public @NotNull Map<String, Object> convertAvroRecordToMap(Schema schema, Object value) throws IOException {
         Map<String, Object> updatedValue = new HashMap<>();
         if (value != null) {
             if (value instanceof NonRecordContainer) {
@@ -76,7 +88,7 @@ public class FormatWriterHelper {
      * @param dataformat             JSON or Avro
      * @return a Map of the K-V of JSON
      */
-    public static @NotNull Collection<Map<String, Object>> convertBytesToMap(byte[] messageBytes,
+    public @NotNull Collection<Map<String, Object>> convertBytesToMap(byte[] messageBytes,
                                                                              String defaultKeyOrValueField,
                                                                              IngestionProperties.DataFormat dataformat) throws IOException {
         if (messageBytes == null || messageBytes.length == 0) {
@@ -114,14 +126,14 @@ public class FormatWriterHelper {
      * Convert a given avro record to json and return the encoded bytes.
      * @param record The GenericRecord to convert
      */
-    private static Map<String, Object> avroToJson(@NotNull GenericRecord record) throws IOException {
+    private Map<String, Object> avroToJson(@NotNull GenericRecord record) throws IOException {
         return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(record.toString());
     }
 
-    public static @NotNull Map<String, Object> structToMap(String topicName,
+    public @NotNull Map<String, Object> structToMap(String topicName,
                                                            @NotNull Struct recordData, boolean isKey)  throws IOException  {
-        try(JsonConverter jsonConverter = new JsonConverter()){
-            jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), isKey);
+        try{
+            JsonConverter jsonConverter = isKey ? KEY_JSON_CONVERTER : VALUE_JSON_CONVERTER;
             byte[] jsonBytes = jsonConverter.fromConnectData(topicName,recordData.schema(), recordData);
             return OBJECT_MAPPER.readValue(jsonBytes, MAP_TYPE_REFERENCE);
         } catch (IOException e) {
@@ -130,7 +142,7 @@ public class FormatWriterHelper {
         }
     }
 
-    private static boolean isValidJson(String defaultKeyOrValueField, String json) {
+    private boolean isValidJson(String defaultKeyOrValueField, String json) {
         try (JsonParser parser = JSON_FACTORY.createParser(json)) {
             if (!parser.nextToken().isStructStart()) {
                 LOGGER.debug("No start token found for json {}. Is key {} ", json, defaultKeyOrValueField);
@@ -145,7 +157,7 @@ public class FormatWriterHelper {
     }
 
 
-    public static @NotNull Map<String, Object> convertStringToMap(Object value,
+    public @NotNull Map<String, Object> convertStringToMap(Object value,
                                                                   String defaultKeyOrValueField,
                                                                   IngestionProperties.DataFormat dataFormat) throws IOException {
         String objStr = (String) value;
@@ -156,13 +168,22 @@ public class FormatWriterHelper {
         }
     }
 
-    private static boolean isJson(IngestionProperties.DataFormat dataFormat) {
+    public void close(){
+        try {
+            KEY_JSON_CONVERTER.close();
+            VALUE_JSON_CONVERTER.close();
+        }catch (Exception e){
+            LOGGER.warn("Failed to close JsonConverter", e);
+        }
+    }
+
+    private boolean isJson(IngestionProperties.DataFormat dataFormat) {
         return IngestionProperties.DataFormat.JSON.equals(dataFormat)
                 || IngestionProperties.DataFormat.MULTIJSON.equals(dataFormat)
                 || IngestionProperties.DataFormat.SINGLEJSON.equals(dataFormat);
     }
 
-    private static Collection<Map<String, Object>> bytesToAvroRecord(String defaultKeyOrValueField, byte[] received_message) {
+    private Collection<Map<String, Object>> bytesToAvroRecord(String defaultKeyOrValueField, byte[] received_message) {
         Map<String, Object> returnValue = new HashMap<>();
         try {
             // avro input parser
