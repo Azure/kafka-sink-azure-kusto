@@ -22,8 +22,6 @@ import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
 import io.confluent.kafka.serializers.NonRecordContainer;
 
-import static com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.FormatWriterHelper.isSchemaFormat;
-
 public abstract class HeaderAndMetadataWriter {
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
     public static final String LINE_SEPARATOR = System.lineSeparator();
@@ -38,6 +36,7 @@ public abstract class HeaderAndMetadataWriter {
     public String PARTITION = "partition";
     public String OFFSET = "offset";
 
+    protected final FormatWriterHelper formatWriterHelper = FormatWriterHelper.getInstance();
     @NotNull
     public Map<String, Object> getHeadersAsMap(@NotNull SinkRecord record) {
         Map<String, Object> headers = new HashMap<>();
@@ -80,15 +79,15 @@ public abstract class HeaderAndMetadataWriter {
         }
         if (recordValue instanceof Struct) {
             Struct recordStruct = (Struct) recordValue;
-            return Collections.singletonList(FormatWriterHelper.structToMap(record.topic(),recordStruct,isKey));
+            return Collections.singletonList(formatWriterHelper.structToMap(record.topic(),recordStruct,isKey));
         }
         // Is Avro Data
         if (recordValue instanceof GenericData.Record || recordValue instanceof NonRecordContainer) {
-            return Collections.singletonList(FormatWriterHelper.convertAvroRecordToMap(schema, recordValue));
+            return Collections.singletonList(formatWriterHelper.convertAvroRecordToMap(schema, recordValue));
         }
         // String or JSON
         if (recordValue instanceof String) {
-            return Collections.singletonList(FormatWriterHelper.convertStringToMap(recordValue,
+            return Collections.singletonList(formatWriterHelper.convertStringToMap(recordValue,
                     defaultKeyOrValueField, dataFormat));
         }
         // Map
@@ -96,9 +95,9 @@ public abstract class HeaderAndMetadataWriter {
             return Collections.singletonList((Map<String, Object>) recordValue);
         }
         // is a byte array
-        if (isSchemaFormat(dataFormat)) {
+        if (FormatWriterHelper.getInstance().isSchemaFormat(dataFormat)) {
             if (recordValue instanceof byte[]) {
-                return FormatWriterHelper.convertBytesToMap((byte[]) recordValue, defaultKeyOrValueField, dataFormat);
+                return formatWriterHelper.convertBytesToMap((byte[]) recordValue, defaultKeyOrValueField, dataFormat);
             } else {
                 String fieldName = isKey ? KEY_FIELD : VALUE_FIELD;
                 return Collections.singletonList(Collections.singletonMap(fieldName, recordValue));
