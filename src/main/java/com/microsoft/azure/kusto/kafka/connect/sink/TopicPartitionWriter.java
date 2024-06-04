@@ -36,16 +36,16 @@ import com.microsoft.azure.kusto.ingest.result.IngestionStatus;
 import com.microsoft.azure.kusto.ingest.result.IngestionStatusResult;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.FormatWriterHelper;
 
 import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.*;
-import static com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.FormatWriterHelper.isSchemaFormat;
 
 public class TopicPartitionWriter {
 
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
     private static final String COMPRESSION_EXTENSION = ".gz";
     private static final String FILE_EXCEPTION_MESSAGE = "Failed to create file or write record into file for ingestion.";
-
+    private final FormatWriterHelper formatWriterHelper = FormatWriterHelper.getInstance();
     private final TopicPartition tp;
     private final IngestClient client;
     private final TopicIngestionProperties ingestionProps;
@@ -280,14 +280,14 @@ public class TopicPartitionWriter {
     private @NotNull IngestionProperties updateIngestionPropertiesWithTargetFormat() {
         IngestionProperties updatedIngestionProperties = new IngestionProperties(this.ingestionProps.ingestionProperties);
         IngestionProperties.DataFormat sourceFormat = ingestionProps.ingestionProperties.getDataFormat();
-        if (isSchemaFormat(sourceFormat)) {
-            log.info("Incoming dataformat {}, setting target format to MULTIJSON", sourceFormat);
+        if (formatWriterHelper.isSchemaFormat(sourceFormat)) {
+            log.debug("Incoming dataformat {}, setting target format to MULTIJSON", sourceFormat);
             updatedIngestionProperties.setDataFormat(MULTIJSON);
         } else {
             updatedIngestionProperties.setDataFormat(ingestionProps.ingestionProperties.getDataFormat());
         }
         // Just to make it clear , split the conditional
-        if (isSchemaFormat(sourceFormat)) {
+        if (formatWriterHelper.isSchemaFormat(sourceFormat)) {
             IngestionMapping mappingReference = ingestionProps.ingestionProperties.getIngestionMapping();
             if (mappingReference != null && StringUtils.isNotEmpty(mappingReference.getIngestionMappingReference())) {
                 String ingestionMappingReferenceName = mappingReference.getIngestionMappingReference();
