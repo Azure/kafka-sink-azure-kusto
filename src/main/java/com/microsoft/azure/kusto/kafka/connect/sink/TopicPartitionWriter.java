@@ -19,12 +19,15 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionMapping;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
@@ -33,13 +36,16 @@ import com.microsoft.azure.kusto.ingest.result.IngestionStatus;
 import com.microsoft.azure.kusto.ingest.result.IngestionStatusResult;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.FormatWriterHelper;
+
+import static com.microsoft.azure.kusto.ingest.IngestionProperties.DataFormat.*;
 
 public class TopicPartitionWriter {
 
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
     private static final String COMPRESSION_EXTENSION = ".gz";
     private static final String FILE_EXCEPTION_MESSAGE = "Failed to create file or write record into file for ingestion.";
-
+    private final FormatWriterHelper formatWriterHelper = FormatWriterHelper.getInstance();
     private final TopicPartition tp;
     private final IngestClient client;
     private final TopicIngestionProperties ingestionProps;
@@ -52,13 +58,13 @@ public class TopicPartitionWriter {
     private final String dlqTopicName;
     private final Producer<byte[], byte[]> dlqProducer;
     private final BehaviorOnError behaviorOnError;
+    private final ReentrantReadWriteLock reentrantReadWriteLock;
     FileWriter fileWriter;
     long currentOffset;
     Long lastCommittedOffset;
-    private final ReentrantReadWriteLock reentrantReadWriteLock;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-            KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
+                         KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -92,7 +98,7 @@ public class TopicPartitionWriter {
          */
         for (int retryAttempts = 0; true; retryAttempts++) {
             try {
-                IngestionResult ingestionResult = client.ingestFromFile(fileSourceInfo, ingestionProps.ingestionProperties);
+                IngestionResult ingestionResult = client.ingestFromFile(fileSourceInfo, updateIngestionPropertiesWithTargetFormat());
                 if (ingestionProps.streaming && ingestionResult instanceof IngestionStatusResult) {
                     // If IngestionStatusResult returned then the ingestion status is from streaming ingest
                     IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
@@ -102,8 +108,11 @@ public class TopicPartitionWriter {
                         continue;
                     }
                 }
-                log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes,
-                        currentOffset));
+                log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s) " +
+                                "to target table (%s) in database (%s)",
+                        fileDescriptor.path, fileDescriptor.rawBytes, currentOffset,
+                        ingestionProps.ingestionProperties.getTableName(),
+                        ingestionProps.ingestionProperties.getDatabaseName()));
                 this.lastCommittedOffset = currentOffset;
                 return;
             } catch (IngestionServiceException exception) {
@@ -135,8 +144,8 @@ public class TopicPartitionWriter {
                 String details = status.getDetails();
                 UUID ingestionSourceId = status.getIngestionSourceId();
                 log.warn("A batch of streaming records has {} ingestion: table:{}, database:{}, operationId: {}," +
-                        "ingestionSourceId: {}{}{}.\n" +
-                        "Status is final and therefore ingestion won't be retried and data won't reach dlq",
+                                "ingestionSourceId: {}{}{}.\n" +
+                                "Status is final and therefore ingestion won't be retried and data won't reach dlq",
                         status.getStatus(),
                         status.getTable(),
                         status.getDatabase(),
@@ -177,7 +186,7 @@ public class TopicPartitionWriter {
 
     public void sendFailedRecordToDlq(SinkRecord record) {
         byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
-                + "topic=%s, partition=%s, offset=%s.",
+                        + "topic=%s, partition=%s, offset=%s.",
                 record.topic(),
                 record.kafkaPartition(),
                 record.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
@@ -263,8 +272,27 @@ public class TopicPartitionWriter {
             log.error("Unable to delete temporary connector folder {}", basePath);
         }
     }
-
     void stop() {
         fileWriter.stop();
     }
+    private @NotNull IngestionProperties updateIngestionPropertiesWithTargetFormat() {
+        IngestionProperties updatedIngestionProperties = new IngestionProperties(this.ingestionProps.ingestionProperties);
+        IngestionProperties.DataFormat sourceFormat = ingestionProps.ingestionProperties.getDataFormat();
+        if (formatWriterHelper.isSchemaFormat(sourceFormat)) {
+            log.debug("Incoming dataformat {}, setting target format to MULTIJSON", sourceFormat);
+            updatedIngestionProperties.setDataFormat(MULTIJSON);
+        } else {
+            updatedIngestionProperties.setDataFormat(ingestionProps.ingestionProperties.getDataFormat());
+        }
+        // Just to make it clear , split the conditional
+        if (formatWriterHelper.isSchemaFormat(sourceFormat)) {
+            IngestionMapping mappingReference = ingestionProps.ingestionProperties.getIngestionMapping();
+            if (mappingReference != null && StringUtils.isNotEmpty(mappingReference.getIngestionMappingReference())) {
+                String ingestionMappingReferenceName = mappingReference.getIngestionMappingReference();
+                updatedIngestionProperties.setIngestionMapping(ingestionMappingReferenceName, IngestionMapping.IngestionMappingKind.JSON);
+            }
+        }
+        return updatedIngestionProperties;
+    }
 }
+
