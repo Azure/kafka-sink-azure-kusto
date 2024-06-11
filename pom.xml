@@ -26,7 +26,7 @@
         <kafka.connect.avro.converter.version>7.6.0</kafka.connect.avro.converter.version>
         <kafka.version>3.5.1</kafka.version>
         <kusto.sdk.version>5.0.5</kusto.sdk.version>
-        <msal4j.version>1.14.3</msal4j.version>
+        <msal4j.version>1.15.1</msal4j.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
