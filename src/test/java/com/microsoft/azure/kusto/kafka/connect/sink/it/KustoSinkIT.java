@@ -28,7 +28,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.json.JSONException;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.Disabled;
 import org.skyscreamer.jsonassert.Customization;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.comparator.CustomComparator;
@@ -162,7 +161,6 @@ class KustoSinkIT {
         engineClient.close();
     }
 
-    @Disabled
     @Test
     public void shouldHandleAllTypesOfEvents() {
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
