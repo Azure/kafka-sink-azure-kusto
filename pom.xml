@@ -8,10 +8,13 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>4.0.9</version>
+    <version>4.0.10</version>
     <properties>
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
+        <azure.core.version>1.49.1</azure.core.version>
+        <azure.core.netty.version>1.15.1</azure.core.netty.version>
+        <azure.identity.version>1.13.0</azure.identity.version>
         <commoncodec.version>1.16.0</commoncodec.version>
         <commonio.version>2.13.0</commonio.version>
         <dependency-check-maven.version>9.0.10</dependency-check-maven.version>
@@ -26,14 +29,14 @@
         <kafka.connect.avro.converter.version>7.6.0</kafka.connect.avro.converter.version>
         <kafka.version>3.5.1</kafka.version>
         <kusto.sdk.version>5.0.5</kusto.sdk.version>
-        <msal4j.version>1.14.3</msal4j.version>
+        <msal4j.version>1.15.1</msal4j.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <mockito.version>4.11.0</mockito.version>
         <!-- Added to override vulnerable deps -->
-        <netty.version>4.1.108.Final</netty.version>
+        <netty.version>4.1.110.Final</netty.version>
         <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snappy.version>1.1.10.4</snappy.version>
@@ -209,11 +212,7 @@
                     <groupId>commons-codec</groupId>
                     <artifactId>commons-codec</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>netty-handler</artifactId>
-                </exclusion>
-                <exclusion>
+                  <exclusion>
                     <groupId>net.minidev</groupId>
                     <artifactId>json-smart</artifactId>
                 </exclusion>
@@ -230,8 +229,8 @@
                     <artifactId>msal4j</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>*</artifactId>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -243,12 +242,12 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-core</artifactId>
-            <version>1.45.1</version>
+            <version>${azure.core.version}</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
-            <version>1.12.0</version>
+            <version>${azure.identity.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
@@ -264,17 +263,16 @@
                     <artifactId>commons-codec</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>*</artifactId>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- Netty has some vulnerabilities , adding fixed versions -->
         <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-http-netty</artifactId>
+            <version>${azure.core.netty.version}</version>
+        </dependency>            
         <dependency>
             <groupId>net.minidev</groupId>
             <artifactId>json-smart</artifactId>
@@ -383,8 +381,8 @@
     </dependencies>
     <repositories>
         <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
+            <id>jitpack</id>
+            <url>https://jitpack.io</url>            
         </repository>
         <repository>
             <id>confluent</id>
