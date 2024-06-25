@@ -13,7 +13,8 @@
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
         <azure.core.version>1.49.1</azure.core.version>
-        <azure.identity.version>1.12.2</azure.identity.version>
+        <azure.core.netty.version>1.15.1</azure.core.netty.version>
+        <azure.identity.version>1.13.0</azure.identity.version>
         <commoncodec.version>1.16.0</commoncodec.version>
         <commonio.version>2.13.0</commonio.version>
         <dependency-check-maven.version>9.0.10</dependency-check-maven.version>
@@ -211,11 +212,7 @@
                     <groupId>commons-codec</groupId>
                     <artifactId>commons-codec</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>netty-handler</artifactId>
-                </exclusion>
-                <exclusion>
+                  <exclusion>
                     <groupId>net.minidev</groupId>
                     <artifactId>json-smart</artifactId>
                 </exclusion>
@@ -232,8 +229,8 @@
                     <artifactId>msal4j</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>*</artifactId>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -266,17 +263,16 @@
                     <artifactId>commons-codec</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>*</artifactId>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- Netty has some vulnerabilities , adding fixed versions -->
         <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-http-netty</artifactId>
+            <version>${azure.core.netty.version}</version>
+        </dependency>            
         <dependency>
             <groupId>net.minidev</groupId>
             <artifactId>json-smart</artifactId>
