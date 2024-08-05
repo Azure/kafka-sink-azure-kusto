@@ -8,38 +8,30 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>4.0.10</version>
+    <version>4.0.11</version>
     <properties>
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <azure.core.version>1.49.1</azure.core.version>
-        <azure.core.netty.version>1.15.1</azure.core.netty.version>
-        <azure.identity.version>1.13.0</azure.identity.version>
-        <commoncodec.version>1.16.0</commoncodec.version>
-        <commonio.version>2.13.0</commonio.version>
-        <dependency-check-maven.version>9.0.10</dependency-check-maven.version>
+        <az.core.version>1.51.0</az.core.version>
+        <az.identity.version>1.13.2</az.identity.version>
+        <az.netty.version>1.15.3</az.netty.version>
+        <commoncodec.version>1.17.1</commoncodec.version>
+        <commonio.version>2.16.1</commonio.version>
+        <dependency-check-maven.version>10.0.2</dependency-check-maven.version>
         <formatter.version>2.20.0</formatter.version>
         <impsort.version>1.6.2</impsort.version>
-        <jackson.version>2.15.2</jackson.version>
         <java.release.version>1.8</java.release.version>
         <jsonassert.version>1.5.1</jsonassert.version>
-        <!-- Added to override vulnerable deps -->
-        <jsonsmart.version>2.4.10</jsonsmart.version>
         <junit.version>5.10.0</junit.version>
-        <kafka.connect.avro.converter.version>7.6.0</kafka.connect.avro.converter.version>
-        <kafka.version>3.5.1</kafka.version>
-        <kusto.sdk.version>5.1.0</kusto.sdk.version>
-        <msal4j.version>1.15.1</msal4j.version>
+        <kafka.connect.avro.converter.version>7.7.0</kafka.connect.avro.converter.version>
+        <kafka.version>3.8.0</kafka.version>
+        <kusto.sdk.version>5.1.1</kusto.sdk.version>
+        <mockito.version>4.11.0</mockito.version>
         <mvn.assembly.plugin.version>3.2.0</mvn.assembly.plugin.version>
         <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
         <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
-        <mockito.version>4.11.0</mockito.version>
-        <!-- Added to override vulnerable deps -->
-        <netty.version>4.1.110.Final</netty.version>
-        <nimbusjose.jwt.version>9.31</nimbusjose.jwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <snappy.version>1.1.10.4</snappy.version>
         <testcontainer.version>1.18.3</testcontainer.version>
     </properties>
     <build>
@@ -205,16 +197,8 @@
             <version>${kusto.sdk.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-codec</groupId>
-                    <artifactId>commons-codec</artifactId>
-                </exclusion>
-                  <exclusion>
-                    <groupId>net.minidev</groupId>
-                    <artifactId>json-smart</artifactId>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-identity</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>com.azure</groupId>
@@ -222,32 +206,24 @@
                 </exclusion>
                 <exclusion>
                     <groupId>com.azure</groupId>
-                    <artifactId>azure-identity</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.microsoft.azure</groupId>
-                    <artifactId>msal4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
                     <artifactId>azure-core-http-netty</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.microsoft.azure</groupId>
-            <artifactId>msal4j</artifactId>
-            <version>${msal4j.version}</version>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <version>${az.identity.version}</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-core</artifactId>
-            <version>${azure.core.version}</version>
+            <version>${az.core.version}</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
-            <artifactId>azure-identity</artifactId>
-            <version>${azure.identity.version}</version>
+            <artifactId>azure-core-http-netty</artifactId>
+            <version>${az.netty.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
@@ -255,28 +231,18 @@
             <version>${kusto.sdk.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-identity</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>commons-codec</groupId>
-                    <artifactId>commons-codec</artifactId>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>com.azure</groupId>
                     <artifactId>azure-core-http-netty</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-core-http-netty</artifactId>
-            <version>${azure.core.netty.version}</version>
-        </dependency>            
-        <dependency>
-            <groupId>net.minidev</groupId>
-            <artifactId>json-smart</artifactId>
-            <version>2.4.11</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
@@ -287,22 +253,6 @@
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
             <version>${commonio.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.xerial.snappy</groupId>
-                    <artifactId>snappy-java</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.xerial.snappy</groupId>
-            <artifactId>snappy-java</artifactId>
-            <version>${snappy.version}</version>
         </dependency>
         <!-- Provided scopes -->
         <dependency>
