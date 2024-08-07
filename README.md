@@ -217,7 +217,7 @@ Therefore the connector supports "At least once" delivery guarantees.
 
 - There are some core configs that need to be set at the Kafka connect worker level. Some of these are security configs
   and the (consumer) override policy. These for e.g. need to be baked into
-  the [Docker image](Readme.md#10-distributed-deployment-details) covered further on in this document-
+  the [Docker image](#11-distributed-deployment-details) covered further on in this document-
 
 ### 4.1. Confluent Cloud
 
@@ -714,7 +714,7 @@ then launch the copy tasks.
 <hr>
 
 For information about what changes are included in each release, please see
-the [Release History](README.md#16-release-history) section of this document.
+the [Release History](README.md#17-release-history) section of this document.
 
 ## 17. Release History
 
