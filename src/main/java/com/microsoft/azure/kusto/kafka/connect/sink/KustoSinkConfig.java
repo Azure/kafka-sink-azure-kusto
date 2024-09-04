@@ -29,7 +29,6 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_ENGINE_URL_CONF = "kusto.query.url";
     static final String KUSTO_AUTH_APPID_CONF = "aad.auth.appid";
     static final String KUSTO_AUTH_ACCESS_TOKEN_CONF = "aad.auth.accesstoken";
-    static final String KUSTO_AUTH_TOKEN_FILE_PATH_CONF = "aad.auth.wif.token.file.path";
     static final String KUSTO_AUTH_APPKEY_CONF = "aad.auth.appkey";
     static final String KUSTO_AUTH_AUTHORITY_CONF = "aad.auth.authority";
     static final String KUSTO_AUTH_STRATEGY_CONF = "aad.auth.strategy";
@@ -53,8 +52,6 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_ENGINE_URL_DISPLAY = "Kusto cluster query URL";
     private static final String KUSTO_AUTH_APPID_DOC = "Application Id for Azure Active Directory authentication.";
     private static final String KUSTO_AUTH_APPID_DISPLAY = "Kusto Auth AppID";
-    private static final String KUSTO_AUTH_TOKEN_FILE_PATH_CONF_DOC = "WIF token file";
-    private static final String KUSTO_AUTH_TOKEN_FILE_PATH_CONF_DISPLAY = "Workload identity token file conf";
     private static final String KUSTO_AUTH_APPKEY_DOC = "Application Key for Azure Active Directory authentication.";
     private static final String KUSTO_CONNECTION_PROXY_HOST_DOC = "Proxy host";
     private static final String KUSTO_CONNECTION_PROXY_HOST_DISPLAY = "Proxy host used to connect to Kusto";
@@ -305,16 +302,6 @@ public class KustoSinkConfig extends AbstractConfig {
                         Width.MEDIUM,
                         KUSTO_AUTH_APPID_DISPLAY)
                 .define(
-                        KUSTO_AUTH_TOKEN_FILE_PATH_CONF,
-                        Type.STRING,
-                        null,
-                        Importance.LOW,
-                        KUSTO_AUTH_TOKEN_FILE_PATH_CONF_DOC,
-                        connectionGroupName,
-                        connectionGroupOrder++,
-                        Width.MEDIUM,
-                        KUSTO_AUTH_TOKEN_FILE_PATH_CONF_DISPLAY)
-                .define(
                         KUSTO_AUTH_AUTHORITY_CONF,
                         Type.STRING,
                         null,
@@ -385,9 +372,6 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getString(KUSTO_AUTH_APPID_CONF);
     }
 
-    public String getTokenFilePath() {
-        return this.getString(KUSTO_AUTH_TOKEN_FILE_PATH_CONF);
-    }
 
     public String getAuthAppKey() {
         return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
