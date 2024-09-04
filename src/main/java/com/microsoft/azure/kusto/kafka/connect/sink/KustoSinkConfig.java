@@ -28,6 +28,8 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_INGEST_URL_CONF = "kusto.ingestion.url";
     static final String KUSTO_ENGINE_URL_CONF = "kusto.query.url";
     static final String KUSTO_AUTH_APPID_CONF = "aad.auth.appid";
+    static final String KUSTO_AUTH_ACCESS_TOKEN_CONF = "aad.auth.accesstoken";
+    static final String KUSTO_AUTH_TOKEN_FILE_PATH_CONF = "aad.auth.wif.token.file.path";
     static final String KUSTO_AUTH_APPKEY_CONF = "aad.auth.appkey";
     static final String KUSTO_AUTH_AUTHORITY_CONF = "aad.auth.authority";
     static final String KUSTO_AUTH_STRATEGY_CONF = "aad.auth.strategy";
@@ -44,12 +46,15 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION = "kusto.validation.table.enable";
     private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
+
     private static final String KUSTO_INGEST_URL_DOC = "Kusto ingestion endpoint URL.";
     private static final String KUSTO_INGEST_URL_DISPLAY = "Kusto cluster ingestion URL";
     private static final String KUSTO_ENGINE_URL_DOC = "Kusto query endpoint URL.";
     private static final String KUSTO_ENGINE_URL_DISPLAY = "Kusto cluster query URL";
     private static final String KUSTO_AUTH_APPID_DOC = "Application Id for Azure Active Directory authentication.";
     private static final String KUSTO_AUTH_APPID_DISPLAY = "Kusto Auth AppID";
+    private static final String KUSTO_AUTH_TOKEN_FILE_PATH_CONF_DOC = "WIF token file";
+    private static final String KUSTO_AUTH_TOKEN_FILE_PATH_CONF_DISPLAY = "Workload identity token file conf";
     private static final String KUSTO_AUTH_APPKEY_DOC = "Application Key for Azure Active Directory authentication.";
     private static final String KUSTO_CONNECTION_PROXY_HOST_DOC = "Proxy host";
     private static final String KUSTO_CONNECTION_PROXY_HOST_DISPLAY = "Proxy host used to connect to Kusto";
@@ -57,7 +62,6 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_CONNECTION_PROXY_PORT_DISPLAY = "Proxy port used to connect to Kusto";
 
     private static final String KUSTO_AUTH_APPKEY_DISPLAY = "Kusto Auth AppKey";
-    static final String KUSTO_AUTH_ACCESS_TOKEN_CONF = "aad.auth.accesstoken";
     private static final String KUSTO_AUTH_ACCESS_TOKEN_DISPLAY = "Kusto Auth AccessToken";
     private static final String KUSTO_AUTH_ACCESS_TOKEN_DOC = "Kusto Access Token for Azure Active Directory authentication";
     private static final String KUSTO_AUTH_AUTHORITY_DOC = "Azure Active Directory tenant.";
@@ -301,6 +305,16 @@ public class KustoSinkConfig extends AbstractConfig {
                         Width.MEDIUM,
                         KUSTO_AUTH_APPID_DISPLAY)
                 .define(
+                        KUSTO_AUTH_TOKEN_FILE_PATH_CONF,
+                        Type.STRING,
+                        null,
+                        Importance.LOW,
+                        KUSTO_AUTH_TOKEN_FILE_PATH_CONF_DOC,
+                        connectionGroupName,
+                        connectionGroupOrder++,
+                        Width.MEDIUM,
+                        KUSTO_AUTH_TOKEN_FILE_PATH_CONF_DISPLAY)
+                .define(
                         KUSTO_AUTH_AUTHORITY_CONF,
                         Type.STRING,
                         null,
@@ -371,9 +385,14 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getString(KUSTO_AUTH_APPID_CONF);
     }
 
+    public String getTokenFilePath() {
+        return this.getString(KUSTO_AUTH_TOKEN_FILE_PATH_CONF);
+    }
+
     public String getAuthAppKey() {
         return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
     }
+
     public String getAuthAccessToken() {
         return this.getPassword(KUSTO_AUTH_ACCESS_TOKEN_CONF).value();
     }
@@ -467,7 +486,7 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getBoolean(KUSTO_SINK_ENABLE_TABLE_VALIDATION);
     }
 
-    enum BehaviorOnError {
+    public enum BehaviorOnError {
         FAIL, LOG, IGNORE;
 
         /**
@@ -483,7 +502,7 @@ public class KustoSinkConfig extends AbstractConfig {
         }
     }
 
-    enum KustoAuthenticationStrategy {
-        APPLICATION, MANAGED_IDENTITY, AZ_DEV_TOKEN
+    public enum KustoAuthenticationStrategy {
+        APPLICATION, MANAGED_IDENTITY, AZ_DEV_TOKEN, WORKLOAD_IDENTITY
     }
 }

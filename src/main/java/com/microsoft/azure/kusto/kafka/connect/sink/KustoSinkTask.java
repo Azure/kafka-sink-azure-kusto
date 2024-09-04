@@ -21,6 +21,10 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.azure.core.credential.AccessToken;
+import com.azure.core.credential.TokenRequestContext;
+import com.azure.identity.WorkloadIdentityCredential;
+import com.azure.identity.WorkloadIdentityCredentialBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
@@ -71,7 +75,7 @@ public class KustoSinkTask extends SinkTask {
         return Arrays.stream(config.getTopicToTableMapping()).anyMatch(TopicToTableMapping::isStreaming);
     }
 
-    public static @NotNull ConnectionStringBuilder createKustoEngineConnectionString(KustoSinkConfig config, String clusterUrl) {
+    public static @NotNull ConnectionStringBuilder createKustoEngineConnectionString(@NotNull final KustoSinkConfig config, final String clusterUrl) {
         final ConnectionStringBuilder kcsb;
 
         switch (config.getAuthStrategy()) {
@@ -86,11 +90,35 @@ public class KustoSinkTask extends SinkTask {
                     throw new ConfigException("Kusto authentication missing App Key.");
                 }
                 break;
-
             case MANAGED_IDENTITY:
                 kcsb = ConnectionStringBuilder.createWithAadManagedIdentity(
                         clusterUrl,
                         config.getAuthAppId());
+                break;
+            case WORKLOAD_IDENTITY:
+                kcsb = ConnectionStringBuilder.createWithAadTokenProviderAuthentication(
+                        clusterUrl,
+                        () -> {
+                            WorkloadIdentityCredential wic = new WorkloadIdentityCredentialBuilder()
+                                    .clientId(config.getAuthAppId())
+                                    .tenantId(config.getAuthAuthority())
+                                    .tokenFilePath(config.getTokenFilePath()).build();
+                            TokenRequestContext requestContext = new TokenRequestContext();
+                            String clusterScope = String.format("%s/.default", clusterUrl);
+                            requestContext.setScopes(Collections.singletonList(clusterScope));
+                            String logContext = String.format("Using scope {%s} for Workload identity federation. Using app-id {%s}" +
+                                    ", token-file path {%s} and tenant {%s}",
+                                    clusterScope, config.getAuthAppId(), config.getTokenFilePath(), config.getAuthAuthority());
+                            log.info(logContext);
+                            AccessToken accessToken = wic.getTokenSync(requestContext);
+                            if (accessToken != null) {
+                                log.debug("Returned access token that expires at {}", accessToken.getExpiresAt());
+                                return accessToken.getToken();
+                            } else {
+                                log.error("Obtained empty token during token refresh. Context {}", logContext);
+                                throw new ConnectException("Failed to retrieve WIF token");
+                            }
+                        });
                 break;
             case AZ_DEV_TOKEN:
                 log.warn("Using DEV-TEST mode, use this for development only. NOT recommended for production scenarios");

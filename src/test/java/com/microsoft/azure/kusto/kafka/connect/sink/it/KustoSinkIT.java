@@ -90,13 +90,11 @@ class KustoSinkIT {
 
     @BeforeAll
     public static void startContainers() throws Exception {
-
         coordinates = getConnectorProperties();
         if (coordinates.isValidConfig()) {
             ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(coordinates.cluster,
                     coordinates.accessToken);
-            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.
-                    createWithAadAccessTokenAuthentication(coordinates.ingestCluster,coordinates.accessToken);
+            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(coordinates.ingestCluster, coordinates.accessToken);
             engineClient = ClientFactory.createClient(engineCsb);
             dmClient = ClientFactory.createClient(dmCsb);
             log.info("Creating tables in Kusto");
@@ -155,8 +153,8 @@ class KustoSinkIT {
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
-        engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-        log.info("Finished table clean up. Dropped table {}", coordinates.table);
+        //engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
+        log.warn("Finished table clean up. Dropped table {}", coordinates.table);
         dmClient.close();
         engineClient.close();
     }
