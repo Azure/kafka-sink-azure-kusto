@@ -99,23 +99,16 @@ public class KustoSinkTask extends SinkTask {
                 kcsb = ConnectionStringBuilder.createWithAadTokenProviderAuthentication(
                         clusterUrl,
                         () -> {
-                            WorkloadIdentityCredential wic = new WorkloadIdentityCredentialBuilder()
-                                    .clientId(config.getAuthAppId())
-                                    .tenantId(config.getAuthAuthority())
-                                    .tokenFilePath(config.getTokenFilePath()).build();
+                            WorkloadIdentityCredential wic = new WorkloadIdentityCredentialBuilder().build();
                             TokenRequestContext requestContext = new TokenRequestContext();
                             String clusterScope = String.format("%s/.default", clusterUrl);
                             requestContext.setScopes(Collections.singletonList(clusterScope));
-                            String logContext = String.format("Using scope {%s} for Workload identity federation. Using app-id {%s}" +
-                                    ", token-file path {%s} and tenant {%s}",
-                                    clusterScope, config.getAuthAppId(), config.getTokenFilePath(), config.getAuthAuthority());
-                            log.info(logContext);
                             AccessToken accessToken = wic.getTokenSync(requestContext);
                             if (accessToken != null) {
                                 log.debug("Returned access token that expires at {}", accessToken.getExpiresAt());
                                 return accessToken.getToken();
                             } else {
-                                log.error("Obtained empty token during token refresh. Context {}", logContext);
+                                log.error("Obtained empty token during token refresh. Context {}", clusterScope);
                                 throw new ConnectException("Failed to retrieve WIF token");
                             }
                         });
