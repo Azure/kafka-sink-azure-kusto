@@ -26,6 +26,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.junit.jupiter.api.*;
 import org.skyscreamer.jsonassert.Customization;
@@ -90,13 +91,11 @@ class KustoSinkIT {
 
     @BeforeAll
     public static void startContainers() throws Exception {
-
         coordinates = getConnectorProperties();
         if (coordinates.isValidConfig()) {
             ConnectionStringBuilder engineCsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(coordinates.cluster,
                     coordinates.accessToken);
-            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.
-                    createWithAadAccessTokenAuthentication(coordinates.ingestCluster,coordinates.accessToken);
+            ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadAccessTokenAuthentication(coordinates.ingestCluster, coordinates.accessToken);
             engineClient = ClientFactory.createClient(engineCsb);
             dmClient = ClientFactory.createClient(dmCsb);
             log.info("Creating tables in Kusto");
@@ -156,7 +155,7 @@ class KustoSinkIT {
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
         engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
-        log.info("Finished table clean up. Dropped table {}", coordinates.table);
+        log.warn("Finished table clean up. Dropped table {}", coordinates.table);
         dmClient.close();
         engineClient.close();
     }
@@ -215,7 +214,7 @@ class KustoSinkIT {
         });
     }
 
-    private void produceKafkaMessages(String dataFormat) throws IOException {
+    private void produceKafkaMessages(@NotNull String dataFormat) throws IOException {
         log.debug("Producing messages");
         int maxRecords = 10;
         Map<String, Object> producerProperties = new HashMap<>();
@@ -291,7 +290,7 @@ class KustoSinkIT {
         log.info("Produced messages for format {}", dataFormat);
         Map<Long, String> actualRecordsIngested = getRecordsIngested(dataFormat, maxRecords);
         actualRecordsIngested.keySet().parallelStream().forEach(key -> {
-            log.debug("Record queried: {}", actualRecordsIngested.get(key));
+            log.debug("Record queried in assertion : {}", actualRecordsIngested.get(key));
             try {
                 JSONAssert.assertEquals(expectedRecordsProduced.get(key), actualRecordsIngested.get(key),
                         new CustomComparator(LENIENT,
@@ -307,7 +306,7 @@ class KustoSinkIT {
         assertEquals(maxRecords, actualRecordsIngested.size());
     }
 
-    private Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
+    private @NotNull Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
         String query = String.format("%s | where type == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat, keyColumn);
         Predicate<Object> predicate = (results) -> {
             if (results != null) {

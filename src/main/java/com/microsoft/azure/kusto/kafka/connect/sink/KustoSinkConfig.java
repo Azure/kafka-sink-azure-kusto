@@ -28,6 +28,7 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_INGEST_URL_CONF = "kusto.ingestion.url";
     static final String KUSTO_ENGINE_URL_CONF = "kusto.query.url";
     static final String KUSTO_AUTH_APPID_CONF = "aad.auth.appid";
+    static final String KUSTO_AUTH_ACCESS_TOKEN_CONF = "aad.auth.accesstoken";
     static final String KUSTO_AUTH_APPKEY_CONF = "aad.auth.appkey";
     static final String KUSTO_AUTH_AUTHORITY_CONF = "aad.auth.authority";
     static final String KUSTO_AUTH_STRATEGY_CONF = "aad.auth.strategy";
@@ -44,6 +45,7 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION = "kusto.validation.table.enable";
     private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
+
     private static final String KUSTO_INGEST_URL_DOC = "Kusto ingestion endpoint URL.";
     private static final String KUSTO_INGEST_URL_DISPLAY = "Kusto cluster ingestion URL";
     private static final String KUSTO_ENGINE_URL_DOC = "Kusto query endpoint URL.";
@@ -57,7 +59,6 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_CONNECTION_PROXY_PORT_DISPLAY = "Proxy port used to connect to Kusto";
 
     private static final String KUSTO_AUTH_APPKEY_DISPLAY = "Kusto Auth AppKey";
-    static final String KUSTO_AUTH_ACCESS_TOKEN_CONF = "aad.auth.accesstoken";
     private static final String KUSTO_AUTH_ACCESS_TOKEN_DISPLAY = "Kusto Auth AccessToken";
     private static final String KUSTO_AUTH_ACCESS_TOKEN_DOC = "Kusto Access Token for Azure Active Directory authentication";
     private static final String KUSTO_AUTH_AUTHORITY_DOC = "Azure Active Directory tenant.";
@@ -326,11 +327,13 @@ public class KustoSinkConfig extends AbstractConfig {
                         KustoAuthenticationStrategy.APPLICATION.name(),
                         ConfigDef.ValidString.in(
                                 KustoAuthenticationStrategy.APPLICATION.name(),
-                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name(),
                                 KustoAuthenticationStrategy.APPLICATION.name().toLowerCase(Locale.ENGLISH),
+                                KustoAuthenticationStrategy.MANAGED_IDENTITY.name(),
                                 KustoAuthenticationStrategy.MANAGED_IDENTITY.name().toLowerCase(Locale.ENGLISH),
                                 KustoAuthenticationStrategy.AZ_DEV_TOKEN.name(),
-                                KustoAuthenticationStrategy.AZ_DEV_TOKEN.name().toLowerCase(Locale.ENGLISH)),
+                                KustoAuthenticationStrategy.AZ_DEV_TOKEN.name().toLowerCase(Locale.ENGLISH),
+                                KustoAuthenticationStrategy.WORKLOAD_IDENTITY.name(),
+                                KustoAuthenticationStrategy.WORKLOAD_IDENTITY.name().toLowerCase(Locale.ENGLISH)),
                         Importance.HIGH,
                         KUSTO_AUTH_STRATEGY_DOC,
                         connectionGroupName,
@@ -371,9 +374,11 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getString(KUSTO_AUTH_APPID_CONF);
     }
 
+
     public String getAuthAppKey() {
         return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();
     }
+
     public String getAuthAccessToken() {
         return this.getPassword(KUSTO_AUTH_ACCESS_TOKEN_CONF).value();
     }
@@ -467,7 +472,7 @@ public class KustoSinkConfig extends AbstractConfig {
         return this.getBoolean(KUSTO_SINK_ENABLE_TABLE_VALIDATION);
     }
 
-    enum BehaviorOnError {
+    public enum BehaviorOnError {
         FAIL, LOG, IGNORE;
 
         /**
@@ -483,7 +488,7 @@ public class KustoSinkConfig extends AbstractConfig {
         }
     }
 
-    enum KustoAuthenticationStrategy {
-        APPLICATION, MANAGED_IDENTITY, AZ_DEV_TOKEN
+    public enum KustoAuthenticationStrategy {
+        APPLICATION, MANAGED_IDENTITY, AZ_DEV_TOKEN, WORKLOAD_IDENTITY
     }
 }
