@@ -23,7 +23,7 @@
         <java.release.version>1.8</java.release.version>
         <jsonassert.version>1.5.3</jsonassert.version>
         <junit.version>5.11.0</junit.version>
-        <kafka.connect.avro.converter.version>7.8.0</kafka.connect.avro.converter.version>
+        <kafka.connect.avro.converter.version>7.8.1</kafka.connect.avro.converter.version>
         <kafka.version>3.9.0</kafka.version>
         <kusto.sdk.version>5.2.0</kusto.sdk.version>
         <mockito.version>4.11.0</mockito.version>
