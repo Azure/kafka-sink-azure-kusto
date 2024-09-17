@@ -94,6 +94,19 @@
                     ]
                 }
             }
+        },
+        {
+            "name": "vtype",
+            "type": {
+                "type": "string",
+                "arg.properties": {
+                    "options": [
+                        "avro",
+                        "json",
+                        "csv"
+                    ]
+                }
+            }
         }
     ]
 }

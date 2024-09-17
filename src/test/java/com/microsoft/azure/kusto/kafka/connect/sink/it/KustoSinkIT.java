@@ -238,12 +238,12 @@ class KustoSinkIT {
                 try (KafkaProducer<String, GenericData.Record> producer = new KafkaProducer<>(producerProperties)) {
                     for (int i = 0; i < maxRecords; i++) {
                         GenericData.Record record = (GenericData.Record) randomDataBuilder.generate();
-                        record.put("type", dataFormat);
+                        record.put("vtype", dataFormat);
                         ProducerRecord<String, GenericData.Record> producerRecord =
                                 new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
-                        jsonRecordMap.put("type", dataFormat);
+                        jsonRecordMap.put("vtype", dataFormat);
                         expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
                         producer.send(producerRecord);
@@ -257,12 +257,12 @@ class KustoSinkIT {
                 try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
                     for (int i = 0; i < maxRecords; i++) {
                         GenericRecord record = (GenericRecord) randomDataBuilder.generate();
-                        record.put("type", dataFormat);
+                        record.put("vtype", dataFormat);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                         ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic", "Key-" + i,
                                 objectMapper.writeValueAsString(jsonRecordMap));
-                        jsonRecordMap.put("type", dataFormat);
+                        jsonRecordMap.put("vtype", dataFormat);
                         expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
                         log.debug("JSON Record produced: {}", objectMapper.writeValueAsString(jsonRecordMap));
@@ -277,14 +277,14 @@ class KustoSinkIT {
                 try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
                     for (int i = 0; i < maxRecords; i++) {
                         GenericRecord record = (GenericRecord) randomDataBuilder.generate();
-                        record.put("type", dataFormat);
+                        record.put("vtype", dataFormat);
                         Map<String, Object> jsonRecordMap = new TreeMap<>(record.getSchema().getFields().stream().parallel()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name()))));
                         String objectsCommaSeparated = jsonRecordMap.values().stream().map(Object::toString).collect(Collectors.joining(","));
                         log.debug("CSV Record produced: {}", objectsCommaSeparated);
                         ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.csv.topic", "Key-" + i,
                                 objectsCommaSeparated);
-                        jsonRecordMap.put("type", dataFormat);
+                        jsonRecordMap.put("vtype", dataFormat);
                         expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
                         producer.send(producerRecord);
@@ -312,7 +312,7 @@ class KustoSinkIT {
     }
 
     private @NotNull Map<Long, String> getRecordsIngested(String dataFormat, int maxRecords) {
-        String query = String.format("%s | where type == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat, keyColumn);
+        String query = String.format("%s | where vtype == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat, keyColumn);
         Predicate<Object> predicate = (results) -> {
             if (results != null) {
                 log.info("Retrieved records count {}", ((Map<?, ?>) results).size());
