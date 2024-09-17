@@ -1,6 +1,7 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 
 import io.confluent.kafka.serializers.NonRecordContainer;
 
@@ -27,7 +29,7 @@ public abstract class HeaderAndMetadataWriter {
     public String KEY_FIELD = "key";
     public String VALUE_FIELD = "value";
 
-    public String KAFKA_METADATA_FIELD = "kafka-md";
+    public String KAFKA_METADATA_FIELD = "kafkamd";
     public String TOPIC = "topic";
     public String PARTITION = "partition";
     public String OFFSET = "offset";
@@ -39,9 +41,32 @@ public abstract class HeaderAndMetadataWriter {
         return headers;
     }
 
+    /**
+     * Convert SinkRecord to CSV
+     * @param record SinkRecord
+     * @param isKey boolean
+     * @return String
+     */
+    public String convertSinkRecordToCsv(@NotNull SinkRecord record, boolean isKey) {
+        if (isKey) {
+            if (record.key() instanceof byte[]) {
+                return record.key() == null ? "" : new String((byte[]) record.key(), StandardCharsets.UTF_8);
+            } else {
+                return record.key() == null ? "" : record.key().toString();
+            }
+        } else {
+            if (record.value() instanceof byte[]) {
+                return record.value() == null ? "" : new String((byte[]) record.value(), StandardCharsets.UTF_8);
+            } else {
+                return record.value() == null ? "" : record.value().toString();
+            }
+        }
+    }
+
     @NotNull
     @SuppressWarnings(value = "unchecked")
-    public Map<String, Object> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey) throws IOException {
+    public Map<String, Object> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey,
+                                                      IngestionProperties.DataFormat dataFormat) throws IOException {
         Object recordValue = isKey ? record.key() : record.value();
         Schema schema = isKey ? record.keySchema() : record.valueSchema();
         String defaultKeyOrValueField = isKey ? KEY_FIELD : VALUE_FIELD;
@@ -58,7 +83,7 @@ public abstract class HeaderAndMetadataWriter {
         }
         // String or JSON
         if (recordValue instanceof String) {
-            return FormatWriterHelper.convertStringToMap(recordValue, defaultKeyOrValueField);
+            return FormatWriterHelper.convertStringToMap(recordValue, defaultKeyOrValueField, dataFormat);
         }
         // Map
         if (recordValue instanceof Map) {
@@ -66,12 +91,8 @@ public abstract class HeaderAndMetadataWriter {
         }
         // is a byte array
         if (recordValue instanceof byte[]) {
-            return FormatWriterHelper.convertBytesToMap((byte[]) recordValue,defaultKeyOrValueField);
+            return FormatWriterHelper.convertBytesToMap((byte[]) recordValue, defaultKeyOrValueField, dataFormat);
         }
-/*
-        String fieldName = schema!=null ? StringUtils.defaultIfBlank(schema.name(),
-                isKey ? KEY_FIELD : VALUE_FIELD):isKey ? KEY_FIELD : VALUE_FIELD;
-*/
         String fieldName = isKey ? KEY_FIELD : VALUE_FIELD;
         return Collections.singletonMap(fieldName, recordValue);
     }

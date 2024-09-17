@@ -23,7 +23,6 @@ import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.ByteRecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.KustoRecordWriterProvider;
 
 /**
@@ -290,7 +289,7 @@ public class FileWriter implements Closeable {
             openFile(sinkRecord.kafkaOffset());
             resetFlushTimer(true);
         }
-        recordWriter.write(sinkRecord);
+        recordWriter.write(sinkRecord, this.format);
         if (this.isDlqEnabled) {
             currentFile.records.add(sinkRecord);
         }
@@ -318,7 +317,7 @@ public class FileWriter implements Closeable {
         } else if ((sinkRecord.valueSchema() == null) || (sinkRecord.valueSchema().type() == Schema.Type.STRING)) {
             recordWriterProvider = new KustoRecordWriterProvider();
         } else if ((sinkRecord.valueSchema() != null) && (sinkRecord.valueSchema().type() == Schema.Type.BYTES)) {
-            recordWriterProvider = new ByteRecordWriterProvider();
+            recordWriterProvider = new KustoRecordWriterProvider();
             if (format.equals(IngestionProperties.DataFormat.AVRO)) {
                 shouldWriteAvroAsBytes = true;
             }
