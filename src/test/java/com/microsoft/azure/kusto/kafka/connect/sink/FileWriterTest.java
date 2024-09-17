@@ -23,7 +23,10 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +48,7 @@ public class FileWriterTest {
             try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
                 byte[] bytes = IOUtils.toByteArray(fileInputStream);
                 try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
-                        GZIPInputStream gzipper = new GZIPInputStream(bin)) {
+                     GZIPInputStream gzipper = new GZIPInputStream(bin)) {
 
                     byte[] buffer = new byte[1024];
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -111,7 +114,7 @@ public class FileWriterTest {
         Assertions.assertTrue(createDirectoryWithPermissions(path));
         Assertions.assertEquals(0, getFilesCount(path));
         HashMap<String, Long> files = new HashMap<>();
-        final int MAX_FILE_SIZE = 100;
+        final int MAX_FILE_SIZE = 225; // sizeof(,'','','{"partition":"1","offset":"1","topic":"topic"}'\n) * 2 , Similar multiple applied for the first test
         Consumer<SourceFile> trackFiles = (SourceFile f) -> files.put(f.path, f.rawBytes);
         Function<Long, String> generateFileName = (Long l) -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())) + "csv.gz";
         try (FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(),
@@ -129,14 +132,14 @@ public class FileWriterTest {
             Assertions.assertEquals(5, files.size());
             List<Long> sortedFiles = new ArrayList<>(files.values());
             sortedFiles.sort((Long x, Long y) -> (int) (y - x));
-            Assertions.assertEquals(sortedFiles,
-                    Arrays.asList((long) 108, (long) 108, (long) 108, (long) 108, (long) 54));
+            Assertions.assertEquals(
+                    Arrays.asList((long) 240, (long) 240, (long) 240, (long) 240, (long) 120),
+                    sortedFiles);
             // make sure folder is clear once done - with only the new file
             Assertions.assertEquals(1, getFilesCount(path));
         }
     }
 
-    @Disabled
     @Test
     public void testGzipFileWriterFlush() throws IOException, InterruptedException {
         String path = Paths.get(currentDirectory.getPath(), "testGzipFileWriter2").toString();
@@ -170,7 +173,7 @@ public class FileWriterTest {
         Assertions.assertEquals(2, files.size());
         List<Long> sortedFiles = new ArrayList<>(files.values());
         sortedFiles.sort((Long x, Long y) -> (int) (y - x));
-        Assertions.assertEquals(sortedFiles, Arrays.asList((long) 15, (long) 8));
+        Assertions.assertEquals(sortedFiles, Arrays.asList((long) 81, (long) 74));
         // make sure folder is clear once done
         fileWriter2.close();
         Assertions.assertEquals(1, getFilesCount(path));
@@ -204,7 +207,8 @@ public class FileWriterTest {
             }
             return Paths.get(path, Long.toString(offset)).toString();
         };
-        try (FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, reentrantReadWriteLock,
+        try (FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500,
+                reentrantReadWriteLock,
                 ingestionProps.getDataFormat(),
                 BehaviorOnError.FAIL, true)) {
             String msg2 = "Second Message";
@@ -236,8 +240,17 @@ public class FileWriterTest {
             Assertions.assertEquals(2, files.size());
 
             // Make sure that the first file is from offset 1 till 2 and second is from 3 till 3
-            Assertions.assertEquals(30L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[0]);
-            Assertions.assertEquals(15L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[1]);
+            /*
+            >   Why is this 30 before ?
+                2 * "Second Message" + NewLines for both 6(Second)+1(Space)+7(Message)+1(New Line) -> 15
+                2 of these => 30
+
+            >    Why did this become 146 ?
+                 The CSV now becomes : 'Second Message','','','{"partition":"1","offset":"1","topic":"topic"}'\n
+                 2 of these become 146 bytes
+            */
+            Assertions.assertEquals(164L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[0]);
+            Assertions.assertEquals(84L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[1]);
             Assertions.assertEquals("1",
                     files.stream().map((s) -> s.getKey().substring(path.length() + 1)).toArray(String[]::new)[0]);
             Assertions.assertEquals("3",
