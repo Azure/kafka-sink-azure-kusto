@@ -37,6 +37,7 @@ public abstract class HeaderAndMetadataWriter {
     public String OFFSET = "offset";
 
     protected final FormatWriterHelper formatWriterHelper = FormatWriterHelper.getInstance();
+
     @NotNull
     public Map<String, Object> getHeadersAsMap(@NotNull SinkRecord record) {
         Map<String, Object> headers = new HashMap<>();
@@ -70,7 +71,7 @@ public abstract class HeaderAndMetadataWriter {
     @NotNull
     @SuppressWarnings(value = "unchecked")
     public Collection<Map<String, Object>> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey,
-                                                                  IngestionProperties.DataFormat dataFormat) throws IOException {
+            IngestionProperties.DataFormat dataFormat) throws IOException {
         Object recordValue = isKey ? record.key() : record.value();
         Schema schema = isKey ? record.keySchema() : record.valueSchema();
         String defaultKeyOrValueField = isKey ? KEY_FIELD : VALUE_FIELD;
@@ -79,7 +80,7 @@ public abstract class HeaderAndMetadataWriter {
         }
         if (recordValue instanceof Struct) {
             Struct recordStruct = (Struct) recordValue;
-            return Collections.singletonList(formatWriterHelper.structToMap(record.topic(),recordStruct,isKey));
+            return Collections.singletonList(formatWriterHelper.structToMap(record.topic(), recordStruct, isKey));
         }
         // Is Avro Data
         if (recordValue instanceof GenericData.Record || recordValue instanceof NonRecordContainer) {
@@ -109,7 +110,6 @@ public abstract class HeaderAndMetadataWriter {
             throw new ConnectException(errorMessage);
         }
     }
-
 
     public Map<String, String> getKafkaMetaDataAsMap(@NotNull SinkRecord record) {
         Map<String, String> kafkaMetadata = new HashMap<>();

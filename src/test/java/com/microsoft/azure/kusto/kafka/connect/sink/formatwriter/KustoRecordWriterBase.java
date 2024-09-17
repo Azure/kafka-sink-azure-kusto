@@ -19,8 +19,8 @@ public abstract class KustoRecordWriterBase {
     protected static final String HEADERS = "headers";
     protected static final String KAFKA_MD = "kafkamd";
     protected static final ObjectMapper RESULT_MAPPER = new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-    protected static final TypeReference<Map<String, Object>> GENERIC_MAP = new TypeReference<Map<String, Object>>() {
-    };
+    protected static final TypeReference<Map<String, Object>> GENERIC_MAP = new TypeReference<Map<String, Object>>() {};
+
     protected void validate(String actualFilePath, Map<Integer, String[]> expectedResultsMap) throws IOException, JSONException {
         // Warns if the types are not generified
         List<String> actualJson = Files.readAllLines(Paths.get(actualFilePath));
