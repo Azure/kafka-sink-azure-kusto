@@ -129,7 +129,7 @@ public class KustoSinkTask extends SinkTask {
         return kcsb;
     }
 
-    public static Client createKustoEngineClient(KustoSinkConfig config) {
+    public static @NotNull Client createKustoEngineClient(KustoSinkConfig config) {
         try {
             return ClientFactory.createClient(createKustoEngineConnectionString(config, config.getKustoEngineUrl()));
         } catch (Exception e) {
@@ -156,16 +156,8 @@ public class KustoSinkTask extends SinkTask {
                 }
 
                 String mappingRef = mapping.getMapping();
-                if (StringUtils.isNotEmpty(mappingRef) && format != null) {
-                    if (isDataFormatAnyTypeOfJson(format)) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
-                    } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.AVRO.toString())) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.AVRO);
-                    } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.APACHEAVRO.toString())) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.APACHEAVRO);
-                    } else {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.CSV);
-                    }
+                if (StringUtils.isNotEmpty(mappingRef)) {
+                    props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
                 }
                 TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
                 topicIngestionProperties.ingestionProperties = props;
@@ -178,7 +170,7 @@ public class KustoSinkTask extends SinkTask {
         }
     }
 
-    private static boolean isDataFormatAnyTypeOfJson(String format) {
+    private static boolean isDataFormatAnyTypeOfJson(@NotNull String format) {
         return format.equalsIgnoreCase(IngestionProperties.DataFormat.JSON.name())
                 || format.equalsIgnoreCase(IngestionProperties.DataFormat.SINGLEJSON.name())
                 || format.equalsIgnoreCase(IngestionProperties.DataFormat.MULTIJSON.name());
@@ -369,6 +361,8 @@ public class KustoSinkTask extends SinkTask {
                 throw new ConnectException(String.format("Kusto Sink has no ingestion props mapped " +
                         "for the topic: %s. please check your configuration.", tp.topic()));
             } else {
+                // Always a JSON
+                ingestionProps.ingestionProperties.setDataFormat(IngestionProperties.DataFormat.JSON);
                 IngestClient client = ingestionProps.streaming ? streamingIngestClient : kustoIngestClient;
                 TopicPartitionWriter writer = new TopicPartitionWriter(tp, client, ingestionProps, config, isDlqEnabled,
                         dlqTopicName, dlqProducer);
