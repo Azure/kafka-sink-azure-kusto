@@ -114,7 +114,7 @@ class KustoSinkIT {
             // Logs of start up of the container gets published here. This will be handy in case we want to look at startup failures
             log.debug(connectContainer.getLogs());
         } else {
-            log.info("Skipping test due to missing configuration");
+            log.debug("Skipping test due to missing configuration");
         }
     }
 
@@ -151,6 +151,7 @@ class KustoSinkIT {
 
     @AfterAll
     public static void stopContainers() throws Exception {
+        log.info("Finished table clean up. Dropped table {}", coordinates.table);
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
@@ -171,12 +172,12 @@ class KustoSinkIT {
                 log.debug("Using value format: {}", valueFormat);
             }
             String topicTableMapping = dataFormat.equals("csv")
-                    ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping','streaming':'true'}]", dataFormat,
+                    ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping','streaming':'true'}]", dataFormat,
                             coordinates.database,
-                            coordinates.table, dataFormat, dataFormat)
-                    : String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'%s_mapping'}]", dataFormat,
+                            coordinates.table, dataFormat)
+                    : String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping'}]", dataFormat,
                             coordinates.database,
-                            coordinates.table, dataFormat, dataFormat);
+                            coordinates.table, dataFormat);
             log.info("Deploying connector for {} , using SR url {}. Using proxy host {} and port {}", dataFormat, srUrl,
                     proxyContainer.getContainerId().substring(0, 12), proxyContainer.getExposedPorts().get(0));
             Map<String, Object> connectorProps = new HashMap<>();
@@ -198,7 +199,7 @@ class KustoSinkIT {
             connectorProps.put("proxy.host", proxyContainer.getContainerId().substring(0, 12));
             connectorProps.put("proxy.port", proxyContainer.getExposedPorts().get(0));
             connectContainer.registerConnector(String.format("adx-connector-%s", dataFormat), connectorProps);
-            log.info("Deployed connector for {}", dataFormat);
+            log.debug("Deployed connector for {}", dataFormat);
             log.debug(connectContainer.getLogs());
         });
         testFormats.parallelStream().forEach(dataFormat -> {
@@ -215,7 +216,7 @@ class KustoSinkIT {
     }
 
     private void produceKafkaMessages(@NotNull String dataFormat) throws IOException {
-        log.debug("Producing messages");
+        log.info("Producing messages");
         int maxRecords = 10;
         Map<String, Object> producerProperties = new HashMap<>();
         producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
@@ -237,7 +238,9 @@ class KustoSinkIT {
                 try (KafkaProducer<String, GenericData.Record> producer = new KafkaProducer<>(producerProperties)) {
                     for (int i = 0; i < maxRecords; i++) {
                         GenericData.Record record = (GenericData.Record) randomDataBuilder.generate();
-                        ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
+                        record.put("type", dataFormat);
+                        ProducerRecord<String, GenericData.Record> producerRecord =
+                                new ProducerRecord<>("e2e.avro.topic", "Key-" + i, record);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                         jsonRecordMap.put("type", dataFormat);
@@ -254,6 +257,7 @@ class KustoSinkIT {
                 try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
                     for (int i = 0; i < maxRecords; i++) {
                         GenericRecord record = (GenericRecord) randomDataBuilder.generate();
+                        record.put("type", dataFormat);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                         ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic", "Key-" + i,
@@ -273,6 +277,7 @@ class KustoSinkIT {
                 try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
                     for (int i = 0; i < maxRecords; i++) {
                         GenericRecord record = (GenericRecord) randomDataBuilder.generate();
+                        record.put("type", dataFormat);
                         Map<String, Object> jsonRecordMap = new TreeMap<>(record.getSchema().getFields().stream().parallel()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name()))));
                         String objectsCommaSeparated = jsonRecordMap.values().stream().map(Object::toString).collect(Collectors.joining(","));
@@ -310,7 +315,7 @@ class KustoSinkIT {
         String query = String.format("%s | where type == '%s' | project  %s,vresult = pack_all()", coordinates.table, dataFormat, keyColumn);
         Predicate<Object> predicate = (results) -> {
             if (results != null) {
-                log.debug("Retrieved records count {}", ((Map<?, ?>) results).size());
+                log.info("Retrieved records count {}", ((Map<?, ?>) results).size());
             }
             return results == null || ((Map<?, ?>) results).isEmpty() || ((Map<?, ?>) results).size() < maxRecords;
         };
@@ -324,13 +329,13 @@ class KustoSinkIT {
         Retry retry = registry.retry("ingestRecordService", config);
         Supplier<Map<Long, String>> recordSearchSupplier = () -> {
             try {
-                log.debug("Executing query {} ", query);
+                log.info("Executing query {} ", query);
                 KustoResultSetTable resultSet = engineClient.execute(coordinates.database, query).getPrimaryResults();
                 Map<Long, String> actualResults = new HashMap<>();
                 while (resultSet.next()) {
                     Long key = (long) resultSet.getInt(keyColumn);
                     String vResult = resultSet.getString("vresult");
-                    log.debug("Record queried: {}", vResult);
+                    log.info("Record queried: {}", vResult);
                     actualResults.put(key, vResult);
                 }
                 return actualResults;
