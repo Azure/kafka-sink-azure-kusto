@@ -3,6 +3,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.generic.GenericData;
@@ -10,7 +11,9 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.*;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -33,9 +36,6 @@ public class FormatWriterHelper {
     private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
             = new TypeReference<Map<String, Object>>() {
     };
-    private static  final String KEY_FIELD = "key";
-    private static final String VALUE_FIELD = "value";
-
     private FormatWriterHelper() {
     }
 
@@ -53,7 +53,8 @@ public class FormatWriterHelper {
         return updatedValue;
     }
 
-    public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes,String defaultKeyOrValueField) throws IOException {
+    public static @NotNull Map<String, Object> convertBytesToMap(byte[] messageBytes,
+                                                                 String defaultKeyOrValueField) throws IOException {
         if(messageBytes == null || messageBytes.length == 0) {
             return Collections.emptyMap();
         }
@@ -77,7 +78,13 @@ public class FormatWriterHelper {
         return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(record.toString());
     }
 
-    public static @NotNull Map<String, Object> convertStringToMap(Object value, String defaultKeyOrValueField) throws IOException {
+    public static @NotNull Map<String, Object> structToMap(@NotNull Struct recordData) {
+        List<Field> fields = recordData.schema().fields();
+        return fields.stream().collect(Collectors.toMap(Field::name, recordData::get));
+    }
+
+    public static @NotNull Map<String, Object> convertStringToMap(Object value,
+                                                                  String defaultKeyOrValueField) throws IOException {
         String objStr = (String) value;
         if (isJson(defaultKeyOrValueField, objStr)) {
             return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(objStr);

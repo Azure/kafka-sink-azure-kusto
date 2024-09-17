@@ -7,19 +7,21 @@ import java.util.Map;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
-// TODO tests for byte[]
+import io.confluent.kafka.serializers.NonRecordContainer;
 
 public abstract class HeaderAndMetadataWriter {
-    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
     public static final String LINE_SEPARATOR = System.lineSeparator();
-    protected static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
+    protected static final Logger LOGGER = LoggerFactory.getLogger(HeaderAndMetadataWriter.class);
     public String HEADERS_FIELD = "headers";
     public String KEYS_FIELD = "keys";
     public String KEY_FIELD = "key";
@@ -46,8 +48,12 @@ public abstract class HeaderAndMetadataWriter {
         if (recordValue == null) {
             return Collections.emptyMap();
         }
+        if (recordValue instanceof Struct) {
+            Struct recordStruct = (Struct) recordValue;
+            return FormatWriterHelper.structToMap(recordStruct);
+        }
         // Is Avro Data
-        if (recordValue instanceof GenericData.Record) {
+        if (recordValue instanceof GenericData.Record || recordValue instanceof NonRecordContainer) {
             return FormatWriterHelper.convertAvroRecordToMap(schema, recordValue);
         }
         // String or JSON

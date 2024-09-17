@@ -150,6 +150,7 @@ public class FileWriter implements Closeable {
         currentFile = fileProps;
         countingStream = new CountingOutputStream(new GZIPOutputStream(fos));
         outputStream = countingStream.getOutputStream();
+        log.debug("Opened new file for writing: {}", fileProps.file);
         recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, countingStream);
     }
 
