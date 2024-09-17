@@ -1,9 +1,9 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
+import java.io.OutputStream;
+
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
-
-import java.io.OutputStream;
 
 public class KustoRecordWriterProvider implements RecordWriterProvider {
     @Override

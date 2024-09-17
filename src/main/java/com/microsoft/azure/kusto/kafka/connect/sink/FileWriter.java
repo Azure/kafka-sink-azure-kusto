@@ -25,7 +25,6 @@ import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.ByteRecordWriterProvider;
 import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.KustoRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.StringRecordWriterProvider;
 
 /**
  * This class is used to write gzipped rolling files.
@@ -316,7 +315,7 @@ public class FileWriter implements Closeable {
                         + "Currently, it is of type %s.", format));
             }
         } else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)) {
-            recordWriterProvider = new StringRecordWriterProvider();
+            recordWriterProvider = new KustoRecordWriterProvider();
         } else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.BYTES)) {
             recordWriterProvider = new ByteRecordWriterProvider();
             if (format.equals(IngestionProperties.DataFormat.AVRO)) {

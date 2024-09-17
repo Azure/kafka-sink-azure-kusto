@@ -1,6 +1,10 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.avro.generic.GenericData;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -8,10 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 // TODO tests for byte[]
 
@@ -41,7 +42,7 @@ public abstract class HeaderAndMetadataWriter {
     public Map<String, Object> convertSinkRecordToMap(@NotNull SinkRecord record, boolean isKey) throws IOException {
         Object recordValue = isKey ? record.key() : record.value();
         Schema schema = isKey ? record.keySchema() : record.valueSchema();
-        String rawField = isKey ? KEY_FIELD : VALUE_FIELD;
+        String defaultKeyOrValueField = isKey ? KEY_FIELD : VALUE_FIELD;
         if (recordValue == null) {
             return Collections.emptyMap();
         }
@@ -51,7 +52,7 @@ public abstract class HeaderAndMetadataWriter {
         }
         // String or JSON
         if (recordValue instanceof String) {
-            return FormatWriterHelper.convertStringToMap(recordValue, rawField);
+            return FormatWriterHelper.convertStringToMap(recordValue, defaultKeyOrValueField);
         }
         // Map
         if (recordValue instanceof Map) {
@@ -59,7 +60,7 @@ public abstract class HeaderAndMetadataWriter {
         }
         // is a byte array
         if (recordValue instanceof byte[]) {
-            return FormatWriterHelper.convertBytesToMap((byte[]) recordValue,isKey);
+            return FormatWriterHelper.convertBytesToMap((byte[]) recordValue,defaultKeyOrValueField);
         }
 /*
         String fieldName = schema!=null ? StringUtils.defaultIfBlank(schema.name(),

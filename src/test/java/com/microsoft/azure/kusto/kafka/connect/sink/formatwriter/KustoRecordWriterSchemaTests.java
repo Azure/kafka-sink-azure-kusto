@@ -1,11 +1,12 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-import io.confluent.avro.random.generator.Generator;
-import io.confluent.connect.avro.AvroData;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.util.*;
+import java.util.stream.Stream;
+
 import org.apache.avro.generic.GenericData;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.connect.data.Schema;
@@ -13,30 +14,19 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.skyscreamer.jsonassert.JSONAssert;
+
+import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+
+import io.confluent.avro.random.generator.Generator;
+import io.confluent.connect.avro.AvroData;
 import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Stream;
-
-public class KustoRecordWriterTest {
-    public static final String KEYS = "keys";
-    public static final String HEADERS = "headers";
-    public static final String KAFKA_MD = "kafka-md";
-    private static final ObjectMapper RESULT_MAPPER = new ObjectMapper();
-    private static final TypeReference<Map<String, Object>> GENERIC_MAP = new TypeReference<Map<String, Object>>() {
-    };
-
+public class KustoRecordWriterSchemaTests extends KustoRecordWriterBase {
     private static @NotNull Stream<Arguments> testMapSchemaJson() {
         // Key schema, value schema, expectedKey, expectedValue
         Schema intToIntSchema = SchemaBuilder.map(Schema.INT32_SCHEMA, Schema.INT32_SCHEMA).name("IntToIntMap").build();
@@ -121,32 +111,7 @@ public class KustoRecordWriterTest {
         FileUtils.deleteQuietly(file);
     }
 
-    private void validate(String actualFilePath, Map<Integer, String[]> expectedResultsMap) throws IOException, JSONException {
-        // Warns if the types are not generified
-        List<String> actualJson = Files.readAllLines(Paths.get(actualFilePath));
-        for (int i = 0; i < actualJson.size(); i++) {
-            String actual = actualJson.get(i);
-            Map<String, Object> actualMap = RESULT_MAPPER.readValue(actual, GENERIC_MAP);
-            String[] expected = expectedResultsMap.get(i);
-            String actualKeys = RESULT_MAPPER.writeValueAsString(actualMap.get(KEYS));
-            String actualHeaders = RESULT_MAPPER.writeValueAsString(actualMap.get(HEADERS));
-            JSONAssert.assertEquals(expected[1], actualKeys, false);
-            JSONAssert.assertEquals(expected[0], actualHeaders, false);
-            // to get the values it is to remove keys and headers , then get all the fields and compare
-            actualMap.remove(KEYS);
-            actualMap.remove(HEADERS);
-            actualMap.remove(KAFKA_MD);
-            // Now actualMap contains only the value
-            String actualValues = RESULT_MAPPER.writeValueAsString(actualMap);
-            if (expected[2] == null) {
-                // there are no fields or no keys
-                Assertions.assertTrue(actualMap.keySet().isEmpty(), "Expected null value for tombstone record");
-            } else {
-                JSONAssert.assertEquals(expected[2], actualValues, false);
-            }
-        }
-    }
-
+    // Idea is to use Avro Schema to generate Avro data and convert them to random JSON for tests
     @ParameterizedTest(name = "JSON Data to be serialized with key schema {0} and value schema {1} isSimpleKey {2} isSimpleValue {3}")
     @CsvSource({
             "avro-simple-schema.json,avro-struct-schema.json,true,false",
