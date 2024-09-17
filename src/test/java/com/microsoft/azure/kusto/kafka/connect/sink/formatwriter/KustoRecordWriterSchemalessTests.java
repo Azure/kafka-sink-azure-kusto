@@ -15,6 +15,7 @@ import org.json.JSONException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 
@@ -22,7 +23,7 @@ import io.confluent.avro.random.generator.Generator;
 import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
 
 public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
-    @ParameterizedTest(name = "Json data serialized as bytes with key schema {0} and " +
+    @ParameterizedTest(name = "JSON data serialized as bytes with key schema {0} and " +
             "value schema {1} should be deserialized correctly. Simple key: {2}, Simple value: {3}")
     @CsvSource({
             "avro-simple-schema.json,avro-struct-schema.json,true,false",
@@ -56,12 +57,13 @@ public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
             sinkRecord.headers().addInt(String.format("HeaderInt-%s", i), i);
             records.add(sinkRecord);
             String expectedValueString = isSimpleValue ?
-                    RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", value)) :
+                    RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", avroValue)) :
                     new String(converter.convertToJson((GenericRecord) avroValue), StandardCharsets.UTF_8);
             String expectedKeyString = isSimpleKey ?
-                    RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key", key)) :
-                    new String(converter.convertToJson((GenericRecord) avroKey), StandardCharsets.UTF_8);
-            String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(Collections.singletonMap(String.format("HeaderInt-%s", i), i));
+                    RESULT_MAPPER.writeValueAsString(Collections.singletonMap("key", avroKey)) :
+                    new String(converter.convertToJson((GenericRecord) avroKey), StandardCharsets.UTF_8);;
+            String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(Collections.singletonMap(
+                    String.format("HeaderInt-%s", i), i));
             expectedResultsMap.put(i, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
         }
         File file = new File(String.format("%s.%s", UUID.randomUUID(), "json"));
@@ -70,7 +72,7 @@ public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
         OutputStream out = Files.newOutputStream(file.toPath());
         RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
         for (SinkRecord record : records) {
-            rd.write(record);
+            rd.write(record, IngestionProperties.DataFormat.JSON);
         }
         rd.commit();
         validate(file.getPath(), expectedResultsMap);
@@ -122,7 +124,7 @@ public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
         OutputStream out = Files.newOutputStream(file.toPath());
         RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
         for (SinkRecord record : records) {
-            rd.write(record);
+            rd.write(record, IngestionProperties.DataFormat.AVRO);
         }
         rd.commit();
         validate(file.getPath(), expectedResultsMap);

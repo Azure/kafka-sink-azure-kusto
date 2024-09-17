@@ -19,6 +19,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 
@@ -103,7 +104,7 @@ public class KustoRecordWriterSchemaTests extends KustoRecordWriterBase {
         OutputStream out = Files.newOutputStream(file.toPath());
         RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
         for (SinkRecord record : records) {
-            rd.write(record);
+            rd.write(record, IngestionProperties.DataFormat.AVRO);
         }
         rd.commit();
         validate(file.getPath(), expectedResultsMap);
@@ -141,6 +142,7 @@ public class KustoRecordWriterSchemaTests extends KustoRecordWriterBase {
                     i);
             sinkRecord.headers().addInt(String.format("HeaderInt-%s", i), i);
             records.add(sinkRecord);
+
             String expectedValueString = isSimpleValue ?
                     RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", value)) :
                     value.toString();
@@ -156,7 +158,7 @@ public class KustoRecordWriterSchemaTests extends KustoRecordWriterBase {
         OutputStream out = Files.newOutputStream(file.toPath());
         RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
         for (SinkRecord record : records) {
-            rd.write(record);
+            rd.write(record, IngestionProperties.DataFormat.JSON);
         }
         rd.commit();
         validate(file.getPath(), expectedResultsMap);
@@ -201,7 +203,7 @@ public class KustoRecordWriterSchemaTests extends KustoRecordWriterBase {
         KustoRecordWriterProvider writer = new KustoRecordWriterProvider();
         OutputStream out = Files.newOutputStream(file.toPath());
         RecordWriter rd = writer.getRecordWriter(file.getPath(), out);
-        rd.write(sinkRecord);
+        rd.write(sinkRecord, IngestionProperties.DataFormat.JSON);
         //verify
         validate(file.getPath(), expectedResultsMap);
         rd.commit();

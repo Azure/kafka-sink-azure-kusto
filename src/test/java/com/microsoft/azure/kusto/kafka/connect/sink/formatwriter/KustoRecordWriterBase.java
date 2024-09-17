@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 public abstract class KustoRecordWriterBase {
     protected static final String KEYS = "keys";
     protected static final String HEADERS = "headers";
-    protected static final String KAFKA_MD = "kafka-md";
+    protected static final String KAFKA_MD = "kafkamd";
     protected static final ObjectMapper RESULT_MAPPER = new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
     protected static final TypeReference<Map<String, Object>> GENERIC_MAP = new TypeReference<Map<String, Object>>() {
     };
@@ -42,8 +42,6 @@ public abstract class KustoRecordWriterBase {
                 // there are no fields or no keys
                 Assertions.assertTrue(actualMap.keySet().isEmpty(), "Expected null value for tombstone record");
             } else {
-//                System.out.printf("Expected: %s%n", expected[2]);
-//                System.out.printf("Actual: %s%n", actualValues);
                 JSONAssert.assertEquals(expected[2], actualValues, false);
             }
         }
