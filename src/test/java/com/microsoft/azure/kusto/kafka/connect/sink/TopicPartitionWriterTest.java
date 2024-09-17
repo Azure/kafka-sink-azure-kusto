@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.*;
 
 @Disabled
-//TODO parts of this test needs to be re-formatted and may need rewriting
+// TODO parts of this test needs to be re-formatted and may need rewriting
 public class TopicPartitionWriterTest {
     private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriterTest.class);
 
@@ -208,14 +208,14 @@ public class TopicPartitionWriterTest {
         }
         Assertions.assertTrue((new File(writer.fileWriter.currentFile.path)).exists());
         Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 4,
-                        IngestionProperties.DataFormat.JSON.name().toLowerCase(Locale.ENGLISH)),
+                IngestionProperties.DataFormat.JSON.name().toLowerCase(Locale.ENGLISH)),
                 (new File(writer.fileWriter.currentFile.path)).getName());
         writer.close();
     }
 
     @Test
     public void testWriteStringValuesAndOffset() throws IOException {
-        String[] messages = new String[]{"stringy message", "another,stringy,message", "{'also':'stringy','sortof':'message'}"};
+        String[] messages = new String[] {"stringy message", "another,stringy,message", "{'also':'stringy','sortof':'message'}"};
 
         // Expect to finish file after writing forth message cause of fileThreshold
         long fileThreshold2 = messages[0].length() + messages[1].length() + messages[2].length() + messages[2].length() - 1;
@@ -241,8 +241,7 @@ public class TopicPartitionWriterTest {
         String currentFileName = writer.fileWriter.currentFile.path;
         Assertions.assertTrue(new File(currentFileName).exists());
         Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(),
-                        tp.partition(), 16
-                        , IngestionProperties.DataFormat.JSON.name().toLowerCase(Locale.ENGLISH)),
+                tp.partition(), 16, IngestionProperties.DataFormat.JSON.name().toLowerCase(Locale.ENGLISH)),
                 (new File(currentFileName)).getName());
 
         // Read
@@ -282,7 +281,7 @@ public class TopicPartitionWriterTest {
 
         Assertions.assertTrue(new File(currentFileName).exists());
         Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(),
-                        10, IngestionProperties.DataFormat.JSON.name().toLowerCase(Locale.ENGLISH)),
+                10, IngestionProperties.DataFormat.JSON.name().toLowerCase(Locale.ENGLISH)),
                 (new File(currentFileName)).getName());
         writer.close();
     }
@@ -334,7 +333,7 @@ public class TopicPartitionWriterTest {
         SinkRecord testSinkRecord = new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "{'also':'stringy','sortof':'message'}", 4);
 
         byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
-                        + "topic=%s, partition=%s, offset=%s.",
+                + "topic=%s, partition=%s, offset=%s.",
                 testSinkRecord.topic(),
                 testSinkRecord.kafkaPartition(),
                 testSinkRecord.kafkaOffset()).getBytes(StandardCharsets.UTF_8);

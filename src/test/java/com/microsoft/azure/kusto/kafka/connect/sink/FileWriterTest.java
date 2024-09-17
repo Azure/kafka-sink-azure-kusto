@@ -48,7 +48,7 @@ public class FileWriterTest {
             try (FileInputStream fileInputStream = new FileInputStream(f.file)) {
                 byte[] bytes = IOUtils.toByteArray(fileInputStream);
                 try (ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
-                     GZIPInputStream gzipper = new GZIPInputStream(bin)) {
+                        GZIPInputStream gzipper = new GZIPInputStream(bin)) {
 
                     byte[] buffer = new byte[1024];
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -241,14 +241,11 @@ public class FileWriterTest {
 
             // Make sure that the first file is from offset 1 till 2 and second is from 3 till 3
             /*
-            >   Why is this 30 before ?
-                2 * "Second Message" + NewLines for both 6(Second)+1(Space)+7(Message)+1(New Line) -> 15
-                2 of these => 30
-
-            >    Why did this become 146 ?
-                 The CSV now becomes : 'Second Message','','','{"partition":"1","offset":"1","topic":"topic"}'\n
-                 2 of these become 146 bytes
-            */
+             * > Why is this 30 before ? 2 * "Second Message" + NewLines for both 6(Second)+1(Space)+7(Message)+1(New Line) -> 15 2 of these => 30
+             * 
+             * > Why did this become 146 ? The CSV now becomes : 'Second Message','','','{"partition":"1","offset":"1","topic":"topic"}'\n 2 of these become 146
+             * bytes
+             */
             Assertions.assertEquals(164L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[0]);
             Assertions.assertEquals(84L, files.stream().map(Map.Entry::getValue).toArray(Long[]::new)[1]);
             Assertions.assertEquals("1",

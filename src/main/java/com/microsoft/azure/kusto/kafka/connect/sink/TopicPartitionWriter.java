@@ -64,7 +64,7 @@ public class TopicPartitionWriter {
     Long lastCommittedOffset;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-                         KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
+            KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -148,8 +148,8 @@ public class TopicPartitionWriter {
                 String details = status.getDetails();
                 UUID ingestionSourceId = status.getIngestionSourceId();
                 log.warn("A batch of streaming records has {} ingestion: table:{}, database:{}, operationId: {}," +
-                                "ingestionSourceId: {}{}{}.\n" +
-                                "Status is final and therefore ingestion won't be retried and data won't reach dlq",
+                        "ingestionSourceId: {}{}{}.\n" +
+                        "Status is final and therefore ingestion won't be retried and data won't reach dlq",
                         status.getStatus(),
                         status.getTable(),
                         status.getDatabase(),
@@ -190,7 +190,7 @@ public class TopicPartitionWriter {
 
     public void sendFailedRecordToDlq(SinkRecord sinkRecord) {
         byte[] recordKey = String.format("Failed to write sinkRecord to KustoDB with the following kafka coordinates, "
-                        + "topic=%s, partition=%s, offset=%s.",
+                + "topic=%s, partition=%s, offset=%s.",
                 sinkRecord.topic(),
                 sinkRecord.kafkaPartition(),
                 sinkRecord.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
@@ -276,9 +276,11 @@ public class TopicPartitionWriter {
             log.error("Unable to delete temporary connector folder {}", basePath);
         }
     }
+
     void stop() {
         fileWriter.stop();
     }
+
     private @NotNull IngestionProperties updateIngestionPropertiesWithTargetFormat() {
         IngestionProperties updatedIngestionProperties = new IngestionProperties(this.ingestionProps.ingestionProperties);
         IngestionProperties.DataFormat sourceFormat = ingestionProps.ingestionProperties.getDataFormat();
@@ -299,4 +301,3 @@ public class TopicPartitionWriter {
         return updatedIngestionProperties;
     }
 }
-
