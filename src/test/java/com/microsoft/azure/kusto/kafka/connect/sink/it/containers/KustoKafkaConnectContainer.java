@@ -16,6 +16,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.awaitility.Awaitility;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -43,7 +44,7 @@ public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConne
         withExposedPorts(KAFKA_CONNECT_PORT);
     }
 
-    public KustoKafkaConnectContainer withKafka(final KafkaContainer kafkaContainer) {
+    public KustoKafkaConnectContainer withKafka(final @NotNull KafkaContainer kafkaContainer) {
         return withKafka(kafkaContainer.getNetwork(), kafkaContainer.getNetworkAliases().get(0) + ":9092");
     }
 

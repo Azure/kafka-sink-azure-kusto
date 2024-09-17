@@ -73,7 +73,7 @@ class KustoSinkIT {
     private static final Network network = Network.newNetwork();
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final Integer KAFKA_MAX_MSG_SIZE = 3 * 1024 * 1024;
-    private static final String confluentVersion = "6.2.5";
+    private static final String confluentVersion = "7.5.6";
     private static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:" + confluentVersion))
             .withNetwork(network)
             .withEnv("KAFKA_MESSAGE_MAX_BYTES", KAFKA_MAX_MSG_SIZE.toString())
@@ -86,8 +86,7 @@ class KustoSinkIT {
             .withKafka(kafkaContainer)
             .dependsOn(kafkaContainer, proxyContainer, schemaRegistryContainer);
     private static final String keyColumn = "vlong";
-    private static final String COMPLEX_AVRO_BYTES_TABLE_TEST =
-            String.format("ComplexAvroBytesTest_%s",UUID.randomUUID()).replace('-', '_');
+    private static final String COMPLEX_AVRO_BYTES_TABLE_TEST = String.format("ComplexAvroBytesTest_%s", UUID.randomUUID()).replace('-', '_');
     private static ITCoordinates coordinates;
     private static Client engineClient = null;
     private static Client dmClient = null;
@@ -127,7 +126,7 @@ class KustoSinkIT {
         assert kqlResource != null;
         List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
                 .map(kql -> kql.replace("TBL", coordinates.table))
-                .map(kql -> kql.replace("CABT",COMPLEX_AVRO_BYTES_TABLE_TEST))
+                .map(kql -> kql.replace("CABT", COMPLEX_AVRO_BYTES_TABLE_TEST))
                 .collect(Collectors.toList());
         kqlsToExecute.forEach(kql -> {
             try {
@@ -136,7 +135,7 @@ class KustoSinkIT {
                 log.error("Failed to execute kql: {}", kql, e);
             }
         });
-        log.info("Created tables {} , {} and associated mappings", coordinates.table , COMPLEX_AVRO_BYTES_TABLE_TEST);
+        log.info("Created tables {} , {} and associated mappings", coordinates.table, COMPLEX_AVRO_BYTES_TABLE_TEST);
     }
 
     private static void refreshDm() throws Exception {
@@ -168,14 +167,13 @@ class KustoSinkIT {
     }
 
     private static void deployConnector(@NotNull String dataFormat, String topicTableMapping,
-                                        String srUrl, String keyFormat, String valueFormat) {
+            String srUrl, String keyFormat, String valueFormat) {
         deployConnector(dataFormat, topicTableMapping, srUrl, keyFormat, valueFormat, Collections.emptyMap());
     }
 
-
     private static void deployConnector(@NotNull String dataFormat, String topicTableMapping,
-                                        String srUrl, String keyFormat, String valueFormat,
-                                        Map<String, Object> overrideProps) {
+            String srUrl, String keyFormat, String valueFormat,
+            Map<String, Object> overrideProps) {
         Map<String, Object> connectorProps = new HashMap<>();
         connectorProps.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
         connectorProps.put("flush.size.bytes", 10000);
@@ -206,7 +204,7 @@ class KustoSinkIT {
     }
 
     @ParameterizedTest
-    @CsvSource({"json", "avro" , "csv" , "bytes-json"})
+    @CsvSource({"json", "avro", "csv", "bytes-json"})
     public void shouldHandleAllTypesOfEvents(@NotNull String dataFormat) {
         log.info("Running test for data format {}", dataFormat);
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
@@ -219,15 +217,15 @@ class KustoSinkIT {
         }
         String topicTableMapping = dataFormat.equals("csv")
                 ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'csv_mapping','streaming':'true'}]",
-                dataFormat, coordinates.database, coordinates.table, dataFormat)
+                        dataFormat, coordinates.database, coordinates.table, dataFormat)
                 : String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping'}]", dataFormat,
-                coordinates.database,
-                coordinates.table, dataFormat);
+                        coordinates.database,
+                        coordinates.table, dataFormat);
         if (dataFormat.startsWith("bytes")) {
             valueFormat = "org.apache.kafka.connect.converters.ByteArrayConverter";
             // JSON is written as JSON
             topicTableMapping = String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s'," +
-                            "'mapping':'data_mapping'}]", dataFormat,
+                    "'mapping':'data_mapping'}]", dataFormat,
                     coordinates.database,
                     coordinates.table, dataFormat.split("-")[1]);
         }
@@ -267,9 +265,8 @@ class KustoSinkIT {
                         GenericData.Record record = (GenericData.Record) randomDataBuilder.generate();
                         record.put("vtype", dataFormat);
                         List<Header> headers = new ArrayList<>();
-                        headers.add(new RecordHeader("Iteration", (dataFormat+"-Header"+i).getBytes()));
-                        ProducerRecord<String, GenericData.Record> producerRecord =
-                                new ProducerRecord<>("e2e.avro.topic",0, "Key-" + i, record,headers);
+                        headers.add(new RecordHeader("Iteration", (dataFormat + "-Header" + i).getBytes()));
+                        ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>("e2e.avro.topic", 0, "Key-" + i, record, headers);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                         jsonRecordMap.put("vtype", dataFormat);
@@ -293,9 +290,9 @@ class KustoSinkIT {
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
                         List<Header> headers = new ArrayList<>();
-                        headers.add(new RecordHeader("Iteration", (dataFormat+"-Header"+i).getBytes()));
+                        headers.add(new RecordHeader("Iteration", (dataFormat + "-Header" + i).getBytes()));
                         ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.json.topic",
-                                0, "Key-" + i,objectMapper.writeValueAsString(jsonRecordMap), headers);
+                                0, "Key-" + i, objectMapper.writeValueAsString(jsonRecordMap), headers);
                         jsonRecordMap.put("vtype", dataFormat);
                         expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
@@ -320,9 +317,9 @@ class KustoSinkIT {
                         String objectsCommaSeparated = jsonRecordMap.values().stream().map(Object::toString).collect(Collectors.joining(","));
                         log.debug("CSV Record produced: {}", objectsCommaSeparated);
                         List<Header> headers = new ArrayList<>();
-                        headers.add(new RecordHeader("Iteration", (dataFormat+"-Header"+i).getBytes()));
-                        ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.csv.topic", 0,"Key-" + i,
-                                objectsCommaSeparated,headers);
+                        headers.add(new RecordHeader("Iteration", (dataFormat + "-Header" + i).getBytes()));
+                        ProducerRecord<String, String> producerRecord = new ProducerRecord<>("e2e.csv.topic", 0, "Key-" + i,
+                                objectsCommaSeparated, headers);
                         jsonRecordMap.put("vtype", dataFormat);
                         expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
@@ -342,11 +339,10 @@ class KustoSinkIT {
                         byte[] dataToSend = record.toString().getBytes(StandardCharsets.UTF_8);
                         Map<String, Object> jsonRecordMap = record.getSchema().getFields().stream()
                                 .collect(Collectors.toMap(Schema.Field::name, field -> record.get(field.name())));
-                        ProducerRecord<String, byte[]> producerRecord =
-                                new ProducerRecord<>(
-                                        String.format("e2e.%s.topic", dataFormat),
-                                        String.format("Key-%s", i),
-                                        dataToSend);
+                        ProducerRecord<String, byte[]> producerRecord = new ProducerRecord<>(
+                                String.format("e2e.%s.topic", dataFormat),
+                                String.format("Key-%s", i),
+                                dataToSend);
                         jsonRecordMap.put("vtype", dataFormat);
                         expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(keyColumn).toString()),
                                 objectMapper.writeValueAsString(jsonRecordMap));
@@ -374,9 +370,9 @@ class KustoSinkIT {
                         new CustomComparator(LENIENT,
                                 // there are sometimes round off errors in the double values but they are close enough to 8 precision
                                 new Customization("vdec", (vdec1,
-                                                           vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001),
+                                        vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001),
                                 new Customization("vreal", (vreal1,
-                                                            vreal2) -> Math.abs(Double.parseDouble(vreal1.toString()) - Double.parseDouble(vreal2.toString())) < 0.0001)));
+                                        vreal2) -> Math.abs(Double.parseDouble(vreal1.toString()) - Double.parseDouble(vreal2.toString())) < 0.0001)));
             } catch (JSONException e) {
                 fail(e);
             }
@@ -401,7 +397,7 @@ class KustoSinkIT {
         producerProperties.put("message.max.bytes", KAFKA_MAX_MSG_SIZE);
         String topicName = String.format("e2e.%s.topic", dataFormat);
         String topicTableMapping = String.format("[{'topic': '%s','db': '%s', " +
-                        "'table': '%s','format':'%s','mapping':'%s_mapping'}]", topicName,
+                "'table': '%s','format':'%s','mapping':'%s_mapping'}]", topicName,
                 coordinates.database,
                 COMPLEX_AVRO_BYTES_TABLE_TEST, dataFormat.split("-")[1], COMPLEX_AVRO_BYTES_TABLE_TEST);
         deployConnector(dataFormat, topicTableMapping, srUrl,
@@ -416,22 +412,21 @@ class KustoSinkIT {
                 .endRecord();
         long keyStart = 100000L;
 
-        InputStream expectedResultsStream = Objects.requireNonNull(this.getClass().getClassLoader().
-                getResourceAsStream("avro-complex-data/expected-results.txt"));
+        InputStream expectedResultsStream = Objects
+                .requireNonNull(this.getClass().getClassLoader().getResourceAsStream("avro-complex-data/expected-results.txt"));
         String expectedResults = IOUtils.toString(expectedResultsStream, StandardCharsets.UTF_8);
-        Map<String, String> expectedResultMap =
-                Arrays.stream(expectedResults.split("\n"))
-                        .map(line -> line.split("~"))
-                        .collect(Collectors.toMap(arr -> arr[0], arr -> arr[1]));
+        Map<String, String> expectedResultMap = Arrays.stream(expectedResults.split("\n"))
+                .map(line -> line.split("~"))
+                .collect(Collectors.toMap(arr -> arr[0], arr -> arr[1]));
         try (KafkaProducer<GenericData.Record, byte[]> producer = new KafkaProducer<>(producerProperties)) {
             for (int i = 1; i <= maxRecords; i++) {
-                //complex-avro-1.avro
+                // complex-avro-1.avro
                 long keyTick = keyStart + i;
                 GenericData.Record keyRecord = new GenericData.Record(keySchema);
                 keyRecord.put("IterationKey", String.valueOf(i));
                 keyRecord.put("Timestamp", keyTick);
-                InputStream avroData = Objects.requireNonNull(this.getClass().getClassLoader().
-                        getResourceAsStream(String.format("avro-complex-data/complex-avro-%d.avro", i)));
+                InputStream avroData = Objects
+                        .requireNonNull(this.getClass().getClassLoader().getResourceAsStream(String.format("avro-complex-data/complex-avro-%d.avro", i)));
                 byte[] testData = IOUtils.toByteArray(avroData);
                 ProducerRecord<GenericData.Record, byte[]> producerRecord = new ProducerRecord<>(topicName, keyRecord, testData);
                 producerRecord.headers().add("vtype", dataFormat.getBytes());
@@ -446,7 +441,7 @@ class KustoSinkIT {
         }
 
         String countLongQuery = String.format("%s | summarize c = count() by event_id | project %s=event_id, " +
-                        "vresult = bag_pack('event_id',event_id,'count',c)", COMPLEX_AVRO_BYTES_TABLE_TEST, keyColumn);
+                "vresult = bag_pack('event_id',event_id,'count',c)", COMPLEX_AVRO_BYTES_TABLE_TEST, keyColumn);
 
         Map<Object, String> actualRecordsIngested = getRecordsIngested(countLongQuery, maxRecords);
         assertEquals(expectedResultMap, actualRecordsIngested);
@@ -458,7 +453,7 @@ class KustoSinkIT {
      * @param maxRecords The maximum number of records to poll for
      * @return A map of the records ingested
      */
-    private @NotNull Map<Object, String> getRecordsIngested(String query , int maxRecords) {
+    private @NotNull Map<Object, String> getRecordsIngested(String query, int maxRecords) {
         Predicate<Object> predicate = (results) -> {
             if (results != null) {
                 log.info("Retrieved records count {}", ((Map<?, ?>) results).size());

@@ -69,8 +69,7 @@ public class KustoRecordWriter extends HeaderAndMetadataWriter implements Record
             Collection<Map<String, Object>> parsedValues = convertSinkRecordToMap(record, false, dataFormat);
 
             parsedValues.forEach(parsedValue -> {
-                Map<String, Object> updatedValue = (record.value() == null) ? new HashMap<>() :
-                        new HashMap<>(parsedValue);
+                Map<String, Object> updatedValue = (record.value() == null) ? new HashMap<>() : new HashMap<>(parsedValue);
                 /* Add all the key fields */
                 if (record.key() != null) {
                     if (parsedKeys.size() == 1 && parsedKeys.containsKey(KEY_FIELD)) {

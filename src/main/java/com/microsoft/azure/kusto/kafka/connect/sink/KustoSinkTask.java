@@ -148,16 +148,16 @@ public class KustoSinkTask extends SinkTask {
                 log.debug("Using format {} ", format);
                 if (format != null && !format.isEmpty()) {
                     props.setDataFormat(format);
-//                    if (isSchemaType(format)) {
-//                        props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
-//                    } else {
-//                        props.setDataFormat(format);
-//                    }
+                    // if (isSchemaType(format)) {
+                    // props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
+                    // } else {
+                    // props.setDataFormat(format);
+                    // }
                 }
                 String mappingRef = mapping.getMapping();
                 if (StringUtils.isNotEmpty(mappingRef) && StringUtils.isNotEmpty(format)) {
-                        props.setIngestionMapping(mappingRef,
-                                IngestionMapping.IngestionMappingKind.valueOf(format.toUpperCase(Locale.ROOT)));
+                    props.setIngestionMapping(mappingRef,
+                            IngestionMapping.IngestionMappingKind.valueOf(format.toUpperCase(Locale.ROOT)));
                 }
                 TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
                 topicIngestionProperties.ingestionProperties = props;
@@ -180,7 +180,7 @@ public class KustoSinkTask extends SinkTask {
      * @param config       Kusto Sink configuration
      */
     private static void validateTableAccess(Client engineClient, TopicToTableMapping mapping, KustoSinkConfig config, List<String> databaseTableErrorList,
-                                            List<String> accessErrorList) {
+            List<String> accessErrorList) {
         String database = mapping.getDb();
         String table = mapping.getTable();
         String format = mapping.getFormat();
@@ -278,7 +278,7 @@ public class KustoSinkTask extends SinkTask {
                 ConnectionStringBuilder streamingConnectionStringBuilder = createKustoEngineConnectionString(config, config.getKustoEngineUrl());
                 streamingIngestClient = httpClientProperties != null
                         ? IngestClientFactory.createManagedStreamingIngestClient(ingestConnectionStringBuilder, streamingConnectionStringBuilder,
-                        httpClientProperties)
+                                httpClientProperties)
                         : IngestClientFactory.createManagedStreamingIngestClient(ingestConnectionStringBuilder, streamingConnectionStringBuilder);
             }
         } catch (Exception e) {

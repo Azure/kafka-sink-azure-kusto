@@ -34,15 +34,13 @@ public class FormatWriterHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(KustoRecordWriter.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
-    private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE
-            = new TypeReference<Map<String, Object>>() {
-    };
+    private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE = new TypeReference<Map<String, Object>>() {};
     private final JsonConverter KEY_JSON_CONVERTER = new JsonConverter();
     private static final JsonConverter VALUE_JSON_CONVERTER = new JsonConverter();
     private static FormatWriterHelper INSTANCE;
 
     public static FormatWriterHelper getInstance() {
-        if(INSTANCE == null) {
+        if (INSTANCE == null) {
             INSTANCE = new FormatWriterHelper();
         }
         return INSTANCE;
@@ -89,8 +87,8 @@ public class FormatWriterHelper {
      * @return a Map of the K-V of JSON
      */
     public @NotNull Collection<Map<String, Object>> convertBytesToMap(byte[] messageBytes,
-                                                                             String defaultKeyOrValueField,
-                                                                             IngestionProperties.DataFormat dataformat) throws IOException {
+            String defaultKeyOrValueField,
+            IngestionProperties.DataFormat dataformat) throws IOException {
         if (messageBytes == null || messageBytes.length == 0) {
             return Collections.emptyList();
         }
@@ -99,9 +97,8 @@ public class FormatWriterHelper {
         }
         String bytesAsJson = new String(messageBytes, StandardCharsets.UTF_8);
         if (isJson(dataformat)) {
-            return isValidJson(defaultKeyOrValueField, bytesAsJson) ?
-                    parseJson(bytesAsJson) :
-                    Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
+            return isValidJson(defaultKeyOrValueField, bytesAsJson) ? parseJson(bytesAsJson)
+                    : Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
                             OBJECT_MAPPER.readTree(messageBytes)));
         } else {
             return Collections.singletonList(Collections.singletonMap(defaultKeyOrValueField,
@@ -131,10 +128,10 @@ public class FormatWriterHelper {
     }
 
     public @NotNull Map<String, Object> structToMap(String topicName,
-                                                           @NotNull Struct recordData, boolean isKey)  throws IOException  {
-        try{
+            @NotNull Struct recordData, boolean isKey) throws IOException {
+        try {
             JsonConverter jsonConverter = isKey ? KEY_JSON_CONVERTER : VALUE_JSON_CONVERTER;
-            byte[] jsonBytes = jsonConverter.fromConnectData(topicName,recordData.schema(), recordData);
+            byte[] jsonBytes = jsonConverter.fromConnectData(topicName, recordData.schema(), recordData);
             return OBJECT_MAPPER.readValue(jsonBytes, MAP_TYPE_REFERENCE);
         } catch (IOException e) {
             LOGGER.error("Failed to convert Struct to Map", e);
@@ -156,10 +153,9 @@ public class FormatWriterHelper {
         return true;
     }
 
-
     public @NotNull Map<String, Object> convertStringToMap(Object value,
-                                                                  String defaultKeyOrValueField,
-                                                                  IngestionProperties.DataFormat dataFormat) throws IOException {
+            String defaultKeyOrValueField,
+            IngestionProperties.DataFormat dataFormat) throws IOException {
         String objStr = (String) value;
         if (isJson(dataFormat) && isValidJson(defaultKeyOrValueField, objStr)) {
             return OBJECT_MAPPER.readerFor(MAP_TYPE_REFERENCE).readValue(objStr);
@@ -168,11 +164,11 @@ public class FormatWriterHelper {
         }
     }
 
-    public void close(){
+    public void close() {
         try {
             KEY_JSON_CONVERTER.close();
             VALUE_JSON_CONVERTER.close();
-        }catch (Exception e){
+        } catch (Exception e) {
             LOGGER.warn("Failed to close JsonConverter", e);
         }
     }

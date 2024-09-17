@@ -29,18 +29,15 @@ public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
             "avro-simple-schema.json,avro-struct-schema.json,true,false",
             "avro-struct-schema.json,avro-struct-schema.json,false,false",
             "avro-simple-schema.json,avro-simple-schema.json,true,true"
-    }
-    )
+    })
     public void validateJsonSerializedAsBytes(String keySchemaPath, String valueSchemaPath,
-                                              boolean isSimpleKey, boolean isSimpleValue)
+            boolean isSimpleKey, boolean isSimpleValue)
             throws IOException, JSONException {
         List<SinkRecord> records = new ArrayList<>();
         Generator randomAvroValueData = new Generator.Builder().schemaStream(
-                Objects.requireNonNull(this.getClass().getClassLoader().
-                        getResourceAsStream(String.format("avro-schemas/%s", valueSchemaPath)))).build();
+                Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream(String.format("avro-schemas/%s", valueSchemaPath)))).build();
         Generator randomAvroKeyData = new Generator.Builder().schemaStream(
-                Objects.requireNonNull(this.getClass().getClassLoader().
-                        getResourceAsStream(String.format("avro-schemas/%s", keySchemaPath)))).build();
+                Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream(String.format("avro-schemas/%s", keySchemaPath)))).build();
         JsonAvroConverter converter = new JsonAvroConverter();
         Map<Integer, String[]> expectedResultsMap = new HashMap<>();
         for (int i = 0; i < 10; i++) {
@@ -56,15 +53,12 @@ public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
                     i);
             sinkRecord.headers().addInt(String.format("HeaderInt-%s", i), i);
             records.add(sinkRecord);
-            String expectedValueString = isSimpleValue ?
-                    RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", avroValue)) :
-                    new String(converter.convertToJson((GenericRecord) avroValue), StandardCharsets.UTF_8);
-            String expectedKeyString = isSimpleKey ?
-                    avroKey.toString() :
-                    new String(converter.convertToJson((GenericRecord) avroKey), StandardCharsets.UTF_8);
+            String expectedValueString = isSimpleValue ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", avroValue))
+                    : new String(converter.convertToJson((GenericRecord) avroValue), StandardCharsets.UTF_8);
+            String expectedKeyString = isSimpleKey ? avroKey.toString() : new String(converter.convertToJson((GenericRecord) avroKey), StandardCharsets.UTF_8);
             String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(Collections.singletonMap(
                     String.format("HeaderInt-%s", i), i));
-            expectedResultsMap.put(i, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
+            expectedResultsMap.put(i, new String[] {expectedHeaderJson, expectedKeyString, expectedValueString});
         }
         File file = new File(String.format("%s.%s", UUID.randomUUID(), "json"));
         Utils.restrictPermissions(file);
@@ -85,17 +79,14 @@ public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
             "avro-simple-schema.json,avro-struct-schema.json,true,false",
             "avro-struct-schema.json,avro-struct-schema.json,false,false",
             "avro-simple-schema.json,avro-simple-schema.json,true,true"
-    }
-    )
+    })
     public void validateAvroDataSerializedAsBytes(String keySchemaPath, String valueSchemaPath, boolean isSimpleKey, boolean isSimpleValue)
             throws IOException, JSONException {
         List<SinkRecord> records = new ArrayList<>();
         Generator randomAvroValueData = new Generator.Builder().schemaStream(
-                Objects.requireNonNull(this.getClass().getClassLoader().
-                        getResourceAsStream(String.format("avro-schemas/%s", valueSchemaPath)))).build();
+                Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream(String.format("avro-schemas/%s", valueSchemaPath)))).build();
         Generator randomAvroKeyData = new Generator.Builder().schemaStream(
-                Objects.requireNonNull(this.getClass().getClassLoader().
-                        getResourceAsStream(String.format("avro-schemas/%s", keySchemaPath)))).build();
+                Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream(String.format("avro-schemas/%s", keySchemaPath)))).build();
         JsonAvroConverter converter = new JsonAvroConverter();
         Map<Integer, String[]> expectedResultsMap = new HashMap<>();
         for (int i = 0; i < 10; i++) {
@@ -109,14 +100,11 @@ public class KustoRecordWriterSchemalessTests extends KustoRecordWriterBase {
                     i);
             sinkRecord.headers().addInt(String.format("HeaderInt-%s", i), i);
             records.add(sinkRecord);
-            String expectedValueString = isSimpleValue ?
-                    RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", value)) :
-                    new String(converter.convertToJson((GenericData.Record) value));
-            String expectedKeyString = isSimpleKey ?
-                    key.toString() :
-                    new String(converter.convertToJson((GenericData.Record) key));
+            String expectedValueString = isSimpleValue ? RESULT_MAPPER.writeValueAsString(Collections.singletonMap("value", value))
+                    : new String(converter.convertToJson((GenericData.Record) value));
+            String expectedKeyString = isSimpleKey ? key.toString() : new String(converter.convertToJson((GenericData.Record) key));
             String expectedHeaderJson = RESULT_MAPPER.writeValueAsString(Collections.singletonMap(String.format("HeaderInt-%s", i), i));
-            expectedResultsMap.put(i, new String[]{expectedHeaderJson, expectedKeyString, expectedValueString});
+            expectedResultsMap.put(i, new String[] {expectedHeaderJson, expectedKeyString, expectedValueString});
         }
         File file = new File(String.format("%s.%s", UUID.randomUUID(), "json"));
         Utils.restrictPermissions(file);
