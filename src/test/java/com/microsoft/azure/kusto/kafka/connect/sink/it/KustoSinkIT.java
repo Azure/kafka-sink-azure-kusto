@@ -104,6 +104,8 @@ class KustoSinkIT {
             log.info("Creating tables in Kusto");
             createTables();
             refreshDm();
+            Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
+            log.info("Started containers , copying scripts to container and executing them");
             // Mount the libs
             String mountPath = String.format(
                     "target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
@@ -114,8 +116,6 @@ class KustoSinkIT {
                         path -> connectContainer.copyFileToContainer(MountableFile.forHostPath(path),
                                 "/kafka/connect/kafka-sink-azure-kusto/" + path.getFileName().toString()));
             }
-            Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
-            log.info("Started containers , copying scripts to container and executing them");
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
                     "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh").execInContainer("sh", "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh");
             // Logs of start up of the container gets published here. This will be handy in case we want to look at startup failures
