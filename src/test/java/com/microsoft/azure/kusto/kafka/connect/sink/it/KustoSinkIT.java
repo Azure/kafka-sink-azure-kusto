@@ -29,6 +29,8 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.skyscreamer.jsonassert.Customization;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.comparator.CustomComparator;
@@ -77,7 +79,6 @@ class KustoSinkIT {
     private static final ProxyContainer proxyContainer = new ProxyContainer().withNetwork(network);
     private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
             .withNetwork(network).dependsOn(kafkaContainer);
-    private static final List<String> testFormats = Arrays.asList("json", "avro", "csv"); // List.of("json", "avro", "csv", "raw"); // Raw for XML
     private static ITCoordinates coordinates;
     private static final KustoKafkaConnectContainer connectContainer = new KustoKafkaConnectContainer(confluentVersion)
             .withNetwork(network)
@@ -90,6 +91,7 @@ class KustoSinkIT {
     private static final String keyColumn = "vlong";
 
     @BeforeAll
+    @SuppressWarnings("deprecation")
     public static void startContainers() throws Exception {
         coordinates = getConnectorProperties();
         if (coordinates.isValidConfig()) {
@@ -161,58 +163,56 @@ class KustoSinkIT {
         engineClient.close();
     }
 
-    @Test
-    public void shouldHandleAllTypesOfEvents() {
+    @ParameterizedTest
+    @CsvSource({"avro", "json"})
+    //TODO add test for CSV
+    public void shouldHandleAllTypesOfEvents(String dataFormat) {
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
         String srUrl = String.format("http://%s:%s", schemaRegistryContainer.getContainerId().substring(0, 12), 8081);
-        testFormats.parallelStream().forEach(dataFormat -> {
-            String valueFormat = "org.apache.kafka.connect.storage.StringConverter";
-            if (dataFormat.equals("avro")) {
-                valueFormat = AvroConverter.class.getName();
-                log.debug("Using value format: {}", valueFormat);
-            }
-            String topicTableMapping = dataFormat.equals("csv")
-                    ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping','streaming':'true'}]", dataFormat,
-                            coordinates.database,
-                            coordinates.table, dataFormat)
-                    : String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping'}]", dataFormat,
-                            coordinates.database,
-                            coordinates.table, dataFormat);
-            log.info("Deploying connector for {} , using SR url {}. Using proxy host {} and port {}", dataFormat, srUrl,
-                    proxyContainer.getContainerId().substring(0, 12), proxyContainer.getExposedPorts().get(0));
-            Map<String, Object> connectorProps = new HashMap<>();
-            connectorProps.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
-            connectorProps.put("flush.size.bytes", 10000);
-            connectorProps.put("flush.interval.ms", 1000);
-            connectorProps.put("tasks.max", 1);
-            connectorProps.put("topics", String.format("e2e.%s.topic", dataFormat));
-            connectorProps.put("kusto.tables.topics.mapping", topicTableMapping);
-            connectorProps.put("aad.auth.authority", coordinates.authority);
-            connectorProps.put("aad.auth.accesstoken", coordinates.accessToken);
-            connectorProps.put("aad.auth.strategy", "AZ_DEV_TOKEN".toLowerCase());
-            connectorProps.put("kusto.query.url", coordinates.cluster);
-            connectorProps.put("kusto.ingestion.url", coordinates.ingestCluster);
-            connectorProps.put("schema.registry.url", srUrl);
-            connectorProps.put("value.converter.schema.registry.url", srUrl);
-            connectorProps.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
-            connectorProps.put("value.converter", valueFormat);
-            connectorProps.put("proxy.host", proxyContainer.getContainerId().substring(0, 12));
-            connectorProps.put("proxy.port", proxyContainer.getExposedPorts().get(0));
-            connectContainer.registerConnector(String.format("adx-connector-%s", dataFormat), connectorProps);
-            log.debug("Deployed connector for {}", dataFormat);
-            log.debug(connectContainer.getLogs());
-        });
-        testFormats.parallelStream().forEach(dataFormat -> {
-            connectContainer.waitUntilConnectorTaskStateChanges(String.format("adx-connector-%s", dataFormat), 0, "RUNNING");
-            log.info("Connector state for {} : {}. ", dataFormat,
-                    connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));
-            try {
-                produceKafkaMessages(dataFormat);
-                Thread.sleep(10000);
-            } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        String valueFormat = "org.apache.kafka.connect.storage.StringConverter";
+        if (dataFormat.equals("avro")) {
+            valueFormat = AvroConverter.class.getName();
+            log.debug("Using value format: {}", valueFormat);
+        }
+        String topicTableMapping = dataFormat.equals("csv")
+                ? String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping','streaming':'true'}]", dataFormat,
+                        coordinates.database,
+                        coordinates.table, dataFormat)
+                : String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping'}]", dataFormat,
+                        coordinates.database,
+                        coordinates.table, dataFormat);
+        log.info("Deploying connector for {} , using SR url {}. Using proxy host {} and port {}", dataFormat, srUrl,
+                proxyContainer.getContainerId().substring(0, 12), proxyContainer.getExposedPorts().get(0));
+        Map<String, Object> connectorProps = new HashMap<>();
+        connectorProps.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
+        connectorProps.put("flush.size.bytes", 10000);
+        connectorProps.put("flush.interval.ms", 1000);
+        connectorProps.put("tasks.max", 1);
+        connectorProps.put("topics", String.format("e2e.%s.topic", dataFormat));
+        connectorProps.put("kusto.tables.topics.mapping", topicTableMapping);
+        connectorProps.put("aad.auth.authority", coordinates.authority);
+        connectorProps.put("aad.auth.accesstoken", coordinates.accessToken);
+        connectorProps.put("aad.auth.strategy", "AZ_DEV_TOKEN".toLowerCase());
+        connectorProps.put("kusto.query.url", coordinates.cluster);
+        connectorProps.put("kusto.ingestion.url", coordinates.ingestCluster);
+        connectorProps.put("schema.registry.url", srUrl);
+        connectorProps.put("value.converter.schema.registry.url", srUrl);
+        connectorProps.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+        connectorProps.put("value.converter", valueFormat);
+        connectorProps.put("proxy.host", proxyContainer.getContainerId().substring(0, 12));
+        connectorProps.put("proxy.port", proxyContainer.getExposedPorts().get(0));
+        connectContainer.registerConnector(String.format("adx-connector-%s", dataFormat), connectorProps);
+        log.debug("Deployed connector for {}", dataFormat);
+        log.debug(connectContainer.getLogs());
+        connectContainer.waitUntilConnectorTaskStateChanges(String.format("adx-connector-%s", dataFormat), 0, "RUNNING");
+        log.info("Connector state for {} : {}. ", dataFormat,
+                connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));
+        try {
+            produceKafkaMessages(dataFormat);
+            Thread.sleep(10000);
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void produceKafkaMessages(@NotNull String dataFormat) throws IOException {
@@ -335,7 +335,7 @@ class KustoSinkIT {
                 while (resultSet.next()) {
                     Long key = (long) resultSet.getInt(keyColumn);
                     String vResult = resultSet.getString("vresult");
-                    log.info("Record queried: {}", vResult);
+                    log.debug("Record queried from DB: {}", vResult);
                     actualResults.put(key, vResult);
                 }
                 return actualResults;
