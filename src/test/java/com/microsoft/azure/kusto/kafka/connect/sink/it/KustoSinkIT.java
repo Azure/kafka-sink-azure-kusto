@@ -113,8 +113,11 @@ class KustoSinkIT {
             log.info("Creating connector jar with version {} and mounting it from {},", Version.getVersion(), mountPath);
             try (Stream<Path> filePaths = Files.list(Paths.get(mountPath))) {
                 filePaths.forEach(
-                        path -> connectContainer.copyFileToContainer(MountableFile.forHostPath(path),
-                                "/kafka/connect/kafka-sink-azure-kusto/" + path.getFileName().toString()));
+                        path -> {
+                            log.info("Copying connector jar {} to container", path.getFileName().toString());
+                            connectContainer.copyFileToContainer(MountableFile.forHostPath(path),
+                                    "/kafka/connect/kafka-sink-azure-kusto/" + path.getFileName().toString());
+                        });
             }
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
                     "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh").execInContainer("sh", "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh");
