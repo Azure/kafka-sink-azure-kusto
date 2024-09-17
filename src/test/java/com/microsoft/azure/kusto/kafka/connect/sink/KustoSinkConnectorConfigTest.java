@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 
 import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -34,7 +33,7 @@ public class KustoSinkConnectorConfigTest {
         Assertions.assertTrue(config.getFlushSizeBytes() > 0);
         Assertions.assertTrue(config.getFlushInterval() > 0);
         Assertions.assertFalse(config.isDlqEnabled());
-        Assertions.assertEquals(BehaviorOnError.FAIL, config.getBehaviorOnError());
+        Assertions.assertEquals(KustoSinkConfig.BehaviorOnError.FAIL, config.getBehaviorOnError());
     }
 
     @Test

@@ -1,15 +1,16 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatwriter;
 
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
 
 public class ByteRecordWriterProvider implements RecordWriterProvider {
     private static final Logger log = LoggerFactory.getLogger(ByteRecordWriterProvider.class);
