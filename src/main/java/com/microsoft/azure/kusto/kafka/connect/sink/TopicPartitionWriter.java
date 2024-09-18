@@ -171,20 +171,20 @@ public class TopicPartitionWriter {
     }
 
     private void backOffForRemainingAttempts(int retryAttempts, Exception exception, @NotNull SourceFile fileDescriptor) {
-        String logMessage = String.format("Writing {%s} failed records to miscellaneous dead-letter queue topic={%s}",
-                fileDescriptor.records.size(), dlqTopicName);
-
         if (retryAttempts < maxRetryAttempts) {
             // RetryUtil can be deleted if exponential backOff is not required, currently using constant backOff.
             // long sleepTimeMs = RetryUtil.computeExponentialBackOffWithJitter(retryAttempts, TimeUnit.SECONDS.toMillis(5));
             long sleepTimeMs = retryBackOffTime;
-            log.error("Failed to ingest records into Kusto, backing off and retrying ingesting records " +
-                    "after {} milliseconds.", sleepTimeMs);
+            if(exception!=null) {
+                log.error("Failed to ingest records into Kusto, backing off and retrying ingesting records " +
+                        "after {} milliseconds.", sleepTimeMs, exception);
+            }
             try {
                 TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
             } catch (InterruptedException interruptedErr) {
                 if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                    log.warn(logMessage);
+                    log.warn("InterruptedException:: Writing {} failed records to miscellaneous dead-letter queue topic={}",
+                            fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
                 throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interrupted " +
@@ -193,7 +193,8 @@ public class TopicPartitionWriter {
             }
         } else {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                log.warn(logMessage);
+                log.warn(String.format("Retries exhausted, writing {%s} failed records to miscellaneous dead-letter queue topic={%s}",
+                        fileDescriptor.records.size(), dlqTopicName));
                 fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             }
             throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", exception);
