@@ -99,11 +99,13 @@ public class TopicPartitionWriter {
                     if (!hasStreamingSucceeded(ingestionStatus)) {
                         retryAttempts += ManagedStreamingIngestClient.ATTEMPT_COUNT;
                         backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
+                        log.debug("Kusto ingestion: Streaming of file ({}) of size ({}) at current offset ({}) did NOT succeed; will retry",
+                                fileDescriptor.path, fileDescriptor.rawBytes, currentOffset);
                         continue;
                     }
                 }
-                log.info(String.format("Kusto ingestion: file (%s) of size (%s) at current offset (%s)", fileDescriptor.path, fileDescriptor.rawBytes,
-                        currentOffset));
+                log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
+                        fileDescriptor.path, fileDescriptor.rawBytes, currentOffset, ingestionResult.getIngestionStatusCollection().get(0));
                 this.lastCommittedOffset = currentOffset;
                 return;
             } catch (IngestionServiceException exception) {
@@ -163,7 +165,7 @@ public class TopicPartitionWriter {
                     log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
-                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s", retryAttempts + 1),
+                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interrupted after retryAttempts=%s", retryAttempts + 1),
                         exception);
             }
         } else {
@@ -175,13 +177,13 @@ public class TopicPartitionWriter {
         }
     }
 
-    public void sendFailedRecordToDlq(SinkRecord record) {
-        byte[] recordKey = String.format("Failed to write record to KustoDB with the following kafka coordinates, "
+    public void sendFailedRecordToDlq(SinkRecord sinkRecord) {
+        byte[] recordKey = String.format("Failed to write sinkRecord to KustoDB with the following kafka coordinates, "
                 + "topic=%s, partition=%s, offset=%s.",
-                record.topic(),
-                record.kafkaPartition(),
-                record.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
-        byte[] recordValue = record.value().toString().getBytes(StandardCharsets.UTF_8);
+                sinkRecord.topic(),
+                sinkRecord.kafkaPartition(),
+                sinkRecord.kafkaOffset()).getBytes(StandardCharsets.UTF_8);
+        byte[] recordValue = sinkRecord.value().toString().getBytes(StandardCharsets.UTF_8);
         ProducerRecord<byte[], byte[]> dlqRecord = new ProducerRecord<>(dlqTopicName, recordKey, recordValue);
         try {
             dlqProducer.send(dlqRecord, (recordMetadata, exception) -> {
@@ -206,26 +208,26 @@ public class TopicPartitionWriter {
                 ingestionProps.ingestionProperties.getDataFormat(), COMPRESSION_EXTENSION)).toString();
     }
 
-    void writeRecord(SinkRecord record) throws ConnectException {
-        if (record != null) {
+    void writeRecord(SinkRecord sinkRecord) throws ConnectException {
+        if (sinkRecord != null) {
             try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.readLock())) {
-                this.currentOffset = record.kafkaOffset();
-                fileWriter.writeData(record);
+                this.currentOffset = sinkRecord.kafkaOffset();
+                fileWriter.writeData(sinkRecord);
             } catch (IOException | DataException ex) {
-                handleErrors(record, ex);
+                handleErrors(sinkRecord, ex);
             }
         }
     }
 
-    private void handleErrors(SinkRecord record, Exception ex) {
+    private void handleErrors(SinkRecord sinkRecord, Exception ex) {
         if (BehaviorOnError.FAIL == behaviorOnError) {
             throw new ConnectException(FILE_EXCEPTION_MESSAGE, ex);
         } else if (BehaviorOnError.LOG == behaviorOnError) {
             log.error(FILE_EXCEPTION_MESSAGE, ex);
-            sendFailedRecordToDlq(record);
+            sendFailedRecordToDlq(sinkRecord);
         } else {
             log.debug(FILE_EXCEPTION_MESSAGE, ex);
-            sendFailedRecordToDlq(record);
+            sendFailedRecordToDlq(sinkRecord);
         }
     }
 

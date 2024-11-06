@@ -172,18 +172,18 @@ true' in 'kusto.tables.topics.mapping', by default streaming is set as false.
 
 ### 3.11. Miscellaneous Dead Letter Queue
 
-- The connector supports user provided miscelleneous "Dead Letter Queue" for transient and non-deserialization errors (
+- The connector supports user provided miscellaneous "Dead Letter Queue" for transient and non-deserialization errors (
   those not managed by Kafka Connect); E.g. If network connectivity is lost to Azure Data Explorer, the connector
-  retries and eventually writes the queued up messages to the miscelleneous "Dead Letter Queue". Note that for a secure
+  retries and eventually writes the queued up messages to the miscellaneous "Dead Letter Queue". Note that for a secure
   cluster, in addition to bootstrap server list and topic name, the security mechanism, the security protocol, jaas
   config have to be provided for the Kafka Connect worker and in the sink properties
 
 ### 3.12. Delivery semantics
 
 - Azure Data Explorer is an append only immutable database. Infrastructure failures and unavoidable external variables
-  that can lead to duplicates cant be remediated via upsert commands as upserts are not supported. <br>
+  that can lead to duplicates can't be remediated via upsert commands as upserts are not supported. <br>
 
-Therefore the connector supports "At least once" delivery guarantees.
+Therefore, the connector supports "At least once" delivery guarantees.
 
 ### 3.13. Overrides
 
