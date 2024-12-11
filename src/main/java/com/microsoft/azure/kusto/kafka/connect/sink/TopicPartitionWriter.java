@@ -104,8 +104,13 @@ public class TopicPartitionWriter {
                         continue;
                     }
                 }
+                IngestionStatus ingestionStatus = null;
+                if(ingestionResult!=null && ingestionResult.getIngestionStatusCollection()!=null
+                        && !ingestionResult.getIngestionStatusCollection().isEmpty()){
+                    ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
+                }
                 log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
-                        fileDescriptor.path, fileDescriptor.rawBytes, currentOffset, ingestionResult.getIngestionStatusCollection().get(0));
+                        fileDescriptor.path, fileDescriptor.rawBytes, currentOffset,ingestionStatus);
                 this.lastCommittedOffset = currentOffset;
                 return;
             } catch (IngestionServiceException exception) {
