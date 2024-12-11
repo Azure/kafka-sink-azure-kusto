@@ -147,7 +147,7 @@ public class KustoSinkTask extends SinkTask {
                 IngestionProperties props = new IngestionProperties(mapping.getDb(), mapping.getTable());
 
                 String format = mapping.getFormat();
-                if (format != null && !format.isEmpty()) {
+                if (StringUtils.isNotEmpty(format)) {
                     if (isDataFormatAnyTypeOfJson(format)) {
                         props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
                     } else {
@@ -156,7 +156,7 @@ public class KustoSinkTask extends SinkTask {
                 }
 
                 String mappingRef = mapping.getMapping();
-                if (mappingRef != null && !mappingRef.isEmpty() && format != null) {
+                if (StringUtils.isNotEmpty(mappingRef) && format != null) {
                     if (isDataFormatAnyTypeOfJson(format)) {
                         props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
                     } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.AVRO.toString())) {

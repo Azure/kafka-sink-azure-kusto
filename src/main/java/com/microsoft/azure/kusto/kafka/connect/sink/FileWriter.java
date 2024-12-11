@@ -160,7 +160,7 @@ public class FileWriter implements Closeable {
         openFile(offset);
     }
 
-    void finishFile(Boolean delete) throws IOException, DataException {
+    void finishFile(boolean delete) throws IOException, DataException {
         if (isDirty()) {
             recordWriter.commit();
             // Since we are using GZIP compression, finish the file. Close is invoked only when this flush finishes
@@ -210,7 +210,7 @@ public class FileWriter implements Closeable {
             currentFileDescriptor = null;
             boolean deleted = temp.file.delete();
             if (!deleted) {
-                log.warn("couldn't delete temporary file. File exists: " + temp.file.exists());
+                log.warn("Couldn't delete temporary file. File exists: {}", temp.file.exists());
             }
         }
     }
@@ -239,7 +239,7 @@ public class FileWriter implements Closeable {
     }
 
     // Set shouldDestroyTimer to true if the current running task should be cancelled
-    private void resetFlushTimer(Boolean shouldDestroyTimer) {
+    private void resetFlushTimer(boolean shouldDestroyTimer) {
         if (flushInterval > 0) {
             if (shouldDestroyTimer) {
                 if (timer != null) {
@@ -271,42 +271,42 @@ public class FileWriter implements Closeable {
             }
             resetFlushTimer(false);
         } catch (Exception e) {
-            String fileName = currentFile == null ? "no file created yet" : currentFile.file.getName();
+            String fileName = currentFile == null ? "[no file created yet]" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
             flushError = String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize);
             log.error(flushError, e);
         }
     }
 
-    public void writeData(SinkRecord record) throws IOException, DataException {
+    public void writeData(SinkRecord sinkRecord) throws IOException, DataException {
         if (flushError != null) {
             throw new ConnectException(flushError);
         }
-        if (record == null)
+        if (sinkRecord == null)
             return;
         if (recordWriterProvider == null) {
-            initializeRecordWriter(record);
+            initializeRecordWriter(sinkRecord);
         }
         if (currentFile == null) {
-            openFile(record.kafkaOffset());
+            openFile(sinkRecord.kafkaOffset());
             resetFlushTimer(true);
         }
-        recordWriter.write(record);
+        recordWriter.write(sinkRecord);
         if (this.isDlqEnabled) {
-            currentFile.records.add(record);
+            currentFile.records.add(sinkRecord);
         }
         currentFile.rawBytes = countingStream.numBytes;
         currentFile.numRecords++;
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes) {
-            rotate(record.kafkaOffset());
+            rotate(sinkRecord.kafkaOffset());
             resetFlushTimer(true);
         }
     }
 
-    public void initializeRecordWriter(SinkRecord record) {
-        if (record.value() instanceof Map) {
+    public void initializeRecordWriter(SinkRecord sinkRecord) {
+        if (sinkRecord.value() instanceof Map) {
             recordWriterProvider = new JsonRecordWriterProvider();
-        } else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.STRUCT)) {
+        } else if ((sinkRecord.valueSchema() != null) && (sinkRecord.valueSchema().type() == Schema.Type.STRUCT)) {
             if (format.equals(IngestionProperties.DataFormat.JSON) || format.equals(IngestionProperties.DataFormat.MULTIJSON)) {
                 recordWriterProvider = new JsonRecordWriterProvider();
             } else if (format.equals(IngestionProperties.DataFormat.AVRO)) {
@@ -316,9 +316,9 @@ public class FileWriter implements Closeable {
                         + "Avro and JSON can only be ingested to Kusto table having Avro or JSON mapping. "
                         + "Currently, it is of type %s.", format));
             }
-        } else if ((record.valueSchema() == null) || (record.valueSchema().type() == Schema.Type.STRING)) {
+        } else if ((sinkRecord.valueSchema() == null) || (sinkRecord.valueSchema().type() == Schema.Type.STRING)) {
             recordWriterProvider = new StringRecordWriterProvider();
-        } else if ((record.valueSchema() != null) && (record.valueSchema().type() == Schema.Type.BYTES)) {
+        } else if ((sinkRecord.valueSchema() != null) && (sinkRecord.valueSchema().type() == Schema.Type.BYTES)) {
             recordWriterProvider = new ByteRecordWriterProvider();
             if (format.equals(IngestionProperties.DataFormat.AVRO)) {
                 shouldWriteAvroAsBytes = true;
@@ -326,7 +326,7 @@ public class FileWriter implements Closeable {
         } else {
             throw new ConnectException(String.format(
                     "Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ",
-                    record.valueSchema().type()));
+                    sinkRecord.valueSchema().type()));
         }
     }
 
