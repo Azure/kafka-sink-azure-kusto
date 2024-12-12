@@ -1,0 +1,114 @@
+{ "type": "record",
+  "name": "random_avro_schema",
+  "namespace": "io.confluent.avro.random.generator",
+  "fields":
+  [
+    { "name": "row", "type": "int" },
+    { "name": "ts",
+      "type":
+      { "type": "long",
+        "connect.name": "org.apache.kafka.connect.data.Timestamp"
+      }
+    },
+    { "name": "dt",
+      "type":
+      {
+        "type": "int",
+        "connect.name": "org.apache.kafka.connect.data.Date"
+      }
+    },
+    { "name": "optional_int_prim", "type": ["null", "int"] },
+    { "name": "bytes_prim", "type": "bytes" },
+    {
+    "name": "record_field",
+    "type": {
+      "type": "record",
+      "name": "record_test",
+      "fields": [
+        {
+          "name": "month",
+          "type": "string"
+        },
+        {
+          "name": "day",
+          "type": "int"
+        }
+      ],
+      "arg.properties": {
+        "options": [
+          {
+            "month": "January",
+            "day": 2
+          },
+          {
+            "month": "NANuary",
+            "day": 0
+          }
+        ]
+      }
+    }
+  },
+    {
+      "name": "union_field",
+      "type": [
+        "null",
+        {
+          "type": "boolean",
+          "arg.properties": {
+            "options": [
+              true
+            ]
+          }
+        },
+        {
+          "type": "int",
+          "arg.properties": {
+            "options": [
+              42
+            ]
+          }
+        },
+        {
+          "type": "long",
+          "arg.properties": {
+            "options": [
+              4242424242424242
+            ]
+          }
+        },
+        {
+          "type": "float",
+          "arg.properties": {
+            "options": [
+              42.42
+            ]
+          }
+        },
+        {
+          "type": "double",
+          "arg.properties": {
+            "options": [
+              42424242.42424242
+            ]
+          }
+        },
+        {
+          "type": "bytes",
+          "arg.properties": {
+            "options": [
+              "NDI="
+            ]
+          }
+        },
+        {
+          "type": "string",
+          "arg.properties": {
+            "options": [
+              "Forty-two"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

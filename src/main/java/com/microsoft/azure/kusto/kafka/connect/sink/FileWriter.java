@@ -23,14 +23,11 @@ import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatwriter.KustoRecordWriterProvider;
 
 /**
  * This class is used to write gzipped rolling files.
- * Currently supports size based rolling, where size is for *uncompressed* size,
+ * Currently, supports size based rolling, where size is for *uncompressed* size,
  * so final size can vary.
  */
 public class FileWriter implements Closeable {
@@ -38,22 +35,22 @@ public class FileWriter implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(FileWriter.class);
     private final long flushInterval;
     private final IngestionProperties.DataFormat format;
-    SourceFile currentFile;
-    private Timer timer;
     private final Consumer<SourceFile> onRollCallback;
     private final Function<Long, String> getFilePath;
-    private GZIPOutputStream outputStream;
     private final String basePath;
-    private CountingOutputStream countingStream;
     private final long fileThreshold;
     // Lock is given from TopicPartitionWriter to lock while ingesting
     private final ReentrantReadWriteLock reentrantReadWriteLock;
+    private final BehaviorOnError behaviorOnError;
+    SourceFile currentFile;
+    private Timer timer;
+    private GZIPOutputStream outputStream;
+    private CountingOutputStream countingStream;
     // Don't remove! File descriptor is kept so that the file is not deleted when stream is closed
     private FileDescriptor currentFileDescriptor;
     private String flushError;
     private RecordWriterProvider recordWriterProvider;
     private RecordWriter recordWriter;
-    private final BehaviorOnError behaviorOnError;
     private boolean shouldWriteAvroAsBytes = false;
     private boolean stopped = false;
     private boolean isDlqEnabled = false;
@@ -152,6 +149,7 @@ public class FileWriter implements Closeable {
         currentFile = fileProps;
         countingStream = new CountingOutputStream(new GZIPOutputStream(fos));
         outputStream = countingStream.getOutputStream();
+        log.debug("Opened new file for writing: {}", fileProps.file);
         recordWriter = recordWriterProvider.getRecordWriter(currentFile.path, countingStream);
     }
 
@@ -291,7 +289,7 @@ public class FileWriter implements Closeable {
             openFile(sinkRecord.kafkaOffset());
             resetFlushTimer(true);
         }
-        recordWriter.write(sinkRecord);
+        recordWriter.write(sinkRecord, this.format);
         if (this.isDlqEnabled) {
             currentFile.records.add(sinkRecord);
         }
@@ -303,23 +301,23 @@ public class FileWriter implements Closeable {
         }
     }
 
-    public void initializeRecordWriter(SinkRecord sinkRecord) {
+    public void initializeRecordWriter(@NotNull SinkRecord sinkRecord) {
         if (sinkRecord.value() instanceof Map) {
-            recordWriterProvider = new JsonRecordWriterProvider();
+            recordWriterProvider = new KustoRecordWriterProvider();
         } else if ((sinkRecord.valueSchema() != null) && (sinkRecord.valueSchema().type() == Schema.Type.STRUCT)) {
             if (format.equals(IngestionProperties.DataFormat.JSON) || format.equals(IngestionProperties.DataFormat.MULTIJSON)) {
-                recordWriterProvider = new JsonRecordWriterProvider();
+                recordWriterProvider = new KustoRecordWriterProvider();
             } else if (format.equals(IngestionProperties.DataFormat.AVRO)) {
-                recordWriterProvider = new AvroRecordWriterProvider();
+                recordWriterProvider = new KustoRecordWriterProvider();
             } else {
                 throw new ConnectException(String.format("Invalid Kusto table mapping, Kafka records of type "
                         + "Avro and JSON can only be ingested to Kusto table having Avro or JSON mapping. "
                         + "Currently, it is of type %s.", format));
             }
         } else if ((sinkRecord.valueSchema() == null) || (sinkRecord.valueSchema().type() == Schema.Type.STRING)) {
-            recordWriterProvider = new StringRecordWriterProvider();
+            recordWriterProvider = new KustoRecordWriterProvider();
         } else if ((sinkRecord.valueSchema() != null) && (sinkRecord.valueSchema().type() == Schema.Type.BYTES)) {
-            recordWriterProvider = new ByteRecordWriterProvider();
+            recordWriterProvider = new KustoRecordWriterProvider();
             if (format.equals(IngestionProperties.DataFormat.AVRO)) {
                 shouldWriteAvroAsBytes = true;
             }
@@ -331,8 +329,8 @@ public class FileWriter implements Closeable {
     }
 
     private class CountingOutputStream extends FilterOutputStream {
-        private long numBytes = 0;
         private final GZIPOutputStream outputStream;
+        private long numBytes = 0;
 
         CountingOutputStream(GZIPOutputStream out) {
             super(out);
