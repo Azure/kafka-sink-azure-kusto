@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
+import com.codahale.metrics.MetricRegistry;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -168,7 +169,8 @@ public class KustoSinkTaskTest {
         IngestClient mockedClient = mock(IngestClient.class);
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties;
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, new KustoSinkConfig(configs), false, null, null);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, new KustoSinkConfig(configs), false, null, null, metricRegistry);
         TopicPartitionWriter writerSpy = spy(writer);
         long sleepTime = 2 * 1000;
         Answer<Void> answer = invocation -> {
@@ -305,8 +307,9 @@ public class KustoSinkTaskTest {
         IngestClient mockedClient = mock(IngestClient.class);
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties;
+        MetricRegistry metricRegistry = new MetricRegistry();
         TopicPartitionWriter topicPartitionWriterSpy = spy(
-                new TopicPartitionWriter(topic1, mockedClient, props, new KustoSinkConfig(configs), false, null, null));
+                new TopicPartitionWriter(topic1, mockedClient, props, new KustoSinkConfig(configs), false, null, null, metricRegistry));
         topicPartitionWriterSpy.open();
         kustoSinkTaskSpy.writers.put(topic1, topicPartitionWriterSpy);
 
