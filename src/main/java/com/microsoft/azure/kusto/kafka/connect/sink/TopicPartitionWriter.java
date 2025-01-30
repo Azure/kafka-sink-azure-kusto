@@ -70,6 +70,7 @@ public class TopicPartitionWriter {
     private final Counter ingestionErrorCount;
     private final Counter ingestionSuccessCount;
     private final Counter processedOffset;
+    private final Counter committedOffset;
     private long writeTime;
 
 
@@ -98,6 +99,7 @@ public class TopicPartitionWriter {
         this.ingestionErrorCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_ERROR_COUNT));
         this.ingestionSuccessCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_SUCCESS_COUNT));
         this.processedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PROCESSED_OFFSET));
+        this.committedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.COMMITTED_OFFSET));
     }
 
     static String getTempDirectoryName(String tempDirPath) {
@@ -141,6 +143,7 @@ public class TopicPartitionWriter {
                 log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
                         fileDescriptor.path, fileDescriptor.rawBytes, currentOffset,ingestionStatus);
                 this.lastCommittedOffset = currentOffset;
+                committedOffset.inc(); // Increment the committed offset counter
                 fileCountOnIngestion.dec();
                 long ingestionEndTime = System.currentTimeMillis(); // Record the end time of ingestion
                 ingestionLag.update(ingestionEndTime - uploadStartTime, TimeUnit.MILLISECONDS); // Update ingestion-lag

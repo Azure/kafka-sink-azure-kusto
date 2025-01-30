@@ -232,8 +232,7 @@ public class FileWriter implements Closeable {
                 log.warn("Couldn't delete temporary file. File exists: {}", temp.file.exists());
             }else {
                 fileCountPurged.inc();
-                purgedOffset.dec(purgedOffset.getCount()); // Reset the counter to zero
-                purgedOffset.inc(flushedOffset.getCount()); // Set the counter to the flushed offset
+                purgedOffset.inc(flushedOffset.getCount()); 
                 fileCountOnStage.dec();
             }
         }
@@ -325,8 +324,8 @@ public class FileWriter implements Closeable {
         bufferSizeBytes.inc(currentFile.rawBytes); // Set the counter to the current size
         bufferRecordCount.dec(bufferRecordCount.getCount()); // Reset the counter to zero
         bufferRecordCount.inc(currentFile.numRecords); // Set the counter to the current number of records
-        flushedOffset.dec(flushedOffset.getCount()); // Reset the counter to zero
-        flushedOffset.inc(sinkRecord.kafkaOffset()); // Set the counter to the current offset
+        flushedOffset.inc(); 
+        
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes) {
             rotate(sinkRecord.kafkaOffset());
             resetFlushTimer(true);

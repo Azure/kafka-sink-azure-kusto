@@ -505,16 +505,16 @@ public class KustoSinkTask extends SinkTask {
             } else {
                 writer.writeRecord(sinkRecord);
             }
-        }
-        if (lastRecord != null) {
-            log.debug("Last record offset: {}", lastRecord.kafkaOffset());
-            Long timestamp = lastRecord.timestamp();
+            Long timestamp = sinkRecord.timestamp();
             if (timestamp != null) {
                 long kafkaLagValue = System.currentTimeMillis() - timestamp;
                 metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(
-                    lastRecord.topic(), KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.KAFKA_LAG.getMetricName()))
+                    sinkRecord.topic(), KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.KAFKA_LAG.getMetricName()))
                     .update(kafkaLagValue, TimeUnit.MILLISECONDS);
             }
+        }
+        if (lastRecord != null) {
+            log.debug("Last record offset: {}", lastRecord.kafkaOffset());
         }
     }
 
