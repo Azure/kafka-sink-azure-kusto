@@ -462,6 +462,11 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void stop() {
         log.warn("Stopping KustoSinkTask");
+        // Unregister metrics
+        if (jmxReporter != null) {
+            jmxReporter.removeMetricsFromRegistry("KustoSinkConnector");
+            jmxReporter.stop();
+        }
         // First stop so that no more ingestions trigger from timer flushes
         for (TopicPartitionWriter writer : writers.values()) {
             writer.stop();
@@ -476,11 +481,6 @@ public class KustoSinkTask extends SinkTask {
             }
         } catch (IOException e) {
             log.error("Error closing kusto client", e);
-        }
-        // Unregister metrics
-        if (jmxReporter != null) {
-            jmxReporter.removeMetricsFromRegistry("KustoSinkConnector");
-            jmxReporter.stop();
         }
     
     }

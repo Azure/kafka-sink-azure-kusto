@@ -15,6 +15,7 @@ public class KustoKafkaMetricsUtil {
   public static final String FILE_COUNT_ON_STAGE = "file-count-on-stage";
   public static final String FILE_COUNT_PURGED = "file-count-purged";
   public static final String FILE_COUNT_TABLE_STAGE_INGESTION_FAIL = "file-count-table-stage-ingestion-fail";
+  public static final String FAILED_TEMP_FILE_DELETIONS = "failed-temp-file-deletions";
 
   // file count related constants
   public static final String OFFSET_SUB_DOMAIN = "offsets";
@@ -30,6 +31,10 @@ public class KustoKafkaMetricsUtil {
 
   // Event Latency related constants
   public static final String LATENCY_SUB_DOMAIN = "latencies";
+
+  private KustoKafkaMetricsUtil() {
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+  }
 
   public enum EventType {
     KAFKA_LAG("kafka-lag"),

@@ -61,12 +61,13 @@ public class FileWriter implements Closeable {
     private boolean stopped = false;
     private boolean isDlqEnabled = false;
 
-    private final Counter fileCountOnStage;
-    private final Counter fileCountPurged;
-    private final Counter bufferSizeBytes;
-    private final Counter bufferRecordCount;
-    private final Counter flushedOffset;
-    private final Counter purgedOffset;
+    private Counter fileCountOnStage;
+    private Counter fileCountPurged;
+    private Counter bufferSizeBytes;
+    private Counter bufferRecordCount;
+    private Counter flushedOffset;
+    private Counter purgedOffset;
+    private Counter failedTempFileDeletions;
 
     /**
      * @param basePath        - This is path to which to write the files to.
@@ -98,12 +99,17 @@ public class FileWriter implements Closeable {
         // If we failed on flush we want to throw the error from the put() flow.
         flushError = null;
         this.format = format;
+        initializeMetrics(tpname, metricRegistry);
+    }
+
+    private void initializeMetrics(String tpname, MetricRegistry metricRegistry) {
         this.fileCountOnStage = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_ON_STAGE));
         this.fileCountPurged = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_PURGED));
         this.bufferSizeBytes = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.BUFFER_SUB_DOMAIN, KustoKafkaMetricsUtil.BUFFER_SIZE_BYTES));
         this.bufferRecordCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.BUFFER_SUB_DOMAIN, KustoKafkaMetricsUtil.BUFFER_RECORD_COUNT));
         this.flushedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.FLUSHED_OFFSET));
         this.purgedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PURGED_OFFSET));
+        this.failedTempFileDeletions = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FAILED_TEMP_FILE_DELETIONS));
     }
 
     boolean isDirty() {
@@ -230,6 +236,7 @@ public class FileWriter implements Closeable {
             boolean deleted = temp.file.delete();
             if (!deleted) {
                 log.warn("Couldn't delete temporary file. File exists: {}", temp.file.exists());
+                failedTempFileDeletions.inc();
             }else {
                 fileCountPurged.inc();
                 purgedOffset.inc(flushedOffset.getCount()); 

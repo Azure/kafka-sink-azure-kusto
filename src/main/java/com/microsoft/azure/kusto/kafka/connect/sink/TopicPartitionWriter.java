@@ -62,15 +62,15 @@ public class TopicPartitionWriter {
     private final ReentrantReadWriteLock reentrantReadWriteLock;
     private final MetricRegistry metricRegistry;
 
-    private final Counter fileCountOnIngestion;
-    private final Counter fileCountTableStageIngestionFail;
-    private final Counter dlqRecordCount;
-    private final Timer commitLag;
-    private final Timer ingestionLag;
-    private final Counter ingestionErrorCount;
-    private final Counter ingestionSuccessCount;
-    private final Counter processedOffset;
-    private final Counter committedOffset;
+    private Counter fileCountOnIngestion;
+    private Counter fileCountTableStageIngestionFail;
+    private Counter dlqRecordCount;
+    private Counter ingestionErrorCount;
+    private Counter ingestionSuccessCount;
+    private Counter processedOffset;
+    private Counter committedOffset;
+    private Timer commitLag;
+    private Timer ingestionLag;
     private long writeTime;
 
 
@@ -91,15 +91,19 @@ public class TopicPartitionWriter {
         this.dlqTopicName = dlqTopicName;
         this.dlqProducer = dlqProducer;
         this.metricRegistry = metricRegistry;
-        this.fileCountOnIngestion = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_ON_INGESTION));
-        this.fileCountTableStageIngestionFail = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_TABLE_STAGE_INGESTION_FAIL));
-        this.dlqRecordCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.DLQ_RECORD_COUNT));
-        this.commitLag = metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.COMMIT_LAG.getMetricName()));
-        this.ingestionLag = metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.INGESTION_LAG.getMetricName()));
-        this.ingestionErrorCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_ERROR_COUNT));
-        this.ingestionSuccessCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_SUCCESS_COUNT));
-        this.processedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PROCESSED_OFFSET));
-        this.committedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tp.topic(), KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.COMMITTED_OFFSET));
+        initializeMetrics(tp.topic(), metricRegistry);
+    }
+
+    private void initializeMetrics(String topic, MetricRegistry metricRegistry) {
+        this.fileCountOnIngestion = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_ON_INGESTION));
+        this.fileCountTableStageIngestionFail = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_TABLE_STAGE_INGESTION_FAIL));
+        this.dlqRecordCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.DLQ_RECORD_COUNT));
+        this.ingestionErrorCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_ERROR_COUNT));
+        this.ingestionSuccessCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_SUCCESS_COUNT));
+        this.processedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PROCESSED_OFFSET));
+        this.committedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.COMMITTED_OFFSET));
+        this.commitLag = metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.COMMIT_LAG.getMetricName()));
+        this.ingestionLag = metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.INGESTION_LAG.getMetricName()));
     }
 
     static String getTempDirectoryName(String tempDirPath) {
@@ -110,7 +114,10 @@ public class TopicPartitionWriter {
 
     public void handleRollFile(SourceFile fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
-
+        if (writeTime == 0) {
+            log.warn("writeTime is not initialized properly before invoking handleRollFile. Setting it to the current time.");
+            writeTime = System.currentTimeMillis(); // Initialize writeTime if not already set
+        }
         /*
          * Since retries can be for a longer duration the Kafka Consumer may leave the group. This will result in a new Consumer reading records from the last
          * committed offset leading to duplication of records in KustoDB. Also, if the error persists, it might also result in duplicate records being written
