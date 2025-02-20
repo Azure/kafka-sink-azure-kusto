@@ -327,10 +327,14 @@ public class FileWriter implements Closeable {
         }
         currentFile.rawBytes = countingStream.numBytes;
         currentFile.numRecords++;
-        bufferSizeBytes.dec(bufferSizeBytes.getCount()); // Reset the counter to zero
-        bufferSizeBytes.inc(currentFile.rawBytes); // Set the counter to the current size
-        bufferRecordCount.dec(bufferRecordCount.getCount()); // Reset the counter to zero
-        bufferRecordCount.inc(currentFile.numRecords); // Set the counter to the current number of records
+        synchronized (bufferSizeBytes) {
+            bufferSizeBytes.dec(bufferSizeBytes.getCount()); // Reset the counter to zero
+            bufferSizeBytes.inc(currentFile.rawBytes); // Set the counter to the current size
+        }
+        synchronized (bufferRecordCount) {
+            bufferRecordCount.dec(bufferRecordCount.getCount()); // Reset the counter to zero
+            bufferRecordCount.inc(currentFile.numRecords); // Set the counter to the current number of records
+        }
         flushedOffset.inc(); 
         
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes) {
