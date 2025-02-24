@@ -13,8 +13,8 @@
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.2.2</awaitility.version>
         <az.core.version>1.54.1</az.core.version>
-        <az.identity.version>1.14.2</az.identity.version>
-        <az.netty.version>1.15.7</az.netty.version>
+        <az.identity.version>1.15.2</az.identity.version>
+        <az.netty.version>1.15.9</az.netty.version>
         <commoncodec.version>1.17.1</commoncodec.version>
         <commonio.version>2.16.1</commonio.version>
         <dependency-check-maven.version>10.0.2</dependency-check-maven.version>
@@ -163,6 +163,10 @@
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
                 <version>${dependency-check-maven.version}</version>
+                <configuration>
+                    <nvdApiKey>5b0c551b-d73b-4d83-a0cd-5e545163601b</nvdApiKey>
+                    <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+                </configuration>
             </plugin>
         </plugins>
         <resources>
