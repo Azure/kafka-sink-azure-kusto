@@ -6,6 +6,8 @@ import java.time.Instant;
 import java.util.Objects;
 
 import org.apache.commons.io.FilenameUtils;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +16,11 @@ public class Utils {
 
     private Utils() {
 
+    }
+
+    @Contract(pure = true)
+    public static @NotNull String getConnectPath() {
+        return "/kafka/connect/kafka-sink-azure-kusto";
     }
 
     public static File getCurrentWorkingDirectory() {

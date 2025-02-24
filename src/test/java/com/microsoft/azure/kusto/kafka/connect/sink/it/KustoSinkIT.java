@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import org.testcontainers.utility.DockerImageName;
@@ -47,6 +48,7 @@ import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
+import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
 import com.microsoft.azure.kusto.kafka.connect.sink.Version;
 import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.KustoKafkaConnectContainer;
 import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.ProxyContainer;
@@ -103,14 +105,16 @@ class KustoSinkIT {
             refreshDm();
             // Mount the libs
             String mountPath = String.format(
-                    "target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-%s/microsoftcorporation-kafka-sink-azure-kusto-%s/lib",
-                    Version.getVersion(), Version.getVersion());
-            log.info("Creating connector jar with version {} and mounting it from {},", Version.getVersion(), mountPath);
-            connectContainer.withFileSystemBind(mountPath, "/kafka/connect/kafka-sink-azure-kusto");
+                    "target/kafka-sink-azure-kusto-%s-jar-with-dependencies.jar",
+                    Version.getVersion());
+            log.info("Creating connector jar with version {} and mounting it from {}", Version.getVersion(), mountPath);
+            Transferable source = MountableFile.forHostPath(mountPath);
+            connectContainer.withCopyToContainer(source, Utils.getConnectPath());
             Startables.deepStart(Stream.of(kafkaContainer, schemaRegistryContainer, proxyContainer, connectContainer)).join();
             log.info("Started containers , copying scripts to container and executing them");
             connectContainer.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
-                    "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh").execInContainer("sh", "/kafka/connect/kafka-sink-azure-kusto/download-libs.sh");
+                            String.format("%s/download-libs.sh", Utils.getConnectPath()))
+                    .execInContainer("sh", String.format("%s/download-libs.sh", Utils.getConnectPath()));
             // Logs of start up of the container gets published here. This will be handy in case we want to look at startup failures
             log.debug(connectContainer.getLogs());
         } else {
@@ -206,8 +210,9 @@ class KustoSinkIT {
             log.info("Connector state for {} : {}. ", dataFormat,
                     connectContainer.getConnectorTaskState(String.format("adx-connector-%s", dataFormat), 0));
             try {
+                Thread.sleep(10_000);
                 produceKafkaMessages(dataFormat);
-                Thread.sleep(10000);
+                Thread.sleep(5_000);
             } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
             }

@@ -26,6 +26,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
 
 public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConnectContainer> {
     private static final String KAFKA_CONNECT_IMAGE = "confluentinc/cp-kafka-connect-base";
@@ -69,7 +70,8 @@ public class KustoKafkaConnectContainer extends GenericContainer<KustoKafkaConne
         env.put("CONNECT_VALUE_CONVERTER", "org.apache.kafka.connect.converters.ByteArrayConverter");
         env.put("CONNECT_REST_ADVERTISED_HOST_NAME", "kusto-e2e-connect");
         env.put("CONNECT_REST_PORT", String.valueOf(KAFKA_CONNECT_PORT));
-        env.put("CONNECT_PLUGIN_PATH", "/kafka/connect");
+        env.put("CONNECT_PLUGIN_PATH", Utils.getConnectPath());
+        env.put("CLASSPATH", Utils.getConnectPath());
         withEnv(env);
         return self();
     }
