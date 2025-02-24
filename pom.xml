@@ -164,7 +164,6 @@
                 <artifactId>dependency-check-maven</artifactId>
                 <version>${dependency-check-maven.version}</version>
                 <configuration>
-                    <nvdApiKey>5b0c551b-d73b-4d83-a0cd-5e545163601b</nvdApiKey>
                     <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
                 </configuration>
             </plugin>
