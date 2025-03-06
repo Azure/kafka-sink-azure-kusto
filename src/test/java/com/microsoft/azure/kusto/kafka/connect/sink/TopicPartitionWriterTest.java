@@ -34,12 +34,14 @@ import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.MetricRegistry;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 //TODO parts of this test needs to be re-formatted and may need rewriting
@@ -99,7 +101,9 @@ public class TopicPartitionWriterTest {
         IngestClient mockedClient = mock(IngestClient.class);
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartition tp = new TopicPartition("testPartition", 11); // Ensure TopicPartition is properly initialized
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
         SourceFile descriptor = new SourceFile();
         descriptor.rawBytes = 1024;
         writer.handleRollFile(descriptor);
@@ -124,7 +128,8 @@ public class TopicPartitionWriterTest {
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
         props.streaming = true;
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockedClient, props, config, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
 
         SourceFile descriptor = new SourceFile();
         descriptor.rawBytes = 1024;
@@ -148,7 +153,8 @@ public class TopicPartitionWriterTest {
     @Test
     public void testGetFilename() {
         try {
-            TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+            MetricRegistry metricRegistry = new MetricRegistry();
+            TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
             File writerFile = new File(writer.getFilePath(null));
             Assertions.assertEquals("kafka_testPartition_11_0.CSV.gz", writerFile.getName());
         } catch (Exception ex) {
@@ -156,10 +162,11 @@ public class TopicPartitionWriterTest {
             fail(ex);
         }
     }
-
     @Test
     public void testGetFilenameAfterOffsetChanges() {
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartition tp = new TopicPartition("testPartition", 11); // Ensure TopicPartition is properly initialized
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
         records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "another,stringy,message", 5));
@@ -179,7 +186,8 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testOpenClose() {
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
         writer.open();
         writer.close();
     }
@@ -208,7 +216,9 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testWriteStringyValuesAndOffset() {
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartition tp = new TopicPartition("testPartition", 11); // Ensure TopicPartition is properly initialized
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
@@ -234,7 +244,9 @@ public class TopicPartitionWriterTest {
         long fileThreshold2 = messages[0].length() + messages[1].length() + messages[2].length() + messages[2].length() - 1;
         Map<String, String> settings2 = getKustoConfigs(basePathCurrent, fileThreshold2, flushInterval);
         KustoSinkConfig config2 = new KustoSinkConfig(settings2);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config2, isDlqEnabled, dlqTopicName, kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartition tp = new TopicPartition("testPartition", 11); // Ensure TopicPartition is properly initialized
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config2, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
@@ -276,7 +288,9 @@ public class TopicPartitionWriterTest {
         propsAvro.ingestionProperties.setDataFormat(IngestionProperties.DataFormat.AVRO);
         Map<String, String> settings2 = getKustoConfigs(basePathCurrent, fileThreshold2, flushInterval);
         KustoSinkConfig config2 = new KustoSinkConfig(settings2);
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsAvro, config2, isDlqEnabled, dlqTopicName, kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartition tp = new TopicPartition("testPartition", 11); // Ensure TopicPartition is properly initialized
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsAvro, config2, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
 
         writer.open();
         List<SinkRecord> records = new ArrayList<>();
@@ -299,7 +313,9 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testClose() throws InterruptedException {
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartition tp = new TopicPartition("testPartition", 11); // Ensure TopicPartition is properly initialized
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, isDlqEnabled, dlqTopicName, kafkaProducer, metricRegistry);
         TopicPartitionWriter spyWriter = spy(writer);
 
         spyWriter.open();
@@ -322,7 +338,8 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testSendFailedRecordToDlqError() {
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, true, "dlq.topic.name", kafkaProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, true, "dlq.topic.name", kafkaProducer, metricRegistry);
         TopicPartitionWriter spyWriter = spy(writer);
         // TODO this is to be re-worked
         kafkaProducer = mock(Producer.class);
@@ -336,7 +353,8 @@ public class TopicPartitionWriterTest {
 
     @Test
     public void testSendFailedRecordToDlqSuccess() {
-        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, true, "dlq.topic.name", dlqMockProducer);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, true, "dlq.topic.name", dlqMockProducer, metricRegistry);
         TopicPartitionWriter spyWriter = spy(writer);
 
         spyWriter.open();
