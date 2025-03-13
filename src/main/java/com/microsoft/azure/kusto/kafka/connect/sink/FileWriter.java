@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
@@ -65,8 +66,8 @@ public class FileWriter implements Closeable {
     private Counter fileCountPurged;
     private Counter bufferSizeBytes;
     private Counter bufferRecordCount;
-    private Counter flushedOffset;
-    private Counter purgedOffset;
+    private long flushedOffsetValue;
+    private long purgedOffsetValue;
     private Counter failedTempFileDeletions;
 
     /**
@@ -107,9 +108,26 @@ public class FileWriter implements Closeable {
         this.fileCountPurged = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_PURGED));
         this.bufferSizeBytes = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.BUFFER_SUB_DOMAIN, KustoKafkaMetricsUtil.BUFFER_SIZE_BYTES));
         this.bufferRecordCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.BUFFER_SUB_DOMAIN, KustoKafkaMetricsUtil.BUFFER_RECORD_COUNT));
-        this.flushedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.FLUSHED_OFFSET));
-        this.purgedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PURGED_OFFSET));
         this.failedTempFileDeletions = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FAILED_TEMP_FILE_DELETIONS));
+        String flushedOffsetMetricName = KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.FLUSHED_OFFSET);
+        if (!metricRegistry.getGauges().containsKey(flushedOffsetMetricName)) {
+            metricRegistry.register(flushedOffsetMetricName, new Gauge<Long>() {
+                @Override
+                public Long getValue() {
+                    return flushedOffsetValue;
+                }
+            });
+        }
+    
+        String purgedOffsetMetricName = KustoKafkaMetricsUtil.constructMetricName(tpname, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PURGED_OFFSET);
+        if (!metricRegistry.getGauges().containsKey(purgedOffsetMetricName)) {
+            metricRegistry.register(purgedOffsetMetricName, new Gauge<Long>() {
+                @Override
+                public Long getValue() {
+                    return purgedOffsetValue;
+                }
+            });
+        }
     }
 
     boolean isDirty() {
@@ -239,7 +257,7 @@ public class FileWriter implements Closeable {
                 failedTempFileDeletions.inc();
             }else {
                 fileCountPurged.inc();
-                purgedOffset.inc(flushedOffset.getCount()); 
+                purgedOffsetValue = flushedOffsetValue; // Update purgedOffsetValue
                 fileCountOnStage.dec();
             }
         }
@@ -335,7 +353,7 @@ public class FileWriter implements Closeable {
             bufferRecordCount.dec(bufferRecordCount.getCount()); // Reset the counter to zero
             bufferRecordCount.inc(currentFile.numRecords); // Set the counter to the current number of records
         }
-        flushedOffset.inc(); 
+        flushedOffsetValue = sinkRecord.kafkaOffset(); // Update flushedOffsetValue
         
         if (this.flushInterval == 0 || currentFile.rawBytes > fileThreshold || shouldWriteAvroAsBytes) {
             rotate(sinkRecord.kafkaOffset());

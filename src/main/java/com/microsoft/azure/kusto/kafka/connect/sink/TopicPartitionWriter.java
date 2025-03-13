@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
@@ -67,8 +68,6 @@ public class TopicPartitionWriter {
     private Counter dlqRecordCount;
     private Counter ingestionErrorCount;
     private Counter ingestionSuccessCount;
-    private Counter processedOffset;
-    private Counter committedOffset;
     private Timer commitLag;
     private Timer ingestionLag;
     private long writeTime;
@@ -93,17 +92,34 @@ public class TopicPartitionWriter {
         this.metricRegistry = metricRegistry;
         initializeMetrics(tp.topic(), metricRegistry);
     }
-
     private void initializeMetrics(String topic, MetricRegistry metricRegistry) {
         this.fileCountOnIngestion = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_ON_INGESTION));
         this.fileCountTableStageIngestionFail = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_TABLE_STAGE_INGESTION_FAIL));
         this.dlqRecordCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.DLQ_RECORD_COUNT));
         this.ingestionErrorCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_ERROR_COUNT));
         this.ingestionSuccessCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_SUCCESS_COUNT));
-        this.processedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PROCESSED_OFFSET));
-        this.committedOffset = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.COMMITTED_OFFSET));
         this.commitLag = metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.COMMIT_LAG.getMetricName()));
         this.ingestionLag = metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.INGESTION_LAG.getMetricName()));
+        
+        String processedOffsetMetricName = KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PROCESSED_OFFSET);
+        if (!metricRegistry.getGauges().containsKey(processedOffsetMetricName)) {
+            metricRegistry.register(processedOffsetMetricName, new Gauge<Long>() {
+                @Override
+                public Long getValue() {
+                    return currentOffset;
+                }
+            });
+        }
+    
+        String committedOffsetMetricName = KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.COMMITTED_OFFSET);
+        if (!metricRegistry.getGauges().containsKey(committedOffsetMetricName)) {
+            metricRegistry.register(committedOffsetMetricName, new Gauge<Long>() {
+                @Override
+                public Long getValue() {
+                    return lastCommittedOffset != null ? lastCommittedOffset : 0L;
+                }
+            });
+        }
     }
 
     static String getTempDirectoryName(String tempDirPath) {
@@ -150,7 +166,6 @@ public class TopicPartitionWriter {
                 log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
                         fileDescriptor.path, fileDescriptor.rawBytes, currentOffset,ingestionStatus);
                 this.lastCommittedOffset = currentOffset;
-                committedOffset.inc(); // Increment the committed offset counter
                 fileCountOnIngestion.dec();
                 long ingestionEndTime = System.currentTimeMillis(); // Record the end time of ingestion
                 ingestionLag.update(ingestionEndTime - uploadStartTime, TimeUnit.MILLISECONDS); // Update ingestion-lag
@@ -268,7 +283,6 @@ public class TopicPartitionWriter {
             try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.readLock())) {
                 this.currentOffset = sinkRecord.kafkaOffset();
                 fileWriter.writeData(sinkRecord);
-                processedOffset.inc();
                 // Record the time when data is written to the file
                 writeTime = System.currentTimeMillis();
             } catch (IOException | DataException ex) {

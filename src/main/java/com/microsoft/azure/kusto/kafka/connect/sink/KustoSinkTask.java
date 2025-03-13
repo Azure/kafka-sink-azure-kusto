@@ -451,8 +451,6 @@ public class KustoSinkTask extends SinkTask {
         // Register metrics
         if (context != null) {
             for (TopicPartition tp : context.assignment()) {
-                metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(
-                    tp.topic(), KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.COMMITTED_OFFSET));
                 metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(
                     tp.topic(), KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.KAFKA_LAG.getMetricName()));
             }
@@ -538,8 +536,6 @@ public class KustoSinkTask extends SinkTask {
                 log.debug("Forwarding to framework request to commit offset: {} for {} while the offset is {}", offset,
                         tp, offsets.get(tp));
                 offsetsToCommit.put(tp, new OffsetAndMetadata(offset));
-                metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(
-                    tp.topic(), KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.COMMITTED_OFFSET)).inc();
             }
         }
 
