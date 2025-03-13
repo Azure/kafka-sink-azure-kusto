@@ -23,6 +23,10 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
@@ -33,6 +37,7 @@ import com.microsoft.azure.kusto.ingest.result.IngestionStatus;
 import com.microsoft.azure.kusto.ingest.result.IngestionStatusResult;
 import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+import com.microsoft.azure.kusto.kafka.connect.sink.metrics.KustoKafkaMetricsUtil;
 
 public class TopicPartitionWriter {
 
@@ -56,9 +61,20 @@ public class TopicPartitionWriter {
     long currentOffset;
     Long lastCommittedOffset;
     private final ReentrantReadWriteLock reentrantReadWriteLock;
+    private final MetricRegistry metricRegistry;
+
+    private Counter fileCountOnIngestion;
+    private Counter fileCountTableStageIngestionFail;
+    private Counter dlqRecordCount;
+    private Counter ingestionErrorCount;
+    private Counter ingestionSuccessCount;
+    private Timer commitLag;
+    private Timer ingestionLag;
+    private long writeTime;
+
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-            KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
+                         KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer, MetricRegistry metricRegistry) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -73,6 +89,37 @@ public class TopicPartitionWriter {
         this.isDlqEnabled = isDlqEnabled;
         this.dlqTopicName = dlqTopicName;
         this.dlqProducer = dlqProducer;
+        this.metricRegistry = metricRegistry;
+        initializeMetrics(tp.topic(), metricRegistry);
+    }
+    private void initializeMetrics(String topic, MetricRegistry metricRegistry) {
+        this.fileCountOnIngestion = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_ON_INGESTION));
+        this.fileCountTableStageIngestionFail = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.FILE_COUNT_SUB_DOMAIN, KustoKafkaMetricsUtil.FILE_COUNT_TABLE_STAGE_INGESTION_FAIL));
+        this.dlqRecordCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.DLQ_RECORD_COUNT));
+        this.ingestionErrorCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_ERROR_COUNT));
+        this.ingestionSuccessCount = metricRegistry.counter(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.DLQ_SUB_DOMAIN, KustoKafkaMetricsUtil.INGESTION_SUCCESS_COUNT));
+        this.commitLag = metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.COMMIT_LAG.getMetricName()));
+        this.ingestionLag = metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.INGESTION_LAG.getMetricName()));
+        
+        String processedOffsetMetricName = KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.PROCESSED_OFFSET);
+        if (!metricRegistry.getGauges().containsKey(processedOffsetMetricName)) {
+            metricRegistry.register(processedOffsetMetricName, new Gauge<Long>() {
+                @Override
+                public Long getValue() {
+                    return currentOffset;
+                }
+            });
+        }
+    
+        String committedOffsetMetricName = KustoKafkaMetricsUtil.constructMetricName(topic, KustoKafkaMetricsUtil.OFFSET_SUB_DOMAIN, KustoKafkaMetricsUtil.COMMITTED_OFFSET);
+        if (!metricRegistry.getGauges().containsKey(committedOffsetMetricName)) {
+            metricRegistry.register(committedOffsetMetricName, new Gauge<Long>() {
+                @Override
+                public Long getValue() {
+                    return lastCommittedOffset != null ? lastCommittedOffset : 0L;
+                }
+            });
+        }
     }
 
     static String getTempDirectoryName(String tempDirPath) {
@@ -83,13 +130,20 @@ public class TopicPartitionWriter {
 
     public void handleRollFile(SourceFile fileDescriptor) {
         FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
-
+        if (writeTime == 0) {
+            log.warn("writeTime is not initialized properly before invoking handleRollFile. Setting it to the current time.");
+            writeTime = System.currentTimeMillis(); // Initialize writeTime if not already set
+        }
         /*
          * Since retries can be for a longer duration the Kafka Consumer may leave the group. This will result in a new Consumer reading records from the last
          * committed offset leading to duplication of records in KustoDB. Also, if the error persists, it might also result in duplicate records being written
          * into DLQ topic. Recommendation is to set the following worker configuration as `connector.client.config.override.policy=All` and set the
          * `consumer.override.max.poll.interval.ms` config to a high enough value to avoid consumer leaving the group while the Connector is retrying.
          */
+        fileCountOnIngestion.inc();
+        long uploadStartTime = System.currentTimeMillis(); // Record the start time of file upload
+        commitLag.update(uploadStartTime - writeTime, TimeUnit.MILLISECONDS);
+
         for (int retryAttempts = 0; true; retryAttempts++) {
             try {
                 IngestionResult ingestionResult = client.ingestFromFile(fileSourceInfo, ingestionProps.ingestionProperties);
@@ -112,8 +166,15 @@ public class TopicPartitionWriter {
                 log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
                         fileDescriptor.path, fileDescriptor.rawBytes, currentOffset,ingestionStatus);
                 this.lastCommittedOffset = currentOffset;
+                fileCountOnIngestion.dec();
+                long ingestionEndTime = System.currentTimeMillis(); // Record the end time of ingestion
+                ingestionLag.update(ingestionEndTime - uploadStartTime, TimeUnit.MILLISECONDS); // Update ingestion-lag
+                ingestionSuccessCount.inc();
                 return;
             } catch (IngestionServiceException exception) {
+                fileCountTableStageIngestionFail.inc();
+                ingestionErrorCount.inc();
+                fileCountOnIngestion.dec();
                 if (ingestionProps.streaming) {
                     Throwable innerException = exception.getCause();
                     if (innerException instanceof KustoDataExceptionBase &&
@@ -125,6 +186,9 @@ public class TopicPartitionWriter {
                 // retrying transient exceptions
                 backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
             } catch (IngestionClientException | URISyntaxException exception) {
+                fileCountTableStageIngestionFail.inc();
+                ingestionErrorCount.inc();
+                fileCountOnIngestion.dec();
                 throw new ConnectException(exception);
             }
         }
@@ -198,6 +262,7 @@ public class TopicPartitionWriter {
                             exception);
                 }
             });
+            dlqRecordCount.inc();
         } catch (IllegalStateException e) {
             log.error("Failed to write records to miscellaneous dead-letter queue topic, "
                     + "kafka producer has already been closed. Exception={0}", e);
@@ -218,6 +283,8 @@ public class TopicPartitionWriter {
             try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.readLock())) {
                 this.currentOffset = sinkRecord.kafkaOffset();
                 fileWriter.writeData(sinkRecord);
+                // Record the time when data is written to the file
+                writeTime = System.currentTimeMillis();
             } catch (IOException | DataException ex) {
                 handleErrors(sinkRecord, ex);
             }
@@ -247,7 +314,9 @@ public class TopicPartitionWriter {
                 reentrantReadWriteLock,
                 ingestionProps.ingestionProperties.getDataFormat(),
                 behaviorOnError,
-                isDlqEnabled);
+                isDlqEnabled,
+                tp.topic(),
+                metricRegistry);
     }
 
     void close() {

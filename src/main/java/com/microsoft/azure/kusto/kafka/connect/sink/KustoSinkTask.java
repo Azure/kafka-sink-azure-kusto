@@ -3,6 +3,7 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -25,6 +26,7 @@ import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenRequestContext;
 import com.azure.identity.WorkloadIdentityCredential;
 import com.azure.identity.WorkloadIdentityCredentialBuilder;
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
@@ -35,6 +37,8 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.kafka.connect.sink.metrics.KustoKafkaMetricsJmxReporter;
+import com.microsoft.azure.kusto.kafka.connect.sink.metrics.KustoKafkaMetricsUtil;
 
 /**
  * Kusto sink uses file system to buffer records.
@@ -63,6 +67,8 @@ public class KustoSinkTask extends SinkTask {
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> dlqProducer;
+    private MetricRegistry metricRegistry;
+    private KustoKafkaMetricsJmxReporter jmxReporter;
 
     public KustoSinkTask() {
         assignment = new HashSet<>();
@@ -371,7 +377,7 @@ public class KustoSinkTask extends SinkTask {
             } else {
                 IngestClient client = ingestionProps.streaming ? streamingIngestClient : kustoIngestClient;
                 TopicPartitionWriter writer = new TopicPartitionWriter(tp, client, ingestionProps, config, isDlqEnabled,
-                        dlqTopicName, dlqProducer);
+                        dlqTopicName, dlqProducer,  metricRegistry);
                 writer.open();
                 writers.put(tp, writer);
             }
@@ -435,11 +441,30 @@ public class KustoSinkTask extends SinkTask {
         if (context != null) {
             open(context.assignment());
         }
+
+        // Initialize metricRegistry and JmxReporter
+        metricRegistry = new MetricRegistry();
+        jmxReporter = new KustoKafkaMetricsJmxReporter(metricRegistry, "KustoSinkConnector");
+        jmxReporter.start();
+        log.info("JmxReporter started for KustoSinkConnector");
+
+        // Register metrics
+        if (context != null) {
+            for (TopicPartition tp : context.assignment()) {
+                metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(
+                    tp.topic(), KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.KAFKA_LAG.getMetricName()));
+            }
+        }
     }
 
     @Override
     public void stop() {
         log.warn("Stopping KustoSinkTask");
+        // Unregister metrics
+        if (jmxReporter != null) {
+            jmxReporter.removeMetricsFromRegistry("KustoSinkConnector");
+            jmxReporter.stop();
+        }
         // First stop so that no more ingestions trigger from timer flushes
         for (TopicPartitionWriter writer : writers.values()) {
             writer.stop();
@@ -455,6 +480,7 @@ public class KustoSinkTask extends SinkTask {
         } catch (IOException e) {
             log.error("Error closing kusto client", e);
         }
+    
     }
 
     @Override
@@ -476,6 +502,13 @@ public class KustoSinkTask extends SinkTask {
                         sinkRecord.kafkaOffset(), sinkRecord.key(), sinkRecord.kafkaPartition());
             } else {
                 writer.writeRecord(sinkRecord);
+            }
+            Long timestamp = sinkRecord.timestamp();
+            if (timestamp != null) {
+                long kafkaLagValue = System.currentTimeMillis() - timestamp;
+                metricRegistry.timer(KustoKafkaMetricsUtil.constructMetricName(
+                    sinkRecord.topic(), KustoKafkaMetricsUtil.LATENCY_SUB_DOMAIN, KustoKafkaMetricsUtil.EventType.KAFKA_LAG.getMetricName()))
+                    .update(kafkaLagValue, TimeUnit.MILLISECONDS);
             }
         }
         if (lastRecord != null) {
