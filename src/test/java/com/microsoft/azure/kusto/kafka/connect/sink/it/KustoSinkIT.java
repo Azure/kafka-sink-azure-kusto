@@ -78,7 +78,7 @@ class KustoSinkIT {
     private static final Network network = Network.newNetwork();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private static final String confluentVersion = "6.2.5";
+    private static final String confluentVersion = "7.5.2";
     private static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:" + confluentVersion))
             .withNetwork(network);
     private static final SchemaRegistryContainer schemaRegistryContainer = new SchemaRegistryContainer(confluentVersion).withKafka(kafkaContainer)
@@ -132,10 +132,10 @@ class KustoSinkIT {
         kqlsToExecute.forEach(kql -> {
             try {
                 if(kql.startsWith(".")){
-                    log.info("Executing management command: {}", kql);
+                    log.trace("Executing management command: {}", kql);
                     KustoOperationResult kos = engineClient.executeMgmt(coordinates.database, kql);
                     if (kos!=null && kos.getPrimaryResults() != null ) {
-                        log.info("Management command executed successfully: {}", kql);
+                        log.trace("Management command executed successfully: {}", kql);
                     } else {
                         log.warn("Management command executed but no results returned: {}", kql);
                     }
