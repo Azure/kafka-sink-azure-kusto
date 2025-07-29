@@ -190,7 +190,7 @@ class KustoSinkIT {
     }
 
     @AfterAll
-    public static void stopContainers() throws InterruptedException {
+    public static void stopContainers() {
         KAFKA_CONNECT.stop();
         SCHEMA_REGISTRY.stop();
         KAFKA.stop();
