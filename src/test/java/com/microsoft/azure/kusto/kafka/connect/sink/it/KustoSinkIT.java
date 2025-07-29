@@ -194,7 +194,6 @@ class KustoSinkIT {
         KAFKA_CONNECT.stop();
         SCHEMA_REGISTRY.stop();
         KAFKA.stop();
-        Thread.sleep(100_000);
         engineClient.executeMgmt(coordinates.database, String.format(".drop table %s", coordinates.table));
         LOGGER.warn("Finished table clean up. Dropped table {}", coordinates.table);
     }
