@@ -19,13 +19,13 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.result.IngestionResult;
@@ -58,7 +58,7 @@ public class TopicPartitionWriter {
     private final ReentrantReadWriteLock reentrantReadWriteLock;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-            KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
+                         @NotNull KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -75,14 +75,15 @@ public class TopicPartitionWriter {
         this.dlqProducer = dlqProducer;
     }
 
-    static String getTempDirectoryName(String tempDirPath) {
+    static @NotNull String getTempDirectoryName(String tempDirPath) {
         String tempDir = String.format("kusto-sink-connector-%s", UUID.randomUUID());
         Path path = Paths.get(tempDirPath, tempDir).toAbsolutePath();
         return path.toString();
     }
 
-    public void handleRollFile(SourceFile fileDescriptor) {
-        FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, fileDescriptor.rawBytes);
+    public void handleRollFile(@NotNull SourceFile fileDescriptor) {
+        UUID sourceId = UUID.randomUUID();
+        FileSourceInfo fileSourceInfo = new FileSourceInfo(fileDescriptor.path, sourceId);
 
         /*
          * Since retries can be for a longer duration the Kafka Consumer may leave the group. This will result in a new Consumer reading records from the last
@@ -97,7 +98,7 @@ public class TopicPartitionWriter {
                     // If IngestionStatusResult returned then the ingestion status is from streaming ingest
                     IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
                     if (!hasStreamingSucceeded(ingestionStatus)) {
-                        retryAttempts += ManagedStreamingIngestClient.ATTEMPT_COUNT;
+                        retryAttempts += 1; // increment retry attempts for the next iteration
                         backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
                         log.debug("Kusto ingestion: Streaming of file ({}) of size ({}) at current offset ({}) did NOT succeed; will retry",
                                 fileDescriptor.path, fileDescriptor.rawBytes, currentOffset);
@@ -130,7 +131,7 @@ public class TopicPartitionWriter {
         }
     }
 
-    private boolean hasStreamingSucceeded(IngestionStatus status) {
+    private boolean hasStreamingSucceeded(@NotNull IngestionStatus status) {
         switch (status.status) {
             case Succeeded:
             case Queued:
@@ -167,7 +168,8 @@ public class TopicPartitionWriter {
                 TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
             } catch (InterruptedException interruptedErr) {
                 if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                    log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
+                    log.warn("Interrupted: Writing {} failed records to miscellaneous dead-letter " +
+                            "queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
                 throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interrupted after retryAttempts=%s", retryAttempts + 1),
@@ -175,14 +177,17 @@ public class TopicPartitionWriter {
             }
         } else {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
-                log.warn("Writing {} failed records to miscellaneous dead-letter queue topic={}", fileDescriptor.records.size(), dlqTopicName);
+                log.warn("Writing {} failed records to miscellaneous dead-letter " +
+                        "queue topic={}. Retry attempt {} of {}",
+                        fileDescriptor.records.size(), dlqTopicName, retryAttempts,maxRetryAttempts);
                 fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             }
-            throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.", exception);
+            throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.",
+                    exception);
         }
     }
 
-    public void sendFailedRecordToDlq(SinkRecord sinkRecord) {
+    public void sendFailedRecordToDlq(@NotNull SinkRecord sinkRecord) {
         byte[] recordKey = String.format("Failed to write sinkRecord to KustoDB with the following kafka coordinates, "
                 + "topic=%s, partition=%s, offset=%s.",
                 sinkRecord.topic(),

@@ -115,7 +115,6 @@ public class TopicPartitionWriterTest {
         Assertions.assertEquals(fileSourceInfoArgument.getValue().getFilePath(), descriptor.path);
         Assertions.assertEquals(TABLE, ingestionPropertiesArgumentCaptor.getValue().getTableName());
         Assertions.assertEquals(DATABASE, ingestionPropertiesArgumentCaptor.getValue().getDatabaseName());
-        Assertions.assertEquals(1024, fileSourceInfoArgument.getValue().getRawSizeInBytes());
     }
 
     @Test
@@ -142,7 +141,6 @@ public class TopicPartitionWriterTest {
         Assertions.assertEquals(fileSourceInfoArgument.getValue().getFilePath(), descriptor.path);
         Assertions.assertEquals(TABLE, ingestionPropertiesArgumentCaptor.getValue().getTableName());
         Assertions.assertEquals(DATABASE, ingestionPropertiesArgumentCaptor.getValue().getDatabaseName());
-        Assertions.assertEquals(1024, fileSourceInfoArgument.getValue().getRawSizeInBytes());
     }
 
     @Test

@@ -49,6 +49,7 @@ import org.testcontainers.utility.MountableFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
+import com.microsoft.azure.kusto.data.KustoOperationResult;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
@@ -130,7 +131,18 @@ class KustoSinkIT {
                 .collect(Collectors.toList());
         kqlsToExecute.forEach(kql -> {
             try {
-                engineClient.execute(coordinates.database, kql);
+                if(kql.startsWith(".")){
+                    log.info("Executing management command: {}", kql);
+                    KustoOperationResult kos = engineClient.executeMgmt(coordinates.database, kql);
+                    if (kos!=null && kos.getPrimaryResults() != null ) {
+                        log.info("Management command executed successfully: {}", kql);
+                    } else {
+                        log.warn("Management command executed but no results returned: {}", kql);
+                    }
+                } else {
+                    engineClient.executeQuery(coordinates.database, kql);
+                }
+
             } catch (Exception e) {
                 log.error("Failed to execute kql: {}", kql, e);
             }
@@ -146,7 +158,7 @@ class KustoSinkIT {
                 .collect(Collectors.toList());
         kqlsToExecute.forEach(kql -> {
             try {
-                dmClient.execute(kql);
+                dmClient.executeMgmt(kql);
             } catch (Exception e) {
                 log.error("Failed to execute DM kql: {}", kql, e);
             }
@@ -155,14 +167,12 @@ class KustoSinkIT {
     }
 
     @AfterAll
-    public static void stopContainers() throws Exception {
+    public static void stopContainers() {
         connectContainer.stop();
         schemaRegistryContainer.stop();
         kafkaContainer.stop();
-        engineClient.execute(coordinates.database, String.format(".drop table %s", coordinates.table));
+        engineClient.executeMgmt(coordinates.database, String.format(".drop table %s", coordinates.table));
         log.warn("Finished table clean up. Dropped table {}", coordinates.table);
-        dmClient.close();
-        engineClient.close();
     }
 
     private static void deployConnector(@NotNull String dataFormat, String topicTableMapping,
@@ -243,7 +253,8 @@ class KustoSinkIT {
         }
     }
 
-    private @NotNull Map<Long, String> produceKafkaMessages(@NotNull String dataFormat, int maxRecords, String targetTopicName) throws IOException {
+    private @NotNull Map<Long, String> produceKafkaMessages(@NotNull String dataFormat, int maxRecords,
+                                                            String targetTopicName) throws IOException {
         log.warn("Producing messages");
         Map<String, Object> producerProperties = new HashMap<>();
         producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
