@@ -331,3 +331,4 @@ ASALocalRun/
 
 # build
 target/*
+/dependency-reduced-pom.xml

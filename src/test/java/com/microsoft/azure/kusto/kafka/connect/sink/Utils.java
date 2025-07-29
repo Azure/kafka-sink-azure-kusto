@@ -3,6 +3,8 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 import java.io.File;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import org.apache.commons.io.FilenameUtils;
@@ -11,8 +13,10 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.BOOTSTRAP_ADDRESS;
+
 public class Utils {
-    private static final Logger log = LoggerFactory.getLogger(Utils.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
 
     private Utils() {
 
@@ -23,7 +27,33 @@ public class Utils {
         return "/kafka/connect/kafka-sink-azure-kusto";
     }
 
-    public static File getCurrentWorkingDirectory() {
+    public static @NotNull Map<String, String> getConnectProperties() {
+        Map<String, String> env = new HashMap<>();
+        env.put("BOOTSTRAP_SERVERS", BOOTSTRAP_ADDRESS);
+        env.put("CONNECT_BOOTSTRAP_SERVERS", BOOTSTRAP_ADDRESS);
+        env.put("CONNECT_GROUP_ID", "kusto-e2e-connect-group");
+        env.put("CONNECT_CONFIG_STORAGE_TOPIC", "connect-config");
+        env.put("CONNECT_OFFSET_STORAGE_TOPIC", "connect-offsets");
+        env.put("CONNECT_STATUS_STORAGE_TOPIC", "connect-status");
+        env.put("CONNECT_LOG4J_ROOT_LOGLEVEL", "INFO");
+        env.put("CONNECT_LOG4J_LOGGERS", "org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR");
+        env.put("CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR", "1");
+        env.put("CONNECT_STATUS_STORAGE_REPLICATION_FACTOR", "1");
+        env.put("CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR", "1");
+        env.put("CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE", "false");
+        env.put("CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE", "false");
+        env.put("CONNECT_INTERNAL_KEY_CONVERTER", "org.apache.kafka.connect.json.JsonConverter");
+        env.put("CONNECT_INTERNAL_VALUE_CONVERTER", "org.apache.kafka.connect.json.JsonConverter");
+        env.put("CONNECT_KEY_CONVERTER", "org.apache.kafka.connect.converters.ByteArrayConverter");
+        env.put("CONNECT_VALUE_CONVERTER", "org.apache.kafka.connect.converters.ByteArrayConverter");
+        env.put("CONNECT_REST_ADVERTISED_HOST_NAME", "kusto-e2e-connect");
+        env.put("CONNECT_REST_PORT", String.valueOf(8083));
+        env.put("CONNECT_PLUGIN_PATH", Utils.getConnectPath());
+        env.put("CLASSPATH", Utils.getConnectPath());
+        return env;
+    }
+
+    public static @NotNull File getCurrentWorkingDirectory() {
         File currentDirectory = new File(Paths.get(
                 System.getProperty("java.io.tmpdir"),
                 Utils.class.getSimpleName(),
@@ -31,7 +61,7 @@ public class Utils {
         boolean opResult = restrictPermissions(currentDirectory);
         String fullPath = currentDirectory.getAbsolutePath();
         if (!opResult) {
-            log.warn("Setting permissions on the file {} failed", fullPath);
+            LOGGER.warn("Setting permissions on the file {} failed", fullPath);
         }
         currentDirectory.deleteOnExit();
         return currentDirectory;
@@ -42,7 +72,7 @@ public class Utils {
         folder.deleteOnExit();
         boolean opResult = restrictPermissions(folder);
         if (!opResult) {
-            log.warn("Setting creating folder {} with permissions", path);
+            LOGGER.warn("Setting creating folder {} with permissions", path);
         }
         return folder.mkdirs();
     }
@@ -54,7 +84,7 @@ public class Utils {
                     file.setReadable(true, true) &&
                     file.setWritable(true, true);
         } catch (Exception ex) {
-            log.debug("Exception setting permissions on temporary test files[{}]. This is usually not a problem as it is" +
+            LOGGER.debug("Exception setting permissions on temporary test files[{}]. This is usually not a problem as it is" +
                     "run on test.To fix this, please check if there are specific security policies on test host that are" +
                     "causing this", file.getPath(), ex);
             return false;

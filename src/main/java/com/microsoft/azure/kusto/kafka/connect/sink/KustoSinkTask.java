@@ -1,13 +1,11 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.http.HttpHost;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -23,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenRequestContext;
+import com.azure.core.http.ProxyOptions;
 import com.azure.identity.WorkloadIdentityCredential;
 import com.azure.identity.WorkloadIdentityCredentialBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,6 +30,7 @@ import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
+import com.microsoft.azure.kusto.data.http.HttpClientProperties;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
@@ -80,7 +80,7 @@ public class KustoSinkTask extends SinkTask {
 
         switch (config.getAuthStrategy()) {
             case APPLICATION:
-                if (StringUtils.isNotEmpty(config.getAuthAppId()) && StringUtils.isNotEmpty(config.getAuthAppKey())) {
+                if (StringUtils.isNotBlank(config.getAuthAppId()) && StringUtils.isNotBlank(config.getAuthAppKey())) {
                     kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                             clusterUrl,
                             config.getAuthAppId(),
@@ -124,12 +124,14 @@ public class KustoSinkTask extends SinkTask {
                         "provide valid credentials. Either Kusto managed identity or " +
                         "Kusto appId, appKey, and authority should be configured.");
         }
+        Map<String, String> additionalProperties = Collections.singletonMap("AuthType", config.getAuthStrategy().name());
 
-        kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), null, null, false, null, Pair.emptyArray());
+        kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), null,
+                null, false, null, additionalProperties);
         return kcsb;
     }
 
-    public static Client createKustoEngineClient(KustoSinkConfig config) {
+    public static @NotNull Client createKustoEngineClient(KustoSinkConfig config) {
         try {
             return ClientFactory.createClient(createKustoEngineConnectionString(config, config.getKustoEngineUrl()));
         } catch (Exception e) {
@@ -147,7 +149,7 @@ public class KustoSinkTask extends SinkTask {
                 IngestionProperties props = new IngestionProperties(mapping.getDb(), mapping.getTable());
 
                 String format = mapping.getFormat();
-                if (StringUtils.isNotEmpty(format)) {
+                if (StringUtils.isNotBlank(format)) {
                     if (isDataFormatAnyTypeOfJson(format)) {
                         props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
                     } else {
@@ -156,7 +158,7 @@ public class KustoSinkTask extends SinkTask {
                 }
 
                 String mappingRef = mapping.getMapping();
-                if (StringUtils.isNotEmpty(mappingRef) && format != null) {
+                if (StringUtils.isNotBlank(mappingRef) && format != null) {
                     if (isDataFormatAnyTypeOfJson(format)) {
                         props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
                     } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.AVRO.toString())) {
@@ -193,8 +195,9 @@ public class KustoSinkTask extends SinkTask {
      * @param mapping      JSON Object containing a Table mapping.
      * @param config       Kusto Sink configuration
      */
-    private static void validateTableAccess(Client engineClient, TopicToTableMapping mapping, KustoSinkConfig config, List<String> databaseTableErrorList,
-            List<String> accessErrorList) {
+    private static void validateTableAccess(Client engineClient, @NotNull TopicToTableMapping mapping,
+                                            KustoSinkConfig config, List<String> databaseTableErrorList,
+                                            List<String> accessErrorList) {
         String database = mapping.getDb();
         String table = mapping.getTable();
         String format = mapping.getFormat();
@@ -211,7 +214,7 @@ public class KustoSinkTask extends SinkTask {
                 shouldCheckStreaming = false;
             }
             try {
-                KustoOperationResult rs = engineClient.execute(database, String.format(FETCH_TABLE_COMMAND, table),
+                KustoOperationResult rs = engineClient.executeQuery(database, String.format(FETCH_TABLE_COMMAND, table),
                         validateOnlyClientRequestProperties);
                 if (VALIDATION_OK.equals(rs.getPrimaryResults().getData().get(0).get(0))) {
                     hasAccess = true;
@@ -221,9 +224,9 @@ public class KustoSinkTask extends SinkTask {
                         ExceptionUtils.getStackTrace(e)));
             }
 
-            if (hasAccess && StringUtils.isNotEmpty(mappingName)) {
+            if (hasAccess && StringUtils.isNotBlank(mappingName)) {
                 try {
-                    engineClient.execute(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table,
+                    engineClient.executeMgmt(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table,
                             format.toLowerCase(Locale.ROOT), mappingName));
                 } catch (DataServiceException e) {
                     hasAccess = false;
@@ -242,7 +245,7 @@ public class KustoSinkTask extends SinkTask {
                         config.getAuthAuthority());
                 String query = String.format(FETCH_PRINCIPAL_ROLES_COMMAND, authenticateWith, database, table);
                 try {
-                    KustoOperationResult rs = engineClient.execute(database, query);
+                    KustoOperationResult rs = engineClient.executeMgmt(database, query);
                     hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
                     if (hasAccess) {
                         log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
@@ -275,7 +278,7 @@ public class KustoSinkTask extends SinkTask {
 
     private static boolean isStreamingPolicyEnabled(
             String entityType, String entityName, Client engineClient, String database) throws DataClientException, DataServiceException {
-        KustoResultSetTable res = engineClient.execute(database, String.format(STREAMING_POLICY_SHOW_COMMAND, entityType, entityName)).getPrimaryResults();
+        KustoResultSetTable res = engineClient.executeMgmt(database, String.format(STREAMING_POLICY_SHOW_COMMAND, entityType, entityName)).getPrimaryResults();
         res.next();
         return res.getString("Policy") != null;
     }
@@ -283,9 +286,11 @@ public class KustoSinkTask extends SinkTask {
     public void createKustoIngestClient(KustoSinkConfig config) {
         try {
             HttpClientProperties httpClientProperties = null;
-            if (StringUtils.isNotEmpty(config.getConnectionProxyHost()) && config.getConnectionProxyPort() > -1) {
-                httpClientProperties = HttpClientProperties.builder()
-                        .proxy(new HttpHost(config.getConnectionProxyHost(), config.getConnectionProxyPort())).build();
+            if (StringUtils.isNotBlank(config.getConnectionProxyHost())
+                    && config.getConnectionProxyPort() > -1) {
+                InetSocketAddress proxyAddress = new InetSocketAddress(config.getConnectionProxyHost(), config.getConnectionProxyPort());
+                ProxyOptions proxy = new ProxyOptions(ProxyOptions.Type.HTTP,proxyAddress);
+                httpClientProperties = HttpClientProperties.builder().proxy(proxy).build();
             }
             ConnectionStringBuilder ingestConnectionStringBuilder = createKustoEngineConnectionString(config, config.getKustoIngestUrl());
             kustoIngestClient = httpClientProperties != null ? IngestClientFactory.createClient(ingestConnectionStringBuilder, httpClientProperties)
@@ -344,7 +349,7 @@ public class KustoSinkTask extends SinkTask {
 
     private boolean isIngestorRole(TopicToTableMapping testMapping, Client engineClient) {
         try {
-            engineClient.execute(testMapping.getDb(), String.format(FETCH_TABLE_COMMAND, testMapping.getTable()), validateOnlyClientRequestProperties);
+            engineClient.executeQuery(testMapping.getDb(), String.format(FETCH_TABLE_COMMAND, testMapping.getTable()), validateOnlyClientRequestProperties);
         } catch (DataServiceException | DataClientException err) {
             if (err.getCause().getMessage().contains("Forbidden:")) {
                 log.warn("User might have ingestor privileges, table validation will be skipped for all table mappings ");

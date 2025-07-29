@@ -1,6 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.it;
 
-import org.apache.commons.lang3.StringUtils;
+import com.microsoft.azure.kusto.data.StringUtils;
 
 class ITCoordinates {
 
@@ -19,7 +19,7 @@ class ITCoordinates {
         this.appId = appId;
         this.appKey = appKey;
         this.accessToken = accessToken;
-        this.authority = StringUtils.defaultIfBlank(authority, "microsoft.com");
+        this.authority = StringUtils.isEmpty(authority)?"microsoft.com":authority;
         this.ingestCluster = ingestCluster;
         this.cluster = cluster;
         this.database = database;
@@ -27,7 +27,7 @@ class ITCoordinates {
     }
 
     boolean isValidConfig() {
-        return StringUtils.isNotEmpty(authority) && StringUtils.isNotEmpty(cluster)
-                && StringUtils.isNotEmpty(ingestCluster);
+        return StringUtils.isNotBlank(authority) && StringUtils.isNotBlank(cluster)
+                && StringUtils.isNotBlank(ingestCluster);
     }
 }

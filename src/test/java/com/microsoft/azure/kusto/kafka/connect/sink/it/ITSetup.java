@@ -4,14 +4,25 @@ import java.util.Collections;
 import java.util.UUID;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenRequestContext;
 import com.azure.identity.AzureCliCredentialBuilder;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.data.StringUtils;
 
 public class ITSetup {
+
+    public static final String LISTENER_ADDRESS = "kafka:19092";
+    public static final String BOOTSTRAP_ADDRESS = String.format("PLAINTEXT://%s", LISTENER_ADDRESS);
+    public static final String CONFLUENT_VERSION = "7.5.2";
+    public static final int KAFKA_CONNECT_PORT = 8083;
+    public static final int SR_PORT = 8081;
+    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
+
+
     static @NotNull ITCoordinates getConnectorProperties() {
         String testPrefix = "tmpKafkaSinkIT_";
         String appId = getProperty("appId", "", false);
