@@ -11,7 +11,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
@@ -24,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.microsoft.azure.kusto.data.StringUtils;
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
@@ -150,8 +150,8 @@ public class TopicPartitionWriter {
                         status.getDatabase(),
                         status.getOperationId(),
                         ingestionSourceId,
-                        (StringUtils.isNotEmpty(failureStatus) ? (", failure: " + failureStatus) : ""),
-                        (StringUtils.isNotEmpty(details) ? (", details: " + details) : ""));
+                        (StringUtils.isNotBlank(failureStatus) ? (", failure: " + failureStatus) : ""),
+                        (StringUtils.isNotBlank(details) ? (", details: " + details) : ""));
                 return true;
             case Failed:
         }

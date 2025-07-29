@@ -5,7 +5,6 @@ import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -81,7 +80,7 @@ public class KustoSinkTask extends SinkTask {
 
         switch (config.getAuthStrategy()) {
             case APPLICATION:
-                if (StringUtils.isNotEmpty(config.getAuthAppId()) && StringUtils.isNotEmpty(config.getAuthAppKey())) {
+                if (StringUtils.isNotBlank(config.getAuthAppId()) && StringUtils.isNotBlank(config.getAuthAppKey())) {
                     kcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
                             clusterUrl,
                             config.getAuthAppId(),
@@ -150,7 +149,7 @@ public class KustoSinkTask extends SinkTask {
                 IngestionProperties props = new IngestionProperties(mapping.getDb(), mapping.getTable());
 
                 String format = mapping.getFormat();
-                if (StringUtils.isNotEmpty(format)) {
+                if (StringUtils.isNotBlank(format)) {
                     if (isDataFormatAnyTypeOfJson(format)) {
                         props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
                     } else {
@@ -159,7 +158,7 @@ public class KustoSinkTask extends SinkTask {
                 }
 
                 String mappingRef = mapping.getMapping();
-                if (StringUtils.isNotEmpty(mappingRef) && format != null) {
+                if (StringUtils.isNotBlank(mappingRef) && format != null) {
                     if (isDataFormatAnyTypeOfJson(format)) {
                         props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
                     } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.AVRO.toString())) {
@@ -225,7 +224,7 @@ public class KustoSinkTask extends SinkTask {
                         ExceptionUtils.getStackTrace(e)));
             }
 
-            if (hasAccess && StringUtils.isNotEmpty(mappingName)) {
+            if (hasAccess && StringUtils.isNotBlank(mappingName)) {
                 try {
                     engineClient.executeMgmt(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table,
                             format.toLowerCase(Locale.ROOT), mappingName));
@@ -287,7 +286,7 @@ public class KustoSinkTask extends SinkTask {
     public void createKustoIngestClient(KustoSinkConfig config) {
         try {
             HttpClientProperties httpClientProperties = null;
-            if (StringUtils.isNotEmpty(config.getConnectionProxyHost())
+            if (StringUtils.isNotBlank(config.getConnectionProxyHost())
                     && config.getConnectionProxyPort() > -1) {
                 InetSocketAddress proxyAddress = new InetSocketAddress(config.getConnectionProxyHost(), config.getConnectionProxyPort());
                 ProxyOptions proxy = new ProxyOptions(ProxyOptions.Type.HTTP,proxyAddress);

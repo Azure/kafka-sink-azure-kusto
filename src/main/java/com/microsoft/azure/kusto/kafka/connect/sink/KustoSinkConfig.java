@@ -8,7 +8,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
@@ -22,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.data.StringUtils;
 
 public class KustoSinkConfig extends AbstractConfig {
     // TODO: this might need to be per kusto cluster...
@@ -423,7 +423,7 @@ public class KustoSinkConfig extends AbstractConfig {
     }
 
     public boolean isDlqEnabled() {
-        if (!getDlqBootstrapServers().isEmpty() && StringUtils.isNotEmpty(getDlqTopicName())) {
+        if (!getDlqBootstrapServers().isEmpty() && StringUtils.isNotBlank(getDlqTopicName())) {
             return true;
         } else if (getDlqBootstrapServers().isEmpty() && StringUtils.isEmpty(getDlqTopicName())) {
             return false;

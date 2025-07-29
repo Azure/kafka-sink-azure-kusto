@@ -13,7 +13,6 @@
         <!-- Compile dependencies -->
         <az.core.version>1.55.5</az.core.version>
         <az.identity.version>1.16.3</az.identity.version>
-        <az.netty.version>1.15.13</az.netty.version>
         <commoncodec.version>1.19.0</commoncodec.version>
         <commonio.version>2.20.0</commonio.version>
         <kusto.sdk.version>7.0.2</kusto.sdk.version>
@@ -39,11 +38,9 @@
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <source.java.version>11</source.java.version>
+        <!-- Shade plugin -->
+        <maven.shade.plugin.version>3.4.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
-        <maven.enforcer.plugin.version>3.6.1</maven.enforcer.plugin.version>
-        <maven.shade.plugin.version>3.5.0</maven.shade.plugin.version>
-        <source.java.version>11</source.java.version>
-        <extra.enforcer.rules.version>1.7.0</extra.enforcer.rules.version>
     </properties>
     <build>
         <plugins>
@@ -561,54 +558,11 @@
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-data</artifactId>
             <version>${kusto.sdk.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-identity</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-identity</artifactId>
-            <version>${az.identity.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-core</artifactId>
-            <version>${az.core.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-core-http-netty</artifactId>
-            <version>${az.netty.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-ingest</artifactId>
             <version>${kusto.sdk.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-identity</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
