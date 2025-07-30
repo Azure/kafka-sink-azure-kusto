@@ -13,10 +13,13 @@
         <!-- Compile dependencies -->
         <az.core.version>1.55.5</az.core.version>
         <az.identity.version>1.16.3</az.identity.version>
+        <az.core.http.netty.version>1.15.13</az.core.http.netty.version>
         <commoncodec.version>1.19.0</commoncodec.version>
         <commonio.version>2.20.0</commonio.version>
+        <json.smart.version>2.5.2</json.smart.version>
         <kusto.sdk.version>7.0.2</kusto.sdk.version>
         <kafka.version>3.9.0</kafka.version>
+        <msal4j.version>1.22.0</msal4j.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.3.0</awaitility.version>
@@ -558,11 +561,67 @@
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-data</artifactId>
             <version>${kusto.sdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-identity</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.minidev</groupId>
+                    <artifactId>json-smart</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.microsoft.azure</groupId>
+                    <artifactId>msal4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-ingest</artifactId>
             <version>${kusto.sdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-identity</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.minidev</groupId>
+                    <artifactId>json-smart</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.microsoft.azure</groupId>
+                    <artifactId>msal4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <version>${az.identity.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+            <version>${json.smart.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-http-netty</artifactId>
+            <version>${az.core.http.netty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.azure</groupId>
+            <artifactId>msal4j</artifactId>
+            <version>${msal4j.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
