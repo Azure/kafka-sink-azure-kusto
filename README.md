@@ -4,6 +4,8 @@ This repository contains the source code of the Kafka Connect Kusto sink connect
 **"Kusto"** is the Microsoft internal project code name for Azure Data Explorer, Microsoft Azure's big data analytical
 database PaaS offering.
 
+Breaking changes are documented in the [16.1 Breaking changes from version 5](#161-breaking-changes-from-version-500) section below.<br>
+
 ## Topics covered
 
 <!-- TOC -->
@@ -64,8 +66,9 @@ database PaaS offering.
     * [14.5. Upgrading to version 1.x from prior versions](#145-upgrading-to-version-1x-from-prior-versions)
   * [15. Need Support?](#15-need-support)
   * [16. Major version specifics](#16-major-version-specifics)
+    * [16.1 Breaking changes from version 5.0.0](#161-breaking-changes-from-version-500)
   * [17. Release History](#17-release-history)
-  * [17. Contributing](#17-contributing)
+  * [18. Contributing](#18-contributing)
 <!-- TOC -->
 
 
@@ -711,6 +714,18 @@ our [blog post](https://techcommunity.microsoft.com/t5/azure-data-explorer/azure
 To upgrade, you would have to stop the connector tasks, recreate your connect worker Docker image to include the latest
 jar, update the sink properties to leverage the renamed and latest sink properties, reprovision the connect workers,
 then launch the copy tasks.
+
+### 16.1 Breaking changes from version 5.0.0
+**BREAKING CHANGES** 
+
+Changes to Java version in version 5.0.0 onward for the connector. There are constant upgrades done to Kusto SDK as well as
+open sources connectors to move over to Java 17/21 that fix a set of CVE vulnerabilities.
+
+Confluent runtimes and interop with Java are documented [here](https://docs.confluent.io/platform/current/installation/versions-interoperability.html)
+In line with the changes, the latest version of the connector is 5.0.0, which is compatible with Confluent Platform 8.0.0 and JDK 21 is standardized.
+
+Version **5.1.0** uses **JDK-21**
+
 <hr>
 
 For information about what changes are included in each release, please see
@@ -749,9 +764,11 @@ the [Release History](README.md#17-release-history) section of this document.
 | 4.0.10          | 2024-06-25   | <ul><li>Fix vulnerability CVE-2024-35255 by upgrading azure libs referenced indirectly & update Java SDK</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 4.1.1           | 2024-08-07   | <ul><li>Upgrade SDK dependencies</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 4.1.2           | 2024-08-07   | <ul><li>Upgrade SDK dependencies, Support for WIF based authentication</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 5.0.0           | 2025-07-28   | <ul><li>Bump Kusto SDK, Upgrade to latest confluent versions</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 5.1.0           | 2025-08-05   | <ul><li>Upgrade to Java 21</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 
-## 17. Contributing
+## 18. Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us

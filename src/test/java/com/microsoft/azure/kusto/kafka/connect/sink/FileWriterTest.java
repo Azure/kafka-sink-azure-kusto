@@ -1,11 +1,16 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.createDirectoryWithPermissions;
+import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.getFilesCount;
+
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +21,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.zip.GZIPInputStream;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.kafka.connect.data.Schema;
@@ -27,12 +31,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
-
-import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.createDirectoryWithPermissions;
-import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.getFilesCount;
 
 public class FileWriterTest {
     private static final Logger log = LoggerFactory.getLogger(FileWriterTest.class);
@@ -83,10 +81,10 @@ public class FileWriterTest {
 
     @Test
     public void testOpen() throws IOException {
-        String path = Paths.get(currentDirectory.getPath(), "testWriterOpen").toString();
+        String path = Path.of(currentDirectory.getPath(), "testWriterOpen").toString();
         Assertions.assertTrue(createDirectoryWithPermissions(path));
         Assertions.assertEquals(0, getFilesCount(path));
-        final String FILE_PATH = Paths.get(path, "ABC").toString();
+        final String FILE_PATH = Path.of(path, "ABC").toString();
         final int MAX_FILE_SIZE = 128;
         Consumer<SourceFile> trackFiles = (SourceFile f) -> {
         };
@@ -107,17 +105,17 @@ public class FileWriterTest {
 
     @Test
     public void testGzipFileWriter() throws IOException {
-        String path = Paths.get(currentDirectory.getPath(), "testGzipFileWriter").toString();
+        String path = Path.of(currentDirectory.getPath(), "testGzipFileWriter").toString();
         Assertions.assertTrue(createDirectoryWithPermissions(path));
         Assertions.assertEquals(0, getFilesCount(path));
         HashMap<String, Long> files = new HashMap<>();
         final int MAX_FILE_SIZE = 100;
         Consumer<SourceFile> trackFiles = (SourceFile f) -> files.put(f.path, f.rawBytes);
-        Function<Long, String> generateFileName = (Long l) -> Paths.get(path, String.valueOf(java.util.UUID.randomUUID())) + "csv.gz";
+        Function<Long, String> generateFileName = (Long l) -> Path.of(path, String.valueOf(java.util.UUID.randomUUID())) + "csv.gz";
         try (FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(),
                 ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true)) {
             for (int i = 0; i < 9; i++) {
-                String msg = String.format("Line number %d : This is a message from the other size", i);
+                String msg = "Line number %d : This is a message from the other size".formatted(i);
                 SinkRecord record1 = new SinkRecord("topic", 1, null, null, Schema.BYTES_SCHEMA, msg.getBytes(), 10);
                 fileWriter.writeData(record1);
             }
@@ -138,12 +136,12 @@ public class FileWriterTest {
 
     @Test
     public void testGzipFileWriterFlush() throws IOException, InterruptedException {
-        String path = Paths.get(currentDirectory.getPath(), "testGzipFileWriter2").toString();
+        String path = Path.of(currentDirectory.getPath(), "testGzipFileWriter2").toString();
         Assertions.assertTrue(createDirectoryWithPermissions(path));
         HashMap<String, Long> files = new HashMap<>();
         final int MAX_FILE_SIZE = 128 * 2;
         Consumer<SourceFile> trackFiles = (SourceFile f) -> files.put(f.path, f.rawBytes);
-        Function<Long, String> generateFileName = (Long l) -> Paths.get(path, java.util.UUID.randomUUID().toString()) + "csv.gz";
+        Function<Long, String> generateFileName = (Long l) -> Path.of(path, java.util.UUID.randomUUID().toString()) + "csv.gz";
         // Expect no files to be ingested as size is small and flushInterval is big
         FileWriter fileWriter = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 30000, new ReentrantReadWriteLock(),
                 ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
@@ -156,9 +154,9 @@ public class FileWriterTest {
         fileWriter.stop();
         Assertions.assertEquals(1, files.size());
 
-        String path2 = Paths.get(currentDirectory.getPath(), "testGzipFileWriter2_2").toString();
+        String path2 = Path.of(currentDirectory.getPath(), "testGzipFileWriter2_2").toString();
         Assertions.assertTrue(createDirectoryWithPermissions(path2));
-        Function<Long, String> generateFileName2 = (Long l) -> Paths.get(path2, java.util.UUID.randomUUID().toString()).toString();
+        Function<Long, String> generateFileName2 = (Long l) -> Path.of(path2, java.util.UUID.randomUUID().toString()).toString();
         // Expect one file to be ingested as flushInterval had changed and is shorter than sleep time
         FileWriter fileWriter2 = new FileWriter(path2, MAX_FILE_SIZE, trackFiles, generateFileName2, 1000, new ReentrantReadWriteLock(),
                 ingestionProps.getDataFormat(), BehaviorOnError.FAIL, true);
@@ -195,13 +193,13 @@ public class FileWriterTest {
             files.add(new AbstractMap.SimpleEntry<>(f.path, f.rawBytes));
             // return null;
         };
-        String path = Paths.get(currentDirectory.getPath(), "offsetCheckByInterval").toString();
+        String path = Path.of(currentDirectory.getPath(), "offsetCheckByInterval").toString();
         Assertions.assertTrue(createDirectoryWithPermissions(path));
         Function<Long, String> generateFileName = (Long offset) -> {
             if (offset == null) {
                 offset = offsets.currentOffset;
             }
-            return Paths.get(path, Long.toString(offset)).toString();
+            return Path.of(path, Long.toString(offset)).toString();
         };
         try (FileWriter fileWriter2 = new FileWriter(path, MAX_FILE_SIZE, trackFiles, generateFileName, 500, reentrantReadWriteLock,
                 ingestionProps.getDataFormat(),

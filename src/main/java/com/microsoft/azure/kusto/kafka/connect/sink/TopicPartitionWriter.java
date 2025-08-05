@@ -76,8 +76,8 @@ public class TopicPartitionWriter {
     }
 
     static @NotNull String getTempDirectoryName(String tempDirPath) {
-        String tempDir = String.format("kusto-sink-connector-%s", UUID.randomUUID());
-        Path path = Paths.get(tempDirPath, tempDir).toAbsolutePath();
+        String tempDir = "kusto-sink-connector-%s".formatted(UUID.randomUUID());
+        Path path = Path.of(tempDirPath, tempDir).toAbsolutePath();
         return path.toString();
     }
 
@@ -96,7 +96,7 @@ public class TopicPartitionWriter {
                 IngestionResult ingestionResult = client.ingestFromFile(fileSourceInfo, ingestionProps.ingestionProperties);
                 if (ingestionProps.streaming && ingestionResult instanceof IngestionStatusResult) {
                     // If IngestionStatusResult returned then the ingestion status is from streaming ingest
-                    IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
+                    IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().getFirst();
                     if (!hasStreamingSucceeded(ingestionStatus)) {
                         retryAttempts += 1; // increment retry attempts for the next iteration
                         backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
@@ -106,19 +106,19 @@ public class TopicPartitionWriter {
                     }
                 }
                 IngestionStatus ingestionStatus = null;
-                if(ingestionResult!=null && ingestionResult.getIngestionStatusCollection()!=null
-                        && !ingestionResult.getIngestionStatusCollection().isEmpty()){
-                    ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
+                if (ingestionResult != null && ingestionResult.getIngestionStatusCollection() != null
+                        && !ingestionResult.getIngestionStatusCollection().isEmpty()) {
+                    ingestionStatus = ingestionResult.getIngestionStatusCollection().getFirst();
                 }
                 log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
-                        fileDescriptor.path, fileDescriptor.rawBytes, currentOffset,ingestionStatus);
+                        fileDescriptor.path, fileDescriptor.rawBytes, currentOffset, ingestionStatus);
                 this.lastCommittedOffset = currentOffset;
                 return;
             } catch (IngestionServiceException exception) {
                 if (ingestionProps.streaming) {
                     Throwable innerException = exception.getCause();
-                    if (innerException instanceof KustoDataExceptionBase &&
-                            ((KustoDataExceptionBase) innerException).isPermanent()) {
+                    if (innerException instanceof KustoDataExceptionBase base &&
+                            base.isPermanent()) {
                         throw new ConnectException(exception);
                     }
                 }
@@ -142,9 +142,10 @@ public class TopicPartitionWriter {
                 String failureStatus = status.getFailureStatus();
                 String details = status.getDetails();
                 UUID ingestionSourceId = status.getIngestionSourceId();
-                log.warn("A batch of streaming records has {} ingestion: table:{}, database:{}, operationId: {}," +
-                        "ingestionSourceId: {}{}{}.\n" +
-                        "Status is final and therefore ingestion won't be retried and data won't reach dlq",
+                log.warn("""
+                        A batch of streaming records has {} ingestion: table:{}, database:{}, operationId: {},\
+                        ingestionSourceId: {}{}{}.
+                        Status is final and therefore ingestion won't be retried and data won't reach dlq""",
                         status.getStatus(),
                         status.getTable(),
                         status.getDatabase(),
@@ -172,7 +173,7 @@ public class TopicPartitionWriter {
                             "queue topic={}", fileDescriptor.records.size(), dlqTopicName);
                     fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
                 }
-                throw new ConnectException(String.format("Retrying ingesting records into KustoDB was interrupted after retryAttempts=%s", retryAttempts + 1),
+                throw new ConnectException("Retrying ingesting records into KustoDB was interrupted after retryAttempts=%s".formatted(retryAttempts + 1),
                         exception);
             }
         } else {
@@ -199,7 +200,7 @@ public class TopicPartitionWriter {
             dlqProducer.send(dlqRecord, (recordMetadata, exception) -> {
                 if (exception != null) {
                     throw new KafkaException(
-                            String.format("Failed to write records to miscellaneous dead-letter queue topic=%s.", dlqTopicName),
+                            "Failed to write records to miscellaneous dead-letter queue topic=%s.".formatted(dlqTopicName),
                             exception);
                 }
             });
@@ -214,7 +215,7 @@ public class TopicPartitionWriter {
         offset = offset == null ? currentOffset : offset;
         long nextOffset = fileWriter != null && fileWriter.isDirty() ? offset + 1 : offset;
 
-        return Paths.get(basePath, String.format("kafka_%s_%s_%d.%s%s", tp.topic(), tp.partition(), nextOffset,
+        return Path.of(basePath, "kafka_%s_%s_%d.%s%s".formatted(tp.topic(), tp.partition(), nextOffset,
                 ingestionProps.ingestionProperties.getDataFormat(), COMPRESSION_EXTENSION)).toString();
     }
 

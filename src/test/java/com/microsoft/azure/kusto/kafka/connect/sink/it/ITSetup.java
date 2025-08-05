@@ -1,23 +1,21 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.it;
 
-import java.util.Collections;
-import java.util.UUID;
-
-import org.apache.commons.io.FilenameUtils;
-import org.jetbrains.annotations.NotNull;
-
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenRequestContext;
 import com.azure.identity.AzureCliCredentialBuilder;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.data.StringUtils;
+import java.util.Collections;
+import java.util.UUID;
+import org.apache.commons.io.FilenameUtils;
+import org.jetbrains.annotations.NotNull;
 
 public class ITSetup {
 
     public static final String LISTENER_ADDRESS = "kafka:19092";
-    public static final String BOOTSTRAP_ADDRESS = String.format("PLAINTEXT://%s", LISTENER_ADDRESS);
-    public static final String CONFLUENT_VERSION = "7.5.2";
+    public static final String BOOTSTRAP_ADDRESS = "PLAINTEXT://%s".formatted(LISTENER_ADDRESS);
+    public static final String CONFLUENT_VERSION = "8.0.0";
     public static final int KAFKA_CONNECT_PORT = 8083;
     public static final int SR_PORT = 8081;
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
@@ -37,7 +35,7 @@ public class ITSetup {
     }
 
     private static String getAccessToken(String cluster) {
-        String clusterScope = String.format("%s/.default", cluster);
+        String clusterScope = "%s/.default".formatted(cluster);
         TokenRequestContext tokenRequestContext = new TokenRequestContext()
                 .setScopes(Collections.singletonList(clusterScope));
         AccessToken accessTokenObj = new AzureCliCredentialBuilder().build().getTokenSync(tokenRequestContext);

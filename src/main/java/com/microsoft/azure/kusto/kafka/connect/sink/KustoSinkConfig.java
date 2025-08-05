@@ -1,12 +1,15 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.data.StringUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
@@ -17,11 +20,6 @@ import org.apache.kafka.common.config.ConfigException;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microsoft.azure.kusto.data.StringUtils;
 
 public class KustoSinkConfig extends AbstractConfig {
     // TODO: this might need to be per kusto cluster...
@@ -65,12 +63,13 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_AUTH_AUTHORITY_DISPLAY = "Kusto Auth Authority";
     private static final String KUSTO_AUTH_STRATEGY_DOC = "Strategy to authenticate against Azure Active Directory, either ``application`` (default) or ``managed_identity``.";
     private static final String KUSTO_AUTH_STRATEGY_DISPLAY = "Kusto Auth Strategy";
-    private static final String KUSTO_TABLES_MAPPING_DOC = "A JSON array mapping ingestion from topic to table, e.g: "
-            + "[{'topic1':'t1','db':'kustoDb', 'table': 'table1', 'format': 'csv', 'mapping': 'csvMapping', 'streaming': 'false'}..].\n"
-            + "Streaming is optional, defaults to false. Mind usage and cogs of streaming ingestion, read here: https://docs.microsoft.com/en-us/azure/data-explorer/ingest-data-streaming.\n"
-            + "Note: If the streaming ingestion fails transiently,"
-            + " queued ingest would apply for this specific batch ingestion. Batching latency is configured regularly via"
-            + "ingestion batching policy";
+    private static final String KUSTO_TABLES_MAPPING_DOC = """
+            A JSON array mapping ingestion from topic to table, e.g: \
+            [{'topic1':'t1','db':'kustoDb', 'table': 'table1', 'format': 'csv', 'mapping': 'csvMapping', 'streaming': 'false'}..].
+            Streaming is optional, defaults to false. Mind usage and cogs of streaming ingestion, read here: https://docs.microsoft.com/en-us/azure/data-explorer/ingest-data-streaming.
+            Note: If the streaming ingestion fails transiently,\
+             queued ingest would apply for this specific batch ingestion. Batching latency is configured regularly via\
+            ingestion batching policy""";
     private static final String KUSTO_TABLES_MAPPING_DISPLAY = "Kusto Table Topics Mapping";
     private static final String KUSTO_SINK_TEMP_DIR_DOC = "Temp dir that will be used by kusto sink to buffer records. "
             + "defaults to system temp dir.";
@@ -79,21 +78,19 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_FLUSH_SIZE_BYTES_DISPLAY = "Maximum Flush Size";
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DOC = "Kusto sink max staleness in milliseconds (per topic+partition combo).";
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY = "Maximum Flush Interval";
-    private static final String KUSTO_BEHAVIOR_ON_ERROR_DOC = "Behavior on error setting for "
-            + "ingestion of records into Kusto table. "
-            + "Must be configured to one of the following:\n"
-
-            + "``fail``\n"
-            + "    Stops the connector when an error occurs "
-            + "while processing records or ingesting records in Kusto table.\n"
-
-            + "``ignore``\n"
-            + "    Continues to process next set of records "
-            + "when error occurs while processing records or ingesting records in Kusto table.\n"
-
-            + "``log``\n"
-            + "    Logs the error message and continues to process subsequent records when an error occurs "
-            + "while processing records or ingesting records in Kusto table, available in connect logs.";
+    private static final String KUSTO_BEHAVIOR_ON_ERROR_DOC = """
+Behavior on error setting for \
+ingestion of records into Kusto table. \
+Must be configured to one of the following:
+``fail``
+    Stops the connector when an error occurs \
+while processing records or ingesting records in Kusto table.
+``ignore``
+    Continues to process next set of records \
+when error occurs while processing records or ingesting records in Kusto table.
+``log``
+    Logs the error message and continues to process subsequent records when an error occurs \
+while processing records or ingesting records in Kusto table, available in connect logs.""";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DISPLAY = "Behavior On Error";
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this list to Kafka broker's address(es) "
             + "to which the Connector should write records failed due to restrictions while writing to the file in `tempdir.path`, network interruptions or unavailability of Kusto cluster. "

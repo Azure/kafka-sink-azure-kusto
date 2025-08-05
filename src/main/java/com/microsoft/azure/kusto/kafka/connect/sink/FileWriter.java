@@ -1,5 +1,13 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
+import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
 import java.io.*;
 import java.util.Map;
 import java.util.Timer;
@@ -8,7 +16,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.zip.GZIPOutputStream;
-
 import org.apache.commons.io.FilenameUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -18,15 +25,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.AvroRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.ByteRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.JsonRecordWriterProvider;
-import com.microsoft.azure.kusto.kafka.connect.sink.formatWriter.StringRecordWriterProvider;
 
 /**
  * This class is used to write gzipped rolling files.
@@ -97,7 +95,7 @@ public class FileWriter implements Closeable {
         File folder = new File(basePath);
         if (!folder.exists() && !folder.mkdirs()) {
             if (!folder.exists()) {
-                throw new IOException(String.format("Failed to create new directory %s", folder.getPath()));
+                throw new IOException("Failed to create new directory %s".formatted(folder.getPath()));
             }
             log.warn("Couldn't create the directory because it already exists (likely a race condition)");
         }
@@ -273,7 +271,7 @@ public class FileWriter implements Closeable {
         } catch (Exception e) {
             String fileName = currentFile == null ? "[no file created yet]" : currentFile.file.getName();
             long currentSize = currentFile == null ? 0 : currentFile.rawBytes;
-            flushError = String.format("Error in flushByTime. Current file: %s, size: %d. ", fileName, currentSize);
+            flushError = "Error in flushByTime. Current file: %s, size: %d. ".formatted(fileName, currentSize);
             log.error(flushError, e);
         }
     }
@@ -324,8 +322,7 @@ public class FileWriter implements Closeable {
                 shouldWriteAvroAsBytes = true;
             }
         } else {
-            throw new ConnectException(String.format(
-                    "Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ",
+            throw new ConnectException("Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ".formatted(
                     sinkRecord.valueSchema().type()));
         }
     }

@@ -1,7 +1,6 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import java.util.Objects;
-
 import org.apache.kafka.common.config.ConfigException;
 
 public class TopicToTableMapping {
