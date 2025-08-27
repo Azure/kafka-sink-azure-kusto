@@ -408,9 +408,9 @@ class KustoSinkIT {
 
     private void performDataAssertions(int maxRecords, Map<Long, String> expectedRecordsProduced, @NotNull String query) {
         Map<Object, String> actualRecordsIngested = getRecordsIngested(query, maxRecords);
-        actualRecordsIngested.keySet().parallelStream().forEach(key -> {
+        actualRecordsIngested.keySet().parallelStream().filter(key -> Objects.isNull(key) || StringUtils.isBlank(key.toString().trim())).forEach(key -> {
+            LOGGER.info("Record queried in assertion : {}", actualRecordsIngested.get(key));
             long keyLong = Long.parseLong(key.toString());
-            LOGGER.debug("Record queried in assertion : {}", actualRecordsIngested.get(key));
             try {
                 JSONAssert.assertEquals(expectedRecordsProduced.get(keyLong), actualRecordsIngested.get(key),
                         new CustomComparator(LENIENT,

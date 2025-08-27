@@ -12,14 +12,15 @@
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.55.5</az.core.version>
-        <az.identity.version>1.16.3</az.identity.version>
-        <az.core.http.netty.version>1.15.13</az.core.http.netty.version>
+        <az.identity.version>1.17.0</az.identity.version>
+        <az.core.http.netty.version>1.16.0</az.core.http.netty.version>
         <commoncodec.version>1.19.0</commoncodec.version>
-        <commonio.version>2.20.0</commonio.version>
+        <commonio.version>2.15.1</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
         <kusto.sdk.version>7.0.2</kusto.sdk.version>
         <kafka.version>4.0.0</kafka.version>
         <msal4j.version>1.22.0</msal4j.version>
+        <netty.version>4.1.124.Final</netty.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.3.0</awaitility.version>
@@ -619,15 +620,15 @@
             <version>${az.core.http.netty.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>io.projectreactor.netty</groupId>
-                    <artifactId>reactor-netty-http</artifactId>
+                    <artifactId>netty-codec-http2</artifactId>
+                    <groupId>io.netty</groupId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>io.projectreactor.netty</groupId>
-            <artifactId>reactor-netty-http</artifactId>
-            <version>1.2.8</version>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http2</artifactId>
+            <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure</groupId>

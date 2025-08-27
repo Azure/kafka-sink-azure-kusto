@@ -332,3 +332,5 @@ ASALocalRun/
 # build
 target/*
 /dependency-reduced-pom.xml
+deps.txt
+.vscode/settings.json
