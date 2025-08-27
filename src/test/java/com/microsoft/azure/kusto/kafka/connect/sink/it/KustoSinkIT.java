@@ -408,7 +408,7 @@ class KustoSinkIT {
 
     private void performDataAssertions(int maxRecords, Map<Long, String> expectedRecordsProduced, @NotNull String query) {
         Map<Object, String> actualRecordsIngested = getRecordsIngested(query, maxRecords);
-        actualRecordsIngested.keySet().parallelStream().filter(key -> Objects.isNull(key) || StringUtils.isBlank(key.toString().trim())).forEach(key -> {
+        actualRecordsIngested.keySet().parallelStream().filter(key -> !Objects.isNull(key) && !StringUtils.isBlank(key.toString().trim())).forEach(key -> {
             LOGGER.info("Record queried in assertion : {}", actualRecordsIngested.get(key));
             long keyLong = Long.parseLong(key.toString());
             try {
@@ -448,7 +448,7 @@ class KustoSinkIT {
                 while (resultSet.next()) {
                     Object keyObject = resultSet.getObject(KEY_COLUMN);
                     Object key = (keyObject instanceof Number)
-                            ? Long.valueOf(keyObject.toString())
+                            ? Long.parseLong(keyObject.toString())
                             : (keyObject == null ? "" : keyObject.toString());
                     String vResult = resultSet.getString("vresult");
                     LOGGER.debug("Record queried from DB: {}", vResult);
