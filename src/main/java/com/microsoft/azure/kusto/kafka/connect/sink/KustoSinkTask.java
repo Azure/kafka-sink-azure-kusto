@@ -1,24 +1,5 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.errors.NotFoundException;
-import org.apache.kafka.connect.sink.SinkRecord;
-import org.apache.kafka.connect.sink.SinkTask;
-import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenRequestContext;
 import com.azure.core.http.ProxyOptions;
@@ -35,6 +16,23 @@ import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.errors.NotFoundException;
+import org.apache.kafka.connect.sink.SinkRecord;
+import org.apache.kafka.connect.sink.SinkTask;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Kusto sink uses file system to buffer records.
@@ -101,7 +99,7 @@ public class KustoSinkTask extends SinkTask {
                         () -> {
                             WorkloadIdentityCredential wic = new WorkloadIdentityCredentialBuilder().build();
                             TokenRequestContext requestContext = new TokenRequestContext();
-                            String clusterScope = String.format("%s/.default", clusterUrl);
+                            String clusterScope = "%s/.default".formatted(clusterUrl);
                             requestContext.setScopes(Collections.singletonList(clusterScope));
                             AccessToken accessToken = wic.getTokenSync(requestContext);
                             if (accessToken != null) {
@@ -214,23 +212,23 @@ public class KustoSinkTask extends SinkTask {
                 shouldCheckStreaming = false;
             }
             try {
-                KustoOperationResult rs = engineClient.executeQuery(database, String.format(FETCH_TABLE_COMMAND, table),
+                KustoOperationResult rs = engineClient.executeQuery(database, FETCH_TABLE_COMMAND.formatted(table),
                         validateOnlyClientRequestProperties);
-                if (VALIDATION_OK.equals(rs.getPrimaryResults().getData().get(0).get(0))) {
+                if (VALIDATION_OK.equals(rs.getPrimaryResults().getData().getFirst().getFirst())) {
                     hasAccess = true;
                 }
             } catch (DataServiceException e) {
-                databaseTableErrorList.add(String.format("Couldn't validate access to Database '%s' Table '%s', with exception '%s'", database, table,
+                databaseTableErrorList.add("Couldn't validate access to Database '%s' Table '%s', with exception '%s'".formatted(database, table,
                         ExceptionUtils.getStackTrace(e)));
             }
 
             if (hasAccess && StringUtils.isNotBlank(mappingName)) {
                 try {
-                    engineClient.executeMgmt(database, String.format(FETCH_TABLE_MAPPING_COMMAND, table,
+                    engineClient.executeMgmt(database, FETCH_TABLE_MAPPING_COMMAND.formatted(table,
                             format.toLowerCase(Locale.ROOT), mappingName));
                 } catch (DataServiceException e) {
                     hasAccess = false;
-                    databaseTableErrorList.add(String.format("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'", database, table, format,
+                    databaseTableErrorList.add("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'".formatted(database, table, format,
                             mappingName, ExceptionUtils.getStackTrace(e)));
                 }
             }
@@ -241,12 +239,12 @@ public class KustoSinkTask extends SinkTask {
                     throw new ConfigException("Authority ID and Application ID must be provided to validate table accesses.");
                 }
 
-                String authenticateWith = String.format("aadapp=%s;%s", config.getAuthAppId(),
+                String authenticateWith = "aadapp=%s;%s".formatted(config.getAuthAppId(),
                         config.getAuthAuthority());
-                String query = String.format(FETCH_PRINCIPAL_ROLES_COMMAND, authenticateWith, database, table);
+                String query = FETCH_PRINCIPAL_ROLES_COMMAND.formatted(authenticateWith, database, table);
                 try {
                     KustoOperationResult rs = engineClient.executeMgmt(database, query);
-                    hasAccess = (boolean) rs.getPrimaryResults().getData().get(0).get(INGESTION_ALLOWED_INDEX);
+                    hasAccess = (boolean) rs.getPrimaryResults().getData().getFirst().get(INGESTION_ALLOWED_INDEX);
                     if (hasAccess) {
                         log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
                     } else {
@@ -257,7 +255,7 @@ public class KustoSinkTask extends SinkTask {
                     // Logging the error so that the trace is not lost.
                     if (!e.getCause().toString().contains("Forbidden")) {
                         databaseTableErrorList.add(
-                                String.format("Fetching principal roles using query '%s' resulted in exception '%s'", query, ExceptionUtils.getStackTrace(e)));
+                                "Fetching principal roles using query '%s' resulted in exception '%s'".formatted(query, ExceptionUtils.getStackTrace(e)));
                     } else {
                         log.warn(
                                 "Failed to check permissions with query '{}', will continue the run as the principal might still be able to ingest",
@@ -278,7 +276,7 @@ public class KustoSinkTask extends SinkTask {
 
     private static boolean isStreamingPolicyEnabled(
             String entityType, String entityName, Client engineClient, String database) throws DataClientException, DataServiceException {
-        KustoResultSetTable res = engineClient.executeMgmt(database, String.format(STREAMING_POLICY_SHOW_COMMAND, entityType, entityName)).getPrimaryResults();
+        KustoResultSetTable res = engineClient.executeMgmt(database, STREAMING_POLICY_SHOW_COMMAND.formatted(entityType, entityName)).getPrimaryResults();
         res.next();
         return res.getString("Policy") != null;
     }
@@ -349,7 +347,7 @@ public class KustoSinkTask extends SinkTask {
 
     private boolean isIngestorRole(TopicToTableMapping testMapping, Client engineClient) {
         try {
-            engineClient.executeQuery(testMapping.getDb(), String.format(FETCH_TABLE_COMMAND, testMapping.getTable()), validateOnlyClientRequestProperties);
+            engineClient.executeQuery(testMapping.getDb(), FETCH_TABLE_COMMAND.formatted(testMapping.getTable()), validateOnlyClientRequestProperties);
         } catch (DataServiceException | DataClientException err) {
             if (err.getCause().getMessage().contains("Forbidden:")) {
                 log.warn("User might have ingestor privileges, table validation will be skipped for all table mappings ");

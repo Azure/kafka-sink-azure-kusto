@@ -44,8 +44,8 @@ public class AvroRecordWriterProvider implements RecordWriterProvider {
                 Object value = avroData.fromConnectData(schema, record.value());
                 // AvroData wraps primitive types so their schema can be included. We need to unwrap
                 // NonRecordContainers to just their value to properly handle these types
-                if (value instanceof NonRecordContainer) {
-                    writer.append(((NonRecordContainer) value).getValue());
+                if (value instanceof NonRecordContainer container) {
+                    writer.append(container.getValue());
                 } else {
                     writer.append(value);
                 }

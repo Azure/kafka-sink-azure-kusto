@@ -1,5 +1,9 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -10,15 +14,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Test;
-
-import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 // TODO: Significant duplication among these 4 classes
 public class JsonRecordWriterProviderTest {
@@ -44,7 +42,7 @@ public class JsonRecordWriterProviderTest {
             String st;
             int i = 0;
             while ((st = br.readLine()) != null) {
-                assertEquals(st, String.format("{\"hello\":%s}", i));
+                assertEquals(st, "{\"hello\":%s}".formatted(i));
                 i++;
             }
             FileUtils.deleteQuietly(file);

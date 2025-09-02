@@ -1,19 +1,18 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.BOOTSTRAP_ADDRESS;
+
 import java.io.File;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-
 import org.apache.commons.io.FilenameUtils;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.microsoft.azure.kusto.kafka.connect.sink.it.ITSetup.BOOTSTRAP_ADDRESS;
 
 public class Utils {
     private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
@@ -54,7 +53,7 @@ public class Utils {
     }
 
     public static @NotNull File getCurrentWorkingDirectory() {
-        File currentDirectory = new File(Paths.get(
+        File currentDirectory = new File(Path.of(
                 System.getProperty("java.io.tmpdir"),
                 Utils.class.getSimpleName(),
                 String.valueOf(Instant.now().toEpochMilli())).toString());
@@ -93,6 +92,6 @@ public class Utils {
 
     public static int getFilesCount(String path) {
         File folder = new File(path);
-        return Objects.requireNonNull(folder.list(), String.format("File %s is empty and has no files", path)).length;
+        return Objects.requireNonNull(folder.list(), "File %s is empty and has no files".formatted(path)).length;
     }
 }

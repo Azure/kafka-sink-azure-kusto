@@ -2,7 +2,6 @@ package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import java.io.InputStream;
 import java.util.Properties;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

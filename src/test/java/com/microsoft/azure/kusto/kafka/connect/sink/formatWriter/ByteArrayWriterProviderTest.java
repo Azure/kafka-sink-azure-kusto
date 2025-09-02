@@ -1,5 +1,9 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
+import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.restrictPermissions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -8,16 +12,10 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Test;
-
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-
-import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.restrictPermissions;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ByteArrayWriterProviderTest {
     @Test
@@ -25,7 +23,7 @@ public class ByteArrayWriterProviderTest {
         List<SinkRecord> records = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             records.add(new SinkRecord("mytopic", 0, null, null, Schema.BYTES_SCHEMA,
-                    String.format("hello-%s", i).getBytes(), i));
+                    "hello-%s".formatted(i).getBytes(), i));
         }
         File file = new File("abc.bin");
         restrictPermissions(file);
@@ -41,7 +39,7 @@ public class ByteArrayWriterProviderTest {
             String st;
             int i = 0;
             while ((st = br.readLine()) != null) {
-                assertEquals(st, String.format("hello-%s", i));
+                assertEquals(st, "hello-%s".formatted(i));
                 i++;
             }
         }

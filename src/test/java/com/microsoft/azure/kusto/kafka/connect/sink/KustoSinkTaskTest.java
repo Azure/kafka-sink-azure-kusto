@@ -1,5 +1,12 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.getCurrentWorkingDirectory;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import com.microsoft.azure.kusto.data.Client;
+import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -12,30 +19,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.spi.LoggingEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
-
-import com.microsoft.azure.kusto.data.Client;
-import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.kafka.connect.sink.appender.TestAppender;
-
-import static com.microsoft.azure.kusto.kafka.connect.sink.Utils.getCurrentWorkingDirectory;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 public class KustoSinkTaskTest {
     File currentDirectory;
@@ -234,64 +228,9 @@ public class KustoSinkTaskTest {
         verify(mockPartitionWriter, times(1)).close();
     }
 
-    @Test
-    public void testStopWriterFailure() throws IOException {
-        // set-up
-        final TestAppender appender = new TestAppender();
-        final Logger logger = Logger.getRootLogger();
-        logger.addAppender(appender);
-        try {
-            Logger.getLogger(KustoSinkTask.class).error("Error closing kusto client");
-        } finally {
-            logger.removeAppender(appender);
-            logger.removeAllAppenders();
-        }
-        // easy to set it this way than mock
-        TopicPartition mockPartition = new TopicPartition("test-topic", 1);
-        TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
-        doThrow(RuntimeException.class).when(mockPartitionWriter).close();
-        IngestClient mockClient = mock(IngestClient.class);
-        doNothing().when(mockClient).close();
-        KustoSinkTask kustoSinkTask = new KustoSinkTask();
-        // There is no mutate constructor
-        kustoSinkTask.writers = Collections.singletonMap(mockPartition, mockPartitionWriter);
-        kustoSinkTask.kustoIngestClient = mockClient;
-        final List<LoggingEvent> log = appender.getLog();
-        final LoggingEvent firstLogEntry = log.get(0);
-        assertEquals(firstLogEntry.getLevel().toString(), Level.ERROR.toString());
-        assertEquals(firstLogEntry.getMessage(), "Error closing kusto client");
-    }
 
     @Test
-    public void testStopSinkTaskFailure() throws IOException {
-        // set-up
-        final TestAppender appender = new TestAppender();
-        final Logger logger = Logger.getRootLogger();
-        logger.addAppender(appender);
-        try {
-            Logger.getLogger(KustoSinkTask.class).error("Error closing kusto client");
-        } finally {
-            logger.removeAppender(appender);
-            logger.removeAllAppenders();
-        }
-        // easy to set it this way than mock
-        TopicPartition mockPartition = new TopicPartition("test-topic", 2);
-        TopicPartitionWriter mockPartitionWriter = mock(TopicPartitionWriter.class);
-        doNothing().when(mockPartitionWriter).close();
-        IngestClient mockClient = mock(IngestClient.class);
-        doThrow(IOException.class).when(mockClient).close();
-        KustoSinkTask kustoSinkTask = new KustoSinkTask();
-        // There is no mutate constructor
-        kustoSinkTask.writers = Collections.singletonMap(mockPartition, mockPartitionWriter);
-        kustoSinkTask.kustoIngestClient = mockClient;
-        final List<LoggingEvent> log = appender.getLog();
-        final LoggingEvent firstLogEntry = log.get(0);
-        assertEquals(firstLogEntry.getLevel().toString(), Level.ERROR.toString());
-        assertEquals(firstLogEntry.getMessage(), "Error closing kusto client");
-    }
-
-    @Test
-    public void precommitDoesntCommitNewerOffsets() throws InterruptedException {
+    public void precommitDoesNotCommitNewerOffsets() throws InterruptedException {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         configs.put(KustoSinkConfig.KUSTO_SINK_FLUSH_INTERVAL_MS_CONF, "100");
         KustoSinkTask kustoSinkTask = new KustoSinkTask();

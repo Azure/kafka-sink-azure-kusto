@@ -1,10 +1,17 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.*;
+
+import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,13 +20,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.function.Function;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.MockProducer;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -33,14 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.ingest.source.FileSourceInfo;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.Mockito.*;
 
 //TODO parts of this test needs to be re-formatted and may need rewriting
 public class TopicPartitionWriterTest {
@@ -83,8 +78,8 @@ public class TopicPartitionWriterTest {
         isDlqEnabled = false;
         dlqTopicName = null;
         dlqMockProducer = new MockProducer<>(
-                true, new ByteArraySerializer(), new ByteArraySerializer());
-        basePathCurrent = Paths.get(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
+                true, new RoundRobinPartitioner(), new ByteArraySerializer(), new ByteArraySerializer());
+        basePathCurrent = Path.of(currentDirectory.getPath(), "testWriteStringyValuesAndOffset").toString();
         Map<String, String> settings = getKustoConfigs(basePathCurrent, fileThreshold, flushInterval);
         config = new KustoSinkConfig(settings);
     }
@@ -219,7 +214,7 @@ public class TopicPartitionWriterTest {
         }
 
         Assertions.assertTrue((new File(writer.fileWriter.currentFile.path)).exists());
-        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 3, IngestionProperties.DataFormat.CSV.name()),
+        Assertions.assertEquals("kafka_%s_%d_%d.%s.gz".formatted(tp.topic(), tp.partition(), 3, IngestionProperties.DataFormat.CSV.name()),
                 (new File(writer.fileWriter.currentFile.path)).getName());
         writer.close();
     }
@@ -251,7 +246,7 @@ public class TopicPartitionWriterTest {
 
         String currentFileName = writer.fileWriter.currentFile.path;
         Assertions.assertTrue(new File(currentFileName).exists());
-        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 15, IngestionProperties.DataFormat.CSV.name()),
+        Assertions.assertEquals("kafka_%s_%d_%d.%s.gz".formatted(tp.topic(), tp.partition(), 15, IngestionProperties.DataFormat.CSV.name()),
                 (new File(currentFileName)).getName());
 
         // Read
@@ -290,7 +285,7 @@ public class TopicPartitionWriterTest {
         String currentFileName = writer.fileWriter.currentFile.path;
 
         Assertions.assertTrue(new File(currentFileName).exists());
-        Assertions.assertEquals(String.format("kafka_%s_%d_%d.%s.gz", tp.topic(), tp.partition(), 10, IngestionProperties.DataFormat.AVRO.name()),
+        Assertions.assertEquals("kafka_%s_%d_%d.%s.gz".formatted(tp.topic(), tp.partition(), 10, IngestionProperties.DataFormat.AVRO.name()),
                 (new File(currentFileName)).getName());
         writer.close();
     }
@@ -319,11 +314,12 @@ public class TopicPartitionWriterTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked") // Suppress unchecked conversion warning for Producer mock
     public void testSendFailedRecordToDlqError() {
         TopicPartitionWriter writer = new TopicPartitionWriter(tp, mockClient, propsCsv, config, true, "dlq.topic.name", kafkaProducer);
         TopicPartitionWriter spyWriter = spy(writer);
         // TODO this is to be re-worked
-        kafkaProducer = mock(Producer.class);
+        kafkaProducer = mock(Producer.class); // This line triggers the warning
         spyWriter.open();
         List<SinkRecord> records = new ArrayList<>();
         records.add(new SinkRecord(tp.topic(), tp.partition(), null, null, Schema.STRING_SCHEMA, "another,stringy,message", 5));

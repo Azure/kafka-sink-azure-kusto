@@ -1,19 +1,17 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Properties;
-
-import org.apache.kafka.common.config.ConfigException;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.BehaviorOnError;
-
-import static com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConfig.KUSTO_SINK_ENABLE_TABLE_VALIDATION;
-import static org.junit.jupiter.api.Assertions.fail;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Properties;
+import org.apache.kafka.common.config.ConfigException;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class KustoSinkConnectorConfigTest {
     private static final String DM_URL = "https://ingest-cluster_name.kusto.windows.net";

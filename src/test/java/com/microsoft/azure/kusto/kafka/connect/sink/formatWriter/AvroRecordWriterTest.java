@@ -1,12 +1,15 @@
 package com.microsoft.azure.kusto.kafka.connect.sink.formatWriter;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
+import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
@@ -16,11 +19,6 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Test;
-
-import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
-import com.microsoft.azure.kusto.kafka.connect.sink.format.RecordWriter;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class AvroRecordWriterTest {
     @Test
@@ -33,7 +31,7 @@ public class AvroRecordWriterTest {
 
         for (int i = 0; i < 10; i++) {
             final Struct struct = new Struct(schema)
-                    .put("text", String.format("record-%s", i))
+                    .put("text", "record-%s".formatted(i))
                     .put("id", i);
             records.add(new SinkRecord("mytopic", 0, null, null, schema, struct, 10));
         }
@@ -58,7 +56,7 @@ public class AvroRecordWriterTest {
         GenericData.Record record = new GenericData.Record(reader.getSchema());
         int i = 0;
         while (reader.hasNext()) {
-            assertEquals(reader.next(record).toString(), String.format("{\"text\": \"record-%s\", \"id\": %s}", i, i));
+            assertEquals(reader.next(record).toString(), "{\"text\": \"record-%s\", \"id\": %s}".formatted(i, i));
             i++;
         }
         reader.close();
