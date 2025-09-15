@@ -8,19 +8,20 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.1.0</version>
+    <version>5.1.1</version>
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.55.5</az.core.version>
         <az.identity.version>1.17.0</az.identity.version>
-        <az.core.http.netty.version>1.16.0</az.core.http.netty.version>
+        <az.core.http.netty.version>1.16.1</az.core.http.netty.version>
         <commoncodec.version>1.19.0</commoncodec.version>
         <commonio.version>2.15.1</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
         <kusto.sdk.version>7.0.2</kusto.sdk.version>
         <kafka.version>4.0.0</kafka.version>
-        <msal4j.version>1.22.0</msal4j.version>
-        <netty.version>4.1.124.Final</netty.version>
+        <msal4j.version>1.23.1</msal4j.version>
+        <netty.version>4.1.125.Final</netty.version>
+        <reactor.netty.version>1.2.10</reactor.netty.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.3.0</awaitility.version>
@@ -623,7 +624,16 @@
                     <artifactId>netty-codec-http2</artifactId>
                     <groupId>io.netty</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>reactor-netty-http</artifactId>
+                    <groupId>io.projectreactor.netty</groupId>
+                </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <artifactId>reactor-netty-http</artifactId>
+            <groupId>io.projectreactor.netty</groupId>
+            <version>${reactor.netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
