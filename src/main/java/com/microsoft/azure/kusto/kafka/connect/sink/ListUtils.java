@@ -14,7 +14,6 @@ public class ListUtils {
 
     /**
      * Returns the first element of a list.
-     * This is a compatibility method for Java 21's List.getFirst() method.
      * 
      * @param <T> the type of elements in the list
      * @param list the list
