@@ -719,12 +719,12 @@ then launch the copy tasks.
 **BREAKING CHANGES** 
 
 Changes to Java version in version 5.0.0 onward for the connector. There are constant upgrades done to Kusto SDK as well as
-open sources connectors to move over to Java 17/21 that fix a set of CVE vulnerabilities.
+open sources connectors to move over to Java 17 that fix a set of CVE vulnerabilities.
 
 Confluent runtimes and interop with Java are documented [here](https://docs.confluent.io/platform/current/installation/versions-interoperability.html)
 In line with the changes, the latest version of the connector is 5.0.0, which is compatible with Confluent Platform 8.0.0 and JDK 21 is standardized.
 
-Version **5.1.0** uses **JDK-21**
+Version **5.1.2** uses **JDK-17**. This was rolled out to support users on JDK-17 and up (5.1.0 was on JDK-21).
 
 <hr>
 
@@ -766,7 +766,7 @@ the [Release History](README.md#17-release-history) section of this document.
 | 4.1.2           | 2024-08-07   | <ul><li>Upgrade SDK dependencies, Support for WIF based authentication</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 5.0.0           | 2025-07-28   | <ul><li>Bump Kusto SDK, Upgrade to latest confluent versions</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 5.1.0           | 2025-08-05   | <ul><li>Upgrade to Java 21</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-
+| 5.1.2           | 2025-10-05   | <ul><li>Provide support for JDK 17 and up. Update versions of libs</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## 18. Contributing
 
