@@ -8,19 +8,19 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.1.1</version>
+    <version>5.1.2</version>
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.55.5</az.core.version>
-        <az.identity.version>1.17.0</az.identity.version>
+        <az.identity.version>1.18.0</az.identity.version>
         <az.core.http.netty.version>1.16.1</az.core.http.netty.version>
         <commoncodec.version>1.19.0</commoncodec.version>
         <commonio.version>2.15.1</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
-        <kusto.sdk.version>7.0.2</kusto.sdk.version>
+        <kusto.sdk.version>7.0.3</kusto.sdk.version>
         <kafka.version>4.0.0</kafka.version>
         <msal4j.version>1.23.1</msal4j.version>
-        <netty.version>4.1.125.Final</netty.version>
+        <netty.version>4.1.126.Final</netty.version>
         <reactor.netty.version>1.2.10</reactor.netty.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
@@ -43,7 +43,7 @@
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <plexus.version>4.0.2</plexus.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <source.java.version>21</source.java.version>
+        <source.java.version>17</source.java.version>
         <!-- Shade plugin -->
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
@@ -83,7 +83,7 @@
                     <compilerArgs>
                         <arg>-Xlint:deprecation</arg>
                     </compilerArgs>
-          <release>21</release>
+          <release>17</release>
                 </configuration>
                 <executions>
                     <execution>
@@ -186,6 +186,7 @@
                 <version>${dependency-check-maven.version}</version>
                 <configuration>
                     <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+                    <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
                 </configuration>
             </plugin>
             <plugin>
@@ -514,24 +515,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.openrewrite.maven</groupId>
-                <artifactId>rewrite-maven-plugin</artifactId>
-                <version>6.15.0</version>
-                <configuration>
-                    <exportDatatables>true</exportDatatables>
-                    <activeRecipes>
-                        <recipe>org.openrewrite.java.migrate.UpgradeToJava21</recipe>
-                    </activeRecipes>
-                </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.openrewrite.recipe</groupId>
-                        <artifactId>rewrite-migrate-java</artifactId>
-                        <version>3.14.1</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
         </plugins>
         <resources>
             <resource>
@@ -744,17 +727,8 @@
     </dependencies>
     <repositories>
         <repository>
-            <id>jitpack</id>
-            <url>https://jitpack.io</url>            
-        </repository>
-        <repository>
             <id>confluent</id>
             <url>https://packages.confluent.io/maven/</url>
-        </repository>
-        <repository>
-            <id>maven_central</id>
-            <name>Maven Central</name>
-            <url>https://repo.maven.apache.org/maven2/</url>
         </repository>
     </repositories>
 </project>

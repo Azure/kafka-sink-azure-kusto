@@ -214,7 +214,7 @@ public class KustoSinkTask extends SinkTask {
             try {
                 KustoOperationResult rs = engineClient.executeQuery(database, FETCH_TABLE_COMMAND.formatted(table),
                         validateOnlyClientRequestProperties);
-                if (VALIDATION_OK.equals(rs.getPrimaryResults().getData().getFirst().getFirst())) {
+                if (VALIDATION_OK.equals(ListUtils.getFirst(ListUtils.getFirst(rs.getPrimaryResults().getData())))) {
                     hasAccess = true;
                 }
             } catch (DataServiceException e) {
@@ -244,7 +244,7 @@ public class KustoSinkTask extends SinkTask {
                 String query = FETCH_PRINCIPAL_ROLES_COMMAND.formatted(authenticateWith, database, table);
                 try {
                     KustoOperationResult rs = engineClient.executeMgmt(database, query);
-                    hasAccess = (boolean) rs.getPrimaryResults().getData().getFirst().get(INGESTION_ALLOWED_INDEX);
+                    hasAccess = (boolean) ListUtils.getFirst(rs.getPrimaryResults().getData()).get(INGESTION_ALLOWED_INDEX);
                     if (hasAccess) {
                         log.info("User has appropriate permissions to sink data into the Kusto table={}", table);
                     } else {

@@ -95,7 +95,7 @@ public class TopicPartitionWriter {
                 IngestionResult ingestionResult = client.ingestFromFile(fileSourceInfo, ingestionProps.ingestionProperties);
                 if (ingestionProps.streaming && ingestionResult instanceof IngestionStatusResult) {
                     // If IngestionStatusResult returned then the ingestion status is from streaming ingest
-                    IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().getFirst();
+                    IngestionStatus ingestionStatus = ListUtils.getFirst(ingestionResult.getIngestionStatusCollection());
                     if (!hasStreamingSucceeded(ingestionStatus)) {
                         retryAttempts += 1; // increment retry attempts for the next iteration
                         backOffForRemainingAttempts(retryAttempts, null, fileDescriptor);
@@ -107,7 +107,7 @@ public class TopicPartitionWriter {
                 IngestionStatus ingestionStatus = null;
                 if (ingestionResult != null && ingestionResult.getIngestionStatusCollection() != null
                         && !ingestionResult.getIngestionStatusCollection().isEmpty()) {
-                    ingestionStatus = ingestionResult.getIngestionStatusCollection().getFirst();
+                    ingestionStatus = ListUtils.getFirst(ingestionResult.getIngestionStatusCollection());
                 }
                 log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
                         fileDescriptor.path, fileDescriptor.rawBytes, currentOffset, ingestionStatus);
