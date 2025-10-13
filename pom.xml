@@ -43,7 +43,7 @@
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <plexus.version>4.0.2</plexus.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <source.java.version>21</source.java.version>
+        <source.java.version>17</source.java.version>
         <!-- Shade plugin -->
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
@@ -83,7 +83,7 @@
                     <compilerArgs>
                         <arg>-Xlint:deprecation</arg>
                     </compilerArgs>
-          <release>21</release>
+          <release>17</release>
                 </configuration>
                 <executions>
                     <execution>

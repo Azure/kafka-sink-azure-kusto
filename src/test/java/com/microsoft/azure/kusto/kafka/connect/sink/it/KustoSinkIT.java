@@ -10,6 +10,7 @@ import com.microsoft.azure.kusto.data.*;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.DataClientException;
 import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
+import com.microsoft.azure.kusto.kafka.connect.sink.ListUtils;
 import com.microsoft.azure.kusto.kafka.connect.sink.Utils;
 import com.microsoft.azure.kusto.kafka.connect.sink.Version;
 import com.microsoft.azure.kusto.kafka.connect.sink.it.containers.KustoKafkaConnectContainerHelper;
@@ -223,7 +224,7 @@ class KustoSinkIT {
         connectorProps.put("key.converter", keyFormat);
         connectorProps.put("value.converter", valueFormat);
         connectorProps.put("proxy.host", PROXY.getContainerId().substring(0, 12));
-        connectorProps.put("proxy.port", PROXY.getExposedPorts().getFirst());
+        connectorProps.put("proxy.port", ListUtils.getFirst(PROXY.getExposedPorts()));
         connectorProps.putAll(overrideProps);
         String connectorName = overrideProps.getOrDefault("connector.name",
                 "adx-connector-%s".formatted(dataFormat)).toString();
@@ -264,7 +265,7 @@ class KustoSinkIT {
                     coordinates.table, dataFormat.split("-")[1]);
         }
         LOGGER.info("Deploying connector for {} , using SR url {}. Using proxy host {} and port {}", dataFormat, srUrl,
-                PROXY.getContainerId().substring(0, 12), PROXY.getExposedPorts().getFirst());
+                PROXY.getContainerId().substring(0, 12), ListUtils.getFirst(PROXY.getExposedPorts()));
         deployConnector(dataFormat, topicTableMapping, srUrl, keyFormat, valueFormat);
         try {
             int maxRecords = 10;
