@@ -20,7 +20,7 @@
         <kusto.sdk.version>7.0.3</kusto.sdk.version>
         <kafka.version>4.0.0</kafka.version>
         <msal4j.version>1.23.1</msal4j.version>
-        <netty.version>4.1.126.Final</netty.version>
+        <netty.version>4.1.129.Final</netty.version>
         <reactor.netty.version>1.2.10</reactor.netty.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
