@@ -8,7 +8,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.1.2</version>
+    <version>5.1.3</version>
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.55.5</az.core.version>
@@ -20,7 +20,7 @@
         <kusto.sdk.version>7.0.3</kusto.sdk.version>
         <kafka.version>4.0.0</kafka.version>
         <msal4j.version>1.23.1</msal4j.version>
-        <netty.version>4.1.126.Final</netty.version>
+        <netty.version>4.1.129.Final</netty.version>
         <reactor.netty.version>1.2.10</reactor.netty.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
@@ -48,6 +48,18 @@
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Use Netty BOM to align all Netty dependencies to the same version -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <build>
         <plugins>
             <plugin>
@@ -621,6 +633,11 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-http2</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http</artifactId>
             <version>${netty.version}</version>
         </dependency>
         <dependency>
