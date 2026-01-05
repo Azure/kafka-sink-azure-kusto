@@ -224,7 +224,8 @@
                                 <requireJavaVersion>
                                     <version>[${source.java.version},)</version>
                                     <message>
-                                        At least JDK ${source.java.version} is required to build this project because of Spark 3.4/3.5 being built with JDK11 now.
+                                        At least JDK ${source.java.version} is required to build this project because of
+                                        latest confluent versions are built with JDK 17+ versions.
                                     </message>
                                 </requireJavaVersion>
                                 <requireMavenVersion>
