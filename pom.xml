@@ -8,20 +8,19 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.1.4</version>
+    <version>5.1.5</version>
     <properties>
         <!-- Compile dependencies -->
-        <az.core.version>1.55.5</az.core.version>
+        <az.core.version>1.57.0</az.core.version>
         <az.identity.version>1.18.0</az.identity.version>
         <az.core.http.netty.version>1.16.2</az.core.http.netty.version>
         <commoncodec.version>1.20.0</commoncodec.version>
         <commonio.version>2.21.0</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
-        <kusto.sdk.version>7.0.4</kusto.sdk.version>
-        <kafka.version>4.0.0</kafka.version>
+        <kusto.sdk.version>7.0.5</kusto.sdk.version>
+        <kafka.version>4.1.1</kafka.version>
         <msal4j.version>1.23.1</msal4j.version>
-        <netty.version>4.2.9.Final</netty.version>
-        <reactor.netty.version>1.3.1</reactor.netty.version>
+        <reactor.netty.version>1.3.2</reactor.netty.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.3.0</awaitility.version>
@@ -29,6 +28,8 @@
         <junit.version>5.11.0</junit.version>
         <mockito.version>5.21.0</mockito.version>
         <testcontainer.version>1.21.4</testcontainer.version>
+        <vavr.version>0.10.4</vavr.version>
+        <resilience4j.version>1.7.1</resilience4j.version>
         <!-- Provided dependencies -->
         <kafka.connect.avro.converter.version>8.1.1</kafka.connect.avro.converter.version>
         <!-- Plugin dependencies -->
@@ -48,18 +49,6 @@
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
     </properties>
-    <dependencyManagement>
-        <dependencies>
-            <!-- Use Netty BOM to align all Netty dependencies to the same version -->
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-bom</artifactId>
-                <version>${netty.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
     <build>
         <plugins>
             <plugin>
@@ -615,31 +604,11 @@
             <groupId>com.azure</groupId>
             <artifactId>azure-core-http-netty</artifactId>
             <version>${az.core.http.netty.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>netty-codec-http2</artifactId>
-                    <groupId>io.netty</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>reactor-netty-http</artifactId>
-                    <groupId>io.projectreactor.netty</groupId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <artifactId>reactor-netty-http</artifactId>
             <groupId>io.projectreactor.netty</groupId>
             <version>${reactor.netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-codec-http2</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-codec-http</artifactId>
-            <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure</groupId>
@@ -740,6 +709,30 @@
             <groupId>org.skyscreamer</groupId>
             <artifactId>jsonassert</artifactId>
             <version>${jsonassert.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.vavr</groupId>
+            <artifactId>vavr</artifactId>
+            <version>${vavr.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-core</artifactId>
+            <version>${resilience4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+            <version>${resilience4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>${resilience4j.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
