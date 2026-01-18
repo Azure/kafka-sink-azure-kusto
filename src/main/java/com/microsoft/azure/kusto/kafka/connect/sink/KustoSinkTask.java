@@ -310,7 +310,7 @@ public class KustoSinkTask extends SinkTask {
         return topicsToIngestionProps.get(topic);
     }
 
-    void validateTableMappings(KustoSinkConfig config) {
+    void validateTableMappings(@NotNull KustoSinkConfig config) {
         List<String> databaseTableErrorList = new ArrayList<>();
         List<String> accessErrorList = new ArrayList<>();
         boolean enableTableValidation = config.getEnableTableValidation();

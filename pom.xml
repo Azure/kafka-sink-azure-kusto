@@ -12,7 +12,7 @@
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.57.0</az.core.version>
-        <az.identity.version>1.18.0</az.identity.version>
+        <az.identity.version>1.19.0-beta.1</az.identity.version>
         <az.core.http.netty.version>1.16.2</az.core.http.netty.version>
         <commoncodec.version>1.20.0</commoncodec.version>
         <commonio.version>2.21.0</commonio.version>
@@ -48,7 +48,21 @@
         <!-- Shade plugin -->
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
+        <!-- Netty version to resolve conflicts -->
+        <netty.version>4.1.129.Final</netty.version>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Force Netty 4.1.126.Final to avoid conflicts with 4.2.x -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <build>
         <plugins>
             <plugin>
@@ -213,7 +227,7 @@
                                 <requireJavaVersion>
                                     <version>[${source.java.version},)</version>
                                     <message>
-                                        At least JDK ${source.java.version} is required to build this project because of
+                                        At least JDK ${source.java.version} is required to build this project because the
                                         latest confluent versions are built with JDK 17+ versions.
                                     </message>
                                 </requireJavaVersion>
@@ -553,18 +567,6 @@
                     <groupId>com.azure</groupId>
                     <artifactId>azure-identity</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>net.minidev</groupId>
-                    <artifactId>json-smart</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.microsoft.azure</groupId>
-                    <artifactId>msal4j</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -576,39 +578,12 @@
                     <groupId>com.azure</groupId>
                     <artifactId>azure-identity</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>net.minidev</groupId>
-                    <artifactId>json-smart</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.microsoft.azure</groupId>
-                    <artifactId>msal4j</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
             <version>${az.identity.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>net.minidev</groupId>
-            <artifactId>json-smart</artifactId>
-            <version>${json.smart.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-core-http-netty</artifactId>
-            <version>${az.core.http.netty.version}</version>
-        </dependency>
-        <dependency>
-            <artifactId>reactor-netty-http</artifactId>
-            <groupId>io.projectreactor.netty</groupId>
-            <version>${reactor.netty.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure</groupId>
