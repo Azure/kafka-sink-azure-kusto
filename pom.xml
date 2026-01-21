@@ -8,38 +8,39 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.1.3</version>
+    <version>5.1.5</version>
     <properties>
         <!-- Compile dependencies -->
-        <az.core.version>1.55.5</az.core.version>
-        <az.identity.version>1.18.0</az.identity.version>
-        <az.core.http.netty.version>1.16.1</az.core.http.netty.version>
-        <commoncodec.version>1.19.0</commoncodec.version>
-        <commonio.version>2.15.1</commonio.version>
+        <az.core.version>1.57.0</az.core.version>
+        <az.identity.version>1.19.0-beta.1</az.identity.version>
+        <az.core.http.netty.version>1.16.2</az.core.http.netty.version>
+        <commoncodec.version>1.20.0</commoncodec.version>
+        <commonio.version>2.21.0</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
-        <kusto.sdk.version>7.0.3</kusto.sdk.version>
-        <kafka.version>4.0.0</kafka.version>
+        <kusto.sdk.version>7.0.5</kusto.sdk.version>
+        <kafka.version>4.1.1</kafka.version>
         <msal4j.version>1.23.1</msal4j.version>
-        <netty.version>4.1.129.Final</netty.version>
-        <reactor.netty.version>1.2.10</reactor.netty.version>
+        <reactor.netty.version>1.3.2</reactor.netty.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.3.0</awaitility.version>
         <jsonassert.version>1.5.3</jsonassert.version>
         <junit.version>5.11.0</junit.version>
-        <mockito.version>5.18.0</mockito.version>
-        <testcontainer.version>1.21.3</testcontainer.version>
+        <mockito.version>5.21.0</mockito.version>
+        <testcontainer.version>1.21.4</testcontainer.version>
+        <vavr.version>0.10.4</vavr.version>
+        <resilience4j.version>1.7.1</resilience4j.version>
         <!-- Provided dependencies -->
-        <kafka.connect.avro.converter.version>8.0.0</kafka.connect.avro.converter.version>
+        <kafka.connect.avro.converter.version>8.1.1</kafka.connect.avro.converter.version>
         <!-- Plugin dependencies -->
-        <dependency-check-maven.version>12.1.3</dependency-check-maven.version>
-        <extra.enforcer.rules.version>1.10.0</extra.enforcer.rules.version>
-        <formatter.version>2.27.0</formatter.version>
-        <spotless.version>2.46.1</spotless.version>
-        <maven.enforcer.plugin.version>3.6.1</maven.enforcer.plugin.version>
-        <mvn.assembly.plugin.version>3.7.1</mvn.assembly.plugin.version>
-        <mvn.compiler.plugin.version>3.14.0</mvn.compiler.plugin.version>
-        <mvn.failsafe.plugin.version>3.5.3</mvn.failsafe.plugin.version>
+        <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
+        <extra.enforcer.rules.version>1.11.0</extra.enforcer.rules.version>
+        <formatter.version>2.29.0</formatter.version>
+        <spotless.version>3.1.0</spotless.version>
+        <maven.enforcer.plugin.version>3.6.2</maven.enforcer.plugin.version>
+        <mvn.assembly.plugin.version>3.8.0</mvn.assembly.plugin.version>
+        <mvn.compiler.plugin.version>3.14.1</mvn.compiler.plugin.version>
+        <mvn.failsafe.plugin.version>3.5.4</mvn.failsafe.plugin.version>
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <plexus.version>4.0.2</plexus.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -47,10 +48,12 @@
         <!-- Shade plugin -->
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
+        <!-- Netty version to resolve conflicts -->
+        <netty.version>4.1.129.Final</netty.version>
     </properties>
     <dependencyManagement>
         <dependencies>
-            <!-- Use Netty BOM to align all Netty dependencies to the same version -->
+            <!-- Force Netty 4.1.126.Final to avoid conflicts with 4.2.x -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
@@ -224,7 +227,8 @@
                                 <requireJavaVersion>
                                     <version>[${source.java.version},)</version>
                                     <message>
-                                        At least JDK ${source.java.version} is required to build this project because of Spark 3.4/3.5 being built with JDK11 now.
+                                        At least JDK ${source.java.version} is required to build this project because the
+                                        latest confluent versions are built with JDK 17+ versions.
                                     </message>
                                 </requireJavaVersion>
                                 <requireMavenVersion>
@@ -563,18 +567,6 @@
                     <groupId>com.azure</groupId>
                     <artifactId>azure-identity</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>net.minidev</groupId>
-                    <artifactId>json-smart</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.microsoft.azure</groupId>
-                    <artifactId>msal4j</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -586,59 +578,12 @@
                     <groupId>com.azure</groupId>
                     <artifactId>azure-identity</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>net.minidev</groupId>
-                    <artifactId>json-smart</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core-http-netty</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.microsoft.azure</groupId>
-                    <artifactId>msal4j</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
             <version>${az.identity.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>net.minidev</groupId>
-            <artifactId>json-smart</artifactId>
-            <version>${json.smart.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-core-http-netty</artifactId>
-            <version>${az.core.http.netty.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>netty-codec-http2</artifactId>
-                    <groupId>io.netty</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>reactor-netty-http</artifactId>
-                    <groupId>io.projectreactor.netty</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <artifactId>reactor-netty-http</artifactId>
-            <groupId>io.projectreactor.netty</groupId>
-            <version>${reactor.netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-codec-http2</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-codec-http</artifactId>
-            <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure</groupId>
@@ -739,6 +684,30 @@
             <groupId>org.skyscreamer</groupId>
             <artifactId>jsonassert</artifactId>
             <version>${jsonassert.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.vavr</groupId>
+            <artifactId>vavr</artifactId>
+            <version>${vavr.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-core</artifactId>
+            <version>${resilience4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+            <version>${resilience4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>${resilience4j.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
