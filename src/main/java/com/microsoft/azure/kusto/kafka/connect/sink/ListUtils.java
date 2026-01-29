@@ -7,14 +7,14 @@ import java.util.NoSuchElementException;
  * Utility class for list operations.
  */
 public class ListUtils {
-    
+
     private ListUtils() {
         // Utility class, prevent instantiation
     }
 
     /**
      * Returns the first element of a list.
-     * 
+     *
      * @param <T> the type of elements in the list
      * @param list the list
      * @return the first element

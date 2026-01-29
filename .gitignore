@@ -334,3 +334,5 @@ target/*
 /dependency-reduced-pom.xml
 deps.txt
 .vscode/settings.json
+/kafka-sink-azure-kusto.ipr
+/kafka-sink-azure-kusto.iws

@@ -81,15 +81,15 @@ class KustoSinkIT {
             .withListener(LISTENER_ADDRESS)
             .withNetwork(NETWORK).withCreateContainerCmdModifier(cmd -> cmd.withName("kafka"));
     @Container
-    private static final GenericContainer<?> SCHEMA_REGISTRY =
-            new GenericContainer<>(DockerImageName.parse("confluentinc/cp-schema-registry:" + CONFLUENT_VERSION))
-                    .withNetwork(NETWORK)
-                    .withExposedPorts(SR_PORT)
+    private static final GenericContainer<?> SCHEMA_REGISTRY = new GenericContainer<>(
+            DockerImageName.parse("confluentinc/cp-schema-registry:" + CONFLUENT_VERSION))
+            .withNetwork(NETWORK)
+            .withExposedPorts(SR_PORT)
 
-                    .withStartupTimeout(Duration.ofMinutes(2))
-                    .withEnv("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
-                    .withEnv("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", BOOTSTRAP_ADDRESS)
-                    .waitingFor(Wait.forHttp("/subjects").forStatusCode(200));
+            .withStartupTimeout(Duration.ofMinutes(2))
+            .withEnv("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
+            .withEnv("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", BOOTSTRAP_ADDRESS)
+            .waitingFor(Wait.forHttp("/subjects").forStatusCode(200));
     @Container
     private static final ProxyContainer PROXY = new ProxyContainer().withNetwork(NETWORK);
     @Container
@@ -99,7 +99,7 @@ class KustoSinkIT {
             .withExposedPorts(KAFKA_CONNECT_PORT)
             .withNetworkAliases("kafka-connect")
             .withCopyToContainer(MountableFile.forHostPath(Path.of("target/kafka-sink-azure-kusto-%s-jar-with-dependencies.jar".formatted(
-                    Version.getVersion()))),Utils.getConnectPath())
+                    Version.getVersion()))), Utils.getConnectPath())
             .withCreateContainerCmdModifier(cmd -> cmd.withName("kafka-connect"))
             .withEnv(getConnectProperties())
             .dependsOn(KAFKA, PROXY, SCHEMA_REGISTRY);
@@ -131,7 +131,7 @@ class KustoSinkIT {
             LOGGER.info("Started containers , copying scripts to container and executing them. Target path is {}",
                     Utils.getConnectPath());
             KAFKA_CONNECT.withCopyToContainer(MountableFile.forClasspathResource("download-libs.sh", 744), // rwx--r--r--
-                            "%s/download-libs.sh".formatted(Utils.getConnectPath()))
+                    "%s/download-libs.sh".formatted(Utils.getConnectPath()))
                     .execInContainer("sh", "%s/download-libs.sh".formatted(Utils.getConnectPath()));
             // Logs of start up of the container gets published here. This will be handy in case we want to look at startup failures
             LOGGER.debug(KAFKA_CONNECT.getLogs());
@@ -192,7 +192,7 @@ class KustoSinkIT {
     }
 
     private void deployConnector(@NotNull String dataFormat, String topicTableMapping,
-                                        String srUrl, String keyFormat, String valueFormat) {
+            String srUrl, String keyFormat, String valueFormat) {
         try {
             deployConnector(dataFormat, topicTableMapping, srUrl, keyFormat, valueFormat, Collections.emptyMap());
         } catch (Exception e) {
@@ -203,8 +203,8 @@ class KustoSinkIT {
     }
 
     private void deployConnector(@NotNull String dataFormat, String topicTableMapping,
-                                        String srUrl, String keyFormat, String valueFormat,
-                                        Map<String, Object> overrideProps) {
+            String srUrl, String keyFormat, String valueFormat,
+            Map<String, Object> overrideProps) {
         Map<String, Object> connectorProps = new HashMap<>();
         connectorProps.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
         connectorProps.put("flush.size.bytes", 10000);
@@ -252,15 +252,15 @@ class KustoSinkIT {
         // There are tests for CSV streaming. The other formats test for Queued ingestion
         String topicTableMapping = dataFormat.equals("csv")
                 ? "[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'csv_mapping','streaming':'true'}]".formatted(
-                dataFormat, coordinates.database, coordinates.table, dataFormat)
+                        dataFormat, coordinates.database, coordinates.table, dataFormat)
                 : "[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping'}]".formatted(dataFormat,
-                coordinates.database,
-                coordinates.table, dataFormat);
+                        coordinates.database,
+                        coordinates.table, dataFormat);
         if (dataFormat.startsWith("bytes")) {
             valueFormat = "org.apache.kafka.connect.converters.ByteArrayConverter";
             // JSON is written as JSON
             topicTableMapping = String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s'," +
-                            "'mapping':'data_mapping'}]", dataFormat,
+                    "'mapping':'data_mapping'}]", dataFormat,
                     coordinates.database,
                     coordinates.table, dataFormat.split("-")[1]);
         }
@@ -417,9 +417,9 @@ class KustoSinkIT {
                         new CustomComparator(LENIENT,
                                 // there are sometimes round off errors in the double values, but they are close enough to 8 precision
                                 new Customization("vdec", (vdec1,
-                                                           vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001),
+                                        vdec2) -> Math.abs(Double.parseDouble(vdec1.toString()) - Double.parseDouble(vdec2.toString())) < 0.000000001),
                                 new Customization("vreal", (vreal1,
-                                                            vreal2) -> Math.abs(Double.parseDouble(vreal1.toString()) - Double.parseDouble(vreal2.toString())) < 0.0001)));
+                                        vreal2) -> Math.abs(Double.parseDouble(vreal1.toString()) - Double.parseDouble(vreal2.toString())) < 0.0001)));
             } catch (JSONException e) {
                 fail(e);
             }

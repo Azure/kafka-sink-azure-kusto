@@ -17,10 +17,11 @@ import com.microsoft.azure.kusto.ingest.IngestClientFactory;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -185,6 +186,26 @@ public class KustoSinkTask extends SinkTask {
     }
 
     /**
+     * Gets the stack trace from a Throwable as a String.
+     * This is a pure Java replacement for Apache Commons Lang ExceptionUtils.getStackTrace().
+     *
+     * @param throwable the Throwable to get the stack trace from
+     * @return the stack trace as a String
+     */
+    private static String getStackTraceAsString(Throwable throwable) {
+        if (throwable == null) {
+            return "";
+        }
+        try (StringWriter sw = new StringWriter(); PrintWriter pw = new PrintWriter(sw)) {
+            throwable.printStackTrace(pw);
+            return sw.toString();
+        } catch (IOException e) {
+            log.warn("Error closing StringWriter or PrintWriter, returning throwable string", e);
+            return throwable.toString();
+        }
+    }
+
+    /**
      * This function validates whether the user has the read and write access to the
      * intended table
      * before starting to sink records into ADX.
@@ -194,8 +215,8 @@ public class KustoSinkTask extends SinkTask {
      * @param config       Kusto Sink configuration
      */
     private static void validateTableAccess(Client engineClient, @NotNull TopicToTableMapping mapping,
-                                            KustoSinkConfig config, List<String> databaseTableErrorList,
-                                            List<String> accessErrorList) {
+            KustoSinkConfig config, List<String> databaseTableErrorList,
+            List<String> accessErrorList) {
         String database = mapping.getDb();
         String table = mapping.getTable();
         String format = mapping.getFormat();
@@ -219,7 +240,7 @@ public class KustoSinkTask extends SinkTask {
                 }
             } catch (DataServiceException e) {
                 databaseTableErrorList.add("Couldn't validate access to Database '%s' Table '%s', with exception '%s'".formatted(database, table,
-                        ExceptionUtils.getStackTrace(e)));
+                        getStackTraceAsString(e)));
             }
 
             if (hasAccess && StringUtils.isNotBlank(mappingName)) {
@@ -229,7 +250,7 @@ public class KustoSinkTask extends SinkTask {
                 } catch (DataServiceException e) {
                     hasAccess = false;
                     databaseTableErrorList.add("Database:%s Table:%s | %s mapping '%s' not found, with exception '%s'".formatted(database, table, format,
-                            mappingName, ExceptionUtils.getStackTrace(e)));
+                            mappingName, getStackTraceAsString(e)));
                 }
             }
 
@@ -255,7 +276,7 @@ public class KustoSinkTask extends SinkTask {
                     // Logging the error so that the trace is not lost.
                     if (!e.getCause().toString().contains("Forbidden")) {
                         databaseTableErrorList.add(
-                                "Fetching principal roles using query '%s' resulted in exception '%s'".formatted(query, ExceptionUtils.getStackTrace(e)));
+                                "Fetching principal roles using query '%s' resulted in exception '%s'".formatted(query, getStackTraceAsString(e)));
                     } else {
                         log.warn(
                                 "Failed to check permissions with query '{}', will continue the run as the principal might still be able to ingest",
@@ -287,7 +308,7 @@ public class KustoSinkTask extends SinkTask {
             if (StringUtils.isNotBlank(config.getConnectionProxyHost())
                     && config.getConnectionProxyPort() > -1) {
                 InetSocketAddress proxyAddress = new InetSocketAddress(config.getConnectionProxyHost(), config.getConnectionProxyPort());
-                ProxyOptions proxy = new ProxyOptions(ProxyOptions.Type.HTTP,proxyAddress);
+                ProxyOptions proxy = new ProxyOptions(ProxyOptions.Type.HTTP, proxyAddress);
                 httpClientProperties = HttpClientProperties.builder().proxy(proxy).build();
             }
             ConnectionStringBuilder ingestConnectionStringBuilder = createKustoEngineConnectionString(config, config.getKustoIngestUrl());

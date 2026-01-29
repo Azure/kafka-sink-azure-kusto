@@ -228,7 +228,6 @@ public class KustoSinkTaskTest {
         verify(mockPartitionWriter, times(1)).close();
     }
 
-
     @Test
     public void precommitDoesNotCommitNewerOffsets() throws InterruptedException {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();

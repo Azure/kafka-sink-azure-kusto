@@ -322,12 +322,14 @@ public class FileWriter implements Closeable {
                 shouldWriteAvroAsBytes = true;
             }
         } else {
-            throw new ConnectException("Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. ".formatted(
-                    sinkRecord.valueSchema().type()));
+            throw new ConnectException(
+                    "Invalid Kafka record format, connector does not support %s format. This connector supports Avro, Json with schema, Json without schema, Byte, String format. "
+                            .formatted(
+                                    sinkRecord.valueSchema().type()));
         }
     }
 
-    private class CountingOutputStream extends FilterOutputStream {
+    private static class CountingOutputStream extends FilterOutputStream {
         private long numBytes = 0;
         private final GZIPOutputStream outputStream;
 

@@ -19,7 +19,7 @@ class ITCoordinates {
         this.appId = appId;
         this.appKey = appKey;
         this.accessToken = accessToken;
-        this.authority = StringUtils.isEmpty(authority)?"microsoft.com":authority;
+        this.authority = StringUtils.isEmpty(authority) ? "microsoft.com" : authority;
         this.ingestCluster = ingestCluster;
         this.cluster = cluster;
         this.database = database;

@@ -57,7 +57,7 @@ public class TopicPartitionWriter {
     private final ReentrantReadWriteLock reentrantReadWriteLock;
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
-                         @NotNull KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
+            @NotNull KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -179,7 +179,7 @@ public class TopicPartitionWriter {
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
                 log.warn("Writing {} failed records to miscellaneous dead-letter " +
                         "queue topic={}. Retry attempt {} of {}",
-                        fileDescriptor.records.size(), dlqTopicName, retryAttempts,maxRetryAttempts);
+                        fileDescriptor.records.size(), dlqTopicName, retryAttempts, maxRetryAttempts);
                 fileDescriptor.records.forEach(this::sendFailedRecordToDlq);
             }
             throw new ConnectException("Retry attempts exhausted, failed to ingest records into KustoDB.",
