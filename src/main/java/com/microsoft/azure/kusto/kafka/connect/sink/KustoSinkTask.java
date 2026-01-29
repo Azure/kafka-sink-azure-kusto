@@ -196,10 +196,13 @@ public class KustoSinkTask extends SinkTask {
         if (throwable == null) {
             return "";
         }
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        throwable.printStackTrace(pw);
-        return sw.toString();
+        try (StringWriter sw = new StringWriter(); PrintWriter pw = new PrintWriter(sw)) {
+            throwable.printStackTrace(pw);
+            return sw.toString();
+        } catch (IOException e) {
+            log.warn("Error closing StringWriter or PrintWriter, returning throwable string", e);
+            return throwable.toString();
+        }
     }
 
     /**
