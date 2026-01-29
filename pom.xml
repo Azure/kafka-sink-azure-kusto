@@ -191,7 +191,13 @@
                 <version>${spotless.version}</version>
                 <configuration>
                     <java>
-                        <removeUnusedImports />
+                        <eclipse>
+                            <file>${project.basedir}/formatter.xml</file>
+                        </eclipse>
+
+                        <!-- Optional: Add other formatters and linters -->
+                        <removeUnusedImports/>
+                        <formatAnnotations/>
                     </java>
                 </configuration>
             </plugin>

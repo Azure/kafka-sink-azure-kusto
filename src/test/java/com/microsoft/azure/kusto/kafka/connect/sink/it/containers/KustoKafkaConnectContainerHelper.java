@@ -68,7 +68,7 @@ public class KustoKafkaConnectContainerHelper {
         URI connectorUri = URI.create("%s/connectors/%s/status".formatted(getTarget(), connectorName));
         HttpGet httpget = new HttpGet(connectorUri);
         try (CloseableHttpClient httpclient = HttpClients.createDefault();
-             CloseableHttpResponse httpResponse = httpclient.execute(httpget)) {
+                CloseableHttpResponse httpResponse = httpclient.execute(httpget)) {
             int responseCode = httpResponse.getStatusLine().getStatusCode();
             return 200 <= responseCode && responseCode <= 300;
         } catch (IOException e) {
@@ -83,8 +83,8 @@ public class KustoKafkaConnectContainerHelper {
         httpPost.setHeader("Accept", "application/json");
         httpPost.setHeader("Content-type", "application/json");
         try (CloseableHttpClient client = HttpClients.createDefault();
-             CloseableHttpResponse response = client
-                     .execute(httpPost)) {
+                CloseableHttpResponse response = client
+                        .execute(httpPost)) {
             final int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode != 201) {
                 handleFailedResponse(response);
@@ -99,7 +99,7 @@ public class KustoKafkaConnectContainerHelper {
         URI statusUri = URI.create("%s/connectors/%s/tasks/%d/status".formatted(getTarget(), connectorName, taskNumber));
         HttpGet httpget = new HttpGet(statusUri);
         try (CloseableHttpClient httpclient = HttpClients.createDefault();
-             CloseableHttpResponse httpResponse = httpclient.execute(httpget)) {
+                CloseableHttpResponse httpResponse = httpclient.execute(httpget)) {
             int responseCode = httpResponse.getStatusLine().getStatusCode();
             if (200 <= responseCode && responseCode <= 300) {
                 try {

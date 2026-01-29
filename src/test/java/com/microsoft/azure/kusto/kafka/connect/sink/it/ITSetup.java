@@ -15,11 +15,10 @@ public class ITSetup {
 
     public static final String LISTENER_ADDRESS = "kafka:19092";
     public static final String BOOTSTRAP_ADDRESS = "PLAINTEXT://%s".formatted(LISTENER_ADDRESS);
-    public static final String CONFLUENT_VERSION = "8.0.0";
+    public static final String CONFLUENT_VERSION = "8.1.0";
     public static final int KAFKA_CONNECT_PORT = 8083;
     public static final int SR_PORT = 8081;
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
-
 
     static @NotNull ITCoordinates getConnectorProperties() {
         String testPrefix = "tmpKafkaSinkIT_";

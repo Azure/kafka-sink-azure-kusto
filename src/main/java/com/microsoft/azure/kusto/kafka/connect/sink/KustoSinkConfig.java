@@ -79,18 +79,18 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DOC = "Kusto sink max staleness in milliseconds (per topic+partition combo).";
     private static final String KUSTO_SINK_FLUSH_INTERVAL_MS_DISPLAY = "Maximum Flush Interval";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DOC = """
-Behavior on error setting for \
-ingestion of records into Kusto table. \
-Must be configured to one of the following:
-``fail``
-    Stops the connector when an error occurs \
-while processing records or ingesting records in Kusto table.
-``ignore``
-    Continues to process next set of records \
-when error occurs while processing records or ingesting records in Kusto table.
-``log``
-    Logs the error message and continues to process subsequent records when an error occurs \
-while processing records or ingesting records in Kusto table, available in connect logs.""";
+            Behavior on error setting for \
+            ingestion of records into Kusto table. \
+            Must be configured to one of the following:
+            ``fail``
+                Stops the connector when an error occurs \
+            while processing records or ingesting records in Kusto table.
+            ``ignore``
+                Continues to process next set of records \
+            when error occurs while processing records or ingesting records in Kusto table.
+            ``log``
+                Logs the error message and continues to process subsequent records when an error occurs \
+            while processing records or ingesting records in Kusto table, available in connect logs.""";
     private static final String KUSTO_BEHAVIOR_ON_ERROR_DISPLAY = "Behavior On Error";
     private static final String KUSTO_DLQ_BOOTSTRAP_SERVERS_DOC = "Configure this list to Kafka broker's address(es) "
             + "to which the Connector should write records failed due to restrictions while writing to the file in `tempdir.path`, network interruptions or unavailability of Kusto cluster. "
@@ -370,7 +370,6 @@ while processing records or ingesting records in Kusto table, available in conne
     public String getAuthAppId() {
         return this.getString(KUSTO_AUTH_APPID_CONF);
     }
-
 
     public String getAuthAppKey() {
         return this.getPassword(KUSTO_AUTH_APPKEY_CONF).value();

@@ -9,7 +9,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
@@ -49,7 +48,7 @@ public class JsonRecordWriterProvider implements RecordWriterProvider {
                         Object value = record.value();
                         if (value instanceof Struct) {
                             byte[] rawJson = converter.fromConnectData(record.topic(), record.valueSchema(), value);
-                            if (ArrayUtils.isEmpty(rawJson)) {
+                            if (rawJson == null || rawJson.length == 0) {
                                 log.warn("Filtering empty records post-serialization. Record filtered {}", record); // prints everything
                             } else {
                                 out.write(rawJson);
