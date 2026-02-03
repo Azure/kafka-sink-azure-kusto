@@ -13,6 +13,7 @@
         <!-- Compile dependencies -->
         <az.core.version>1.57.0</az.core.version>
         <az.core.http.netty.version>1.16.2</az.core.http.netty.version>
+        <az.identity.version>1.18.1</az.identity.version>
         <commoncodec.version>1.20.0</commoncodec.version>
         <commonio.version>2.21.0</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
@@ -566,11 +567,28 @@
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-data</artifactId>
             <version>${kusto.sdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-identity</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <version>${az.identity.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>kusto-ingest</artifactId>
             <version>${kusto.sdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-identity</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
