@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.microsoft.azure.kusto.data.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -29,10 +31,15 @@ public class KustoKafkaConnectContainerHelper {
 
     private static final Duration KAFKA_CONNECT_START_TIMEOUT = Duration.ofMinutes(1);
 
-    private final GenericContainer<?> kafkaConnectContainer;
+    private GenericContainer<?> kafkaConnectContainer;
+    private String connectUrl;
 
     public KustoKafkaConnectContainerHelper(GenericContainer<?> kafkaConnectContainer) {
         this.kafkaConnectContainer = kafkaConnectContainer;
+    }
+
+    public KustoKafkaConnectContainerHelper(String connectUrl) {
+        this.connectUrl = connectUrl;
     }
 
     private static void handleFailedResponse(@NotNull HttpResponse response) throws IOException {
@@ -42,18 +49,22 @@ public class KustoKafkaConnectContainerHelper {
     }
 
     public String getTarget() {
+        if (StringUtils.isNotBlank(connectUrl)) {
+            return connectUrl;
+        }
         return "http://" + kafkaConnectContainer.getHost() + ":" + kafkaConnectContainer.getMappedPort(KAFKA_CONNECT_PORT);
-        // return "http://" + getContainerId().substring(0, 12) + ":" + getMappedPort(KAFKA_CONNECT_PORT);
     }
 
     public void registerConnector(String name, Map<String, Object> configuration) {
         try {
+            // Store the URL if provided
             Map<String, Object> connectorConfiguration = new HashMap<>();
             connectorConfiguration.put("name", name);
             connectorConfiguration.put("config", configuration);
             String postConfig = OBJECT_MAPPER.writeValueAsString(connectorConfiguration);
             LOGGER.trace("Registering connector {} with config {}", name, postConfig);
-            executePOSTRequestSuccessfully(postConfig, "%s/connectors".formatted(getTarget()));
+            String targetServer = getTarget();
+            executePOSTRequestSuccessfully(postConfig, "%s/connectors".formatted(targetServer));
             Awaitility.await()
                     .atMost(KAFKA_CONNECT_START_TIMEOUT)
                     .until(() -> isConnectorConfigured(name));

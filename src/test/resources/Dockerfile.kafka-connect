@@ -1,0 +1,2 @@
+FROM quay.io/strimzi/kafka:0.49.1-kafka-4.1.1
+COPY target/original-kafka-sink-azure-kusto-5.1.6-jar-with-dependencies.jar /opt/kafka/libs/kafka-sink-azure-kusto.jar

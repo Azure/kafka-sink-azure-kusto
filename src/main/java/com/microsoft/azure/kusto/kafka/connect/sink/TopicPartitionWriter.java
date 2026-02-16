@@ -109,8 +109,12 @@ public class TopicPartitionWriter {
                         && !ingestionResult.getIngestionStatusCollection().isEmpty()) {
                     ingestionStatus = ListUtils.getFirst(ingestionResult.getIngestionStatusCollection());
                 }
+                String ingestStatusStr = "unknown";
+                if(ingestionStatus!=null && ingestionStatus.status!=null) {
+                    ingestStatusStr = ingestionStatus.status.name();
+                }
                 log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
-                        fileDescriptor.path, fileDescriptor.rawBytes, currentOffset, ingestionStatus);
+                        fileDescriptor.path, fileDescriptor.rawBytes, currentOffset, ingestStatusStr);
                 this.lastCommittedOffset = currentOffset;
                 return;
             } catch (IngestionServiceException exception) {
