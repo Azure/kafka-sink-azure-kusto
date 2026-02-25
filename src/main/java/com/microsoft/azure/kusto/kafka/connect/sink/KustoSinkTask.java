@@ -59,6 +59,7 @@ public class KustoSinkTask extends SinkTask {
     protected Map<TopicPartition, TopicPartitionWriter> writers;
     private Map<String, TopicIngestionProperties> topicsToIngestionProps;
     private KustoSinkConfig config;
+    private KustoSinkMetrics metrics;
     private boolean isDlqEnabled;
     private String dlqTopicName;
     private Producer<byte[], byte[]> dlqProducer;
@@ -395,7 +396,7 @@ public class KustoSinkTask extends SinkTask {
             } else {
                 IngestClient client = ingestionProps.streaming ? streamingIngestClient : kustoIngestClient;
                 TopicPartitionWriter writer = new TopicPartitionWriter(tp, client, ingestionProps, config, isDlqEnabled,
-                        dlqTopicName, dlqProducer);
+                        dlqTopicName, dlqProducer, metrics);
                 writer.open();
                 writers.put(tp, writer);
             }
@@ -427,6 +428,7 @@ public class KustoSinkTask extends SinkTask {
     @Override
     public void start(Map<String, String> props) {
         config = new KustoSinkConfig(props);
+        metrics = new KustoSinkMetrics();
         String url = config.getKustoIngestUrl();
 
         validateTableMappings(config);
@@ -478,6 +480,9 @@ public class KustoSinkTask extends SinkTask {
             }
         } catch (IOException e) {
             log.error("Error closing kusto client", e);
+        }
+        if (metrics != null) {
+            metrics.close();
         }
     }
 
