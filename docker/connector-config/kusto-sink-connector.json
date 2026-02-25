@@ -1,0 +1,20 @@
+{
+  "name": "kusto-sink-connector",
+  "config": {
+    "connector.class": "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector",
+    "tasks.max": "1",
+    "topics": "${KAFKA_TOPIC}",
+    "kusto.tables.topics.mapping": "[{'topic': '${KAFKA_TOPIC}', 'db': '${KUSTO_DATABASE}', 'table': '${KUSTO_TABLE}', 'format': 'json', 'mapping': 'quickstart_json_mapping'}]",
+    "kusto.ingestion.url": "${KUSTO_INGEST_URL}",
+    "kusto.query.url": "${KUSTO_ENGINE_URL}",
+    "aad.auth.appid": "${KUSTO_AUTH_APPID}",
+    "aad.auth.appkey": "${KUSTO_AUTH_APPKEY}",
+    "aad.auth.authority": "${KUSTO_AUTH_AUTHORITY}",
+    "aad.auth.strategy": "application",
+    "flush.size.bytes": "1048576",
+    "flush.interval.ms": "30000",
+    "behavior.on.error": "LOG",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.storage.StringConverter"
+  }
+}

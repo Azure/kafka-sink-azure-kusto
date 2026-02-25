@@ -1,0 +1,652 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Kusto Sink Connector Metrics",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Records Written",
+      "description": "Total records written to Kusto over time",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kusto_sink_recordswritten_total'\n| where $__timeFilter(Timestamp)\n| project Timestamp, MetricValue\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Records Failed",
+      "description": "Total records that failed to be written",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kusto_sink_recordsfailed_total'\n| where $__timeFilter(Timestamp)\n| project Timestamp, MetricValue\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Ingestion Attempts / Successes / Failures",
+      "description": "Ingestion lifecycle metrics over time",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "IngestionFailures" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "IngestionSuccesses" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName in ('kusto_sink_ingestionattempts_total', 'kusto_sink_ingestionsuccesses_total', 'kusto_sink_ingestionfailures_total')\n| where $__timeFilter(Timestamp)\n| extend Series = case(\n    MetricName == 'kusto_sink_ingestionattempts_total', 'IngestionAttempts',\n    MetricName == 'kusto_sink_ingestionsuccesses_total', 'IngestionSuccesses',\n    MetricName == 'kusto_sink_ingestionfailures_total', 'IngestionFailures',\n    MetricName)\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "DLQ Records Sent",
+      "description": "Records sent to the Dead Letter Queue",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "orange" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kusto_sink_dlqrecordssent_total'\n| where $__timeFilter(Timestamp)\n| project Timestamp, MetricValue\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Kusto Sink Connector Status",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Current Records Written",
+      "description": "Latest total records written",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1000 },
+              { "color": "red", "value": 10000 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kusto_sink_recordswritten_total'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Current Ingestion Successes",
+      "description": "Latest total ingestion successes",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kusto_sink_ingestionsuccesses_total'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Current Ingestion Failures",
+      "description": "Latest total ingestion failures",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kusto_sink_ingestionfailures_total'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Records Failed",
+      "description": "Latest total failed records",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kusto_sink_recordsfailed_total'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "DLQ Records",
+      "description": "Latest total DLQ records sent",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kusto_sink_dlqrecordssent_total'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Task Running",
+      "description": "Connector task running status (1 = running)",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "STOPPED", "color": "red" }, "1": { "text": "RUNNING", "color": "green" } } }
+          ],
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_connect_task_running_ratio'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Kafka Connect Worker Metrics",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Kafka Connect Sink Task – Offset Commit Completion Rate",
+      "description": "Rate of offset commit completions per second",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_connect_sink_task_offset_commit_completion_rate'\n| where $__timeFilter(Timestamp)\n| project Timestamp, MetricValue\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "All Kusto Sink Metrics (Latest Values)",
+      "description": "Latest value of each kusto_sink metric",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "MetricName", "desc": false }] },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "table",
+          "query": "OTELMetrics\n| where MetricName startswith 'kusto_sink_'\n| summarize LatestValue=arg_max(Timestamp, MetricValue) by MetricName\n| project MetricName, LatestValue, MetricValue\n| order by MetricName asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Kafka Broker Metrics",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Messages In Per Second",
+      "description": "Rate of messages being produced to the broker (1-minute rate)",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 20, "pointSize": 5, "showPoints": "auto" },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_server_broker_messagesinpersec'\n| where MetricAttributes.aggregate == 'OneMinuteRate'\n| where $__timeFilter(Timestamp)\n| project Timestamp, MetricValue\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Bytes In / Out Per Second",
+      "description": "Broker network throughput (1-minute rate)",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10, "pointSize": 5, "showPoints": "auto" },
+          "unit": "Bps"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "BytesOut" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName in ('kafka_server_broker_bytesinpersec', 'kafka_server_broker_bytesoutpersec')\n| where MetricAttributes.aggregate == 'OneMinuteRate'\n| where $__timeFilter(Timestamp)\n| extend Series = case(MetricName has 'bytesin', 'BytesIn', 'BytesOut')\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Log End Offset by Topic-Partition",
+      "description": "Current log end offset — tracks message backlog growth",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 10, "pointSize": 5, "showPoints": "auto" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_log_end_offset'\n| where $__timeFilter(Timestamp)\n| extend topic = tostring(MetricAttributes.topic), partition = tostring(MetricAttributes.partition)\n| where not(topic startswith '__')\n| extend Series = strcat(topic, '-', partition)\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Log Size by Topic-Partition",
+      "description": "Log size in bytes per topic-partition",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10, "pointSize": 5, "showPoints": "auto" },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_log_size_bytes'\n| where $__timeFilter(Timestamp)\n| extend topic = tostring(MetricAttributes.topic), partition = tostring(MetricAttributes.partition)\n| where not(topic startswith '__')\n| extend Series = strcat(topic, '-', partition)\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Partition Count",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 48 },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true, "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_server_partition_count'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Leader Count",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 48 },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true, "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_server_leader_count'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Under-Replicated Partitions",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 48 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true, "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_server_under_replicated_partitions'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Active Controller",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 48 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "mappings": [{ "type": "value", "options": { "0": { "text": "NO", "color": "red" }, "1": { "text": "YES", "color": "green" } } }],
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true, "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_controller_active_count'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Offline Partitions",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 48 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true, "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_controller_offline_partitions'\n| top 1 by Timestamp desc\n| project Timestamp, MetricValue",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Latency (Produce & Fetch)",
+      "description": "Mean and p99 request latency in milliseconds",
+      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 52 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10, "pointSize": 5, "showPoints": "auto" },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
+          "rawMode": true,
+          "resultFormat": "time_series",
+          "query": "OTELMetrics\n| where MetricName == 'kafka_network_request_total_time_ms'\n| where $__timeFilter(Timestamp)\n| extend request_type = tostring(MetricAttributes.request), agg = tostring(MetricAttributes.aggregate)\n| extend Series = strcat(request_type, ' (', agg, ')')\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["kafka", "kusto", "azure-data-explorer", "kafka-connect"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Kafka Connect Kusto Sink Metrics",
+  "uid": "kafka-connect-kusto-sink",
+  "version": 1
+}

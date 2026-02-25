@@ -1,0 +1,20 @@
+# Grafana datasource provisioning for Azure Data Explorer (Kusto).
+# Credentials are injected via environment variables from docker-compose.
+apiVersion: 1
+
+datasources:
+  - name: Azure Data Explorer
+    type: grafana-azure-data-explorer-datasource
+    access: proxy
+    uid: adx
+    isDefault: true
+    jsonData:
+      clusterUrl: ${GRAFANA_ADX_CLUSTER_URL}
+      defaultDatabase: ${GRAFANA_ADX_DATABASE}
+      azureCredentials:
+        authType: clientsecret
+        tenantId: ${GRAFANA_ADX_TENANT_ID}
+        clientId: ${GRAFANA_ADX_CLIENT_ID}
+    secureJsonData:
+      azureClientSecret: ${GRAFANA_ADX_CLIENT_SECRET}
+    editable: true

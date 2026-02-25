@@ -1,0 +1,13 @@
+# Grafana dashboard provisioning configuration.
+apiVersion: 1
+
+providers:
+  - name: "Kafka Connect Kusto"
+    orgId: 1
+    folder: "Kafka Connect"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

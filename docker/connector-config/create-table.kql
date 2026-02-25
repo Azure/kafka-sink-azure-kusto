@@ -1,0 +1,63 @@
+// Kusto table setup for the Docker quickstart.
+// Run these commands in your Azure Data Explorer database.
+//
+// Option 1: Run in Kusto Web Explorer (https://dataexplorer.azure.com)
+// Option 2: Run via Kusto CLI / SDK
+//
+// Replace 'KafkaSinkQuickstart' with your table name if different.
+
+// Create the target table matching the JSON message schema
+.create table KafkaSinkQuickstart (
+    id: int,
+    timestamp: datetime,
+    sensor: string,
+    value: int,
+    unit: string,
+    message_number: int
+)
+
+// Create a JSON ingestion mapping
+.create table KafkaSinkQuickstart ingestion json mapping 'quickstart_json_mapping'
+  '['
+  '  {"column": "id",             "path": "$.id",             "datatype": "int"     },'
+  '  {"column": "timestamp",      "path": "$.timestamp",      "datatype": "datetime"},'
+  '  {"column": "sensor",         "path": "$.sensor",         "datatype": "string"  },'
+  '  {"column": "value",          "path": "$.value",          "datatype": "int"     },'
+  '  {"column": "unit",           "path": "$.unit",           "datatype": "string"  },'
+  '  {"column": "message_number", "path": "$.message_number", "datatype": "int"     }'
+  ']'
+
+// Set a reasonable batching policy for the quickstart (ingest every 30 seconds)
+.alter table KafkaSinkQuickstart policy ingestionbatching
+  '{ "MaximumBatchingTimeSpan": "00:00:30" }'
+
+// Verify the table was created
+KafkaSinkQuickstart | count
+
+// =============================================================================
+// OTEL Metrics Table - for JMX metrics exported via OTEL Collector
+// =============================================================================
+// This table stores metrics scraped from Kafka Connect JMX by the OTEL Collector.
+// The schema must match the OTEL Azure Data Explorer exporter format exactly.
+
+.create-merge table OTELMetrics (
+    Timestamp: datetime,
+    MetricName: string,
+    MetricType: string,
+    MetricUnit: string,
+    MetricDescription: string,
+    MetricValue: real,
+    Host: string,
+    ResourceAttributes: dynamic,
+    MetricAttributes: dynamic
+)
+
+// Set a batching policy for faster ingestion during quickstart
+.alter table OTELMetrics policy ingestionbatching
+    '{ "MaximumBatchingTimeSpan": "00:00:30" }'
+
+// After ingestion, query sample data with:
+// KafkaSinkQuickstart | take 10
+//
+// Check JMX metrics in OTEL table with:
+// OTELMetrics | where MetricName startswith "kusto_sink" | project Timestamp, MetricName, MetricValue | order by Timestamp desc | take 50

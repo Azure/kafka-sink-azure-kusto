@@ -1,0 +1,8 @@
+# Build artifacts (created by build.sh, cleaned up after)
+connector-jar/
+
+# Environment file with secrets
+.env
+
+# OTEL diagnostics output
+otel-collector/diag/

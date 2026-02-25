@@ -1,0 +1,151 @@
+# Docker Compose for Kusto Sink Connector with JMX Metrics, OTEL Collector, and Grafana.
+#
+# Architecture:
+#   Kafka (Strimzi) -> Kafka Connect (+ JMX Exporter) -> Azure Data Explorer
+#                             |
+#                      Prometheus metrics (:9404)
+#                             |
+#                      OTEL Collector Contrib
+#                             |
+#                      Azure Data Explorer (metrics)
+#                             |
+#                      Grafana Dashboard (:3000)
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in your Kusto credentials
+#   2. Build the connector JAR: (from repo root) mvn clean package -DskipTests
+#   3. docker compose build
+#   4. docker compose up -d
+#   5. Deploy the connector: ./deploy-connector.sh
+#   6. Open Grafana at http://localhost:3000 (admin/admin)
+#
+# Ports exposed on the host:
+#   - 9092: Kafka broker
+#   - 8083: Kafka Connect REST API
+#   - 9404: JMX Exporter (Prometheus metrics)
+#   - 3000: Grafana dashboard
+
+services:
+  # ---------------------------------------------------------------------------
+  # Kafka broker (Strimzi image, KRaft mode - no ZooKeeper needed)
+  # ---------------------------------------------------------------------------
+  kafka:
+    build:
+      context: .
+      dockerfile: Dockerfile.kafka
+    container_name: kafka
+    command:
+      - "sh"
+      - "-c"
+      - |
+        export CLUSTER_ID=$$(bin/kafka-storage.sh random-uuid) && \
+        bin/kafka-storage.sh format -t $$CLUSTER_ID -c config/kraft/server.properties && \
+        bin/kafka-server-start.sh config/kraft/server.properties \
+          --override advertised.listeners=PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092 \
+          --override listeners=PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093 \
+          --override listener.security.protocol.map=PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT \
+          --override inter.broker.listener.name=PLAINTEXT \
+          --override controller.listener.names=CONTROLLER \
+          --override controller.quorum.voters=1@kafka:9093 \
+          --override node.id=1 \
+          --override process.roles=broker,controller
+    ports:
+      - "29092:29092"
+      - "9405:9405"
+    environment:
+      LOG_DIR: /tmp/logs
+      KAFKA_OPTS: "-javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=9405:/opt/jmx-exporter/kafka-broker-jmx.yaml"
+    volumes:
+      - ./jmx-exporter/kafka-broker-jmx.yaml:/opt/jmx-exporter/kafka-broker-jmx.yaml:ro
+    networks:
+      - kusto-network
+    healthcheck:
+      test: ["CMD-SHELL", "KAFKA_OPTS='' bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Kafka Connect with Kusto Sink Connector + JMX Exporter
+  # ---------------------------------------------------------------------------
+  kafka-connect:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kafka-connect
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+      - "9404:9404"
+    environment:
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g"
+    networks:
+      - kusto-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 45s
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector Contrib
+  # Scrapes JMX metrics from Kafka Connect and exports to Azure Data Explorer
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.146.0
+    container_name: otel-collector
+    depends_on:
+      kafka-connect:
+        condition: service_healthy
+    volumes:
+      - ./otel-collector/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    environment:
+      - OTEL_KUSTO_CLUSTER_URL=${KUSTO_ENGINE_URL}
+      - OTEL_KUSTO_DATABASE=${KUSTO_DATABASE}
+      - OTEL_KUSTO_METRICS_TABLE=${KUSTO_METRICS_TABLE:-OTELMetrics}
+      - OTEL_KUSTO_APP_ID=${KUSTO_AUTH_APPID}
+      - OTEL_KUSTO_APP_KEY=${KUSTO_AUTH_APPKEY}
+      - OTEL_KUSTO_TENANT_ID=${KUSTO_AUTH_AUTHORITY}
+    networks:
+      - kusto-network
+
+  # ---------------------------------------------------------------------------
+  # Grafana with Azure Data Explorer plugin
+  # Visualizes Kusto Sink Connector metrics from the OTELMetrics table
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: grafana
+    depends_on:
+      - otel-collector
+    ports:
+      - "3000:3000"
+    environment:
+      # Install the ADX datasource plugin on startup
+      GF_INSTALL_PLUGINS: grafana-azure-data-explorer-datasource
+      # Default admin credentials (change in production)
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      # ADX datasource provisioning variables
+      GRAFANA_ADX_CLUSTER_URL: ${KUSTO_ENGINE_URL}
+      GRAFANA_ADX_TENANT_ID: ${KUSTO_AUTH_AUTHORITY}
+      GRAFANA_ADX_CLIENT_ID: ${KUSTO_AUTH_APPID}
+      GRAFANA_ADX_CLIENT_SECRET: ${KUSTO_AUTH_APPKEY}
+      GRAFANA_ADX_DATABASE: ${KUSTO_DATABASE}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - kusto-network
+
+networks:
+  kusto-network:
+    driver: bridge
+
+volumes:
+  grafana-storage:
