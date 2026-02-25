@@ -91,7 +91,7 @@ public class KustoSinkTaskMetricsE2ETest {
     }
 
     @Test
-    public void testMetricsUnregisteredAfterStop() throws Exception {
+    public void testMetricsUnregisteredAfterStop() {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         kustoSinkTask = new KustoSinkTask();
         KustoSinkTask spy = spy(kustoSinkTask);

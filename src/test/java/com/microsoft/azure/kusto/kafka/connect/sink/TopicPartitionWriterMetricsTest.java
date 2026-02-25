@@ -105,7 +105,7 @@ public class TopicPartitionWriterMetricsTest {
     }
 
     @Test
-    public void testHandleRollFileIncrementsIngestionMetrics() throws Exception {
+    public void testHandleRollFileIncrementsIngestionMetrics() {
         IngestClient mockClient = mock(IngestClient.class);
         TopicIngestionProperties props = new TopicIngestionProperties();
         props.ingestionProperties = new IngestionProperties(DATABASE, TABLE);
@@ -123,7 +123,7 @@ public class TopicPartitionWriterMetricsTest {
     }
 
     @Test
-    public void testHandleRollFileClientExceptionIncrementsFailure() throws Exception {
+    public void testHandleRollFileClientExceptionIncrementsFailure(){
         IngestClient mockClient = mock(IngestClient.class);
         when(mockClient.ingestFromFile(any(FileSourceInfo.class), any(IngestionProperties.class)))
                 .thenThrow(new IngestionClientException("test failure"));
