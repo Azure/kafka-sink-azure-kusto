@@ -13,7 +13,7 @@
         <!-- Compile dependencies -->
         <az.core.version>1.57.1</az.core.version>
         <az.core.http.netty.version>1.16.3</az.core.http.netty.version>
-        <az.identity.version>1.18.1</az.identity.version>
+        <az.identity.version>1.18.2</az.identity.version>
         <commoncodec.version>1.20.0</commoncodec.version>
         <commonio.version>2.21.0</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
@@ -48,7 +48,7 @@
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
         <!-- Netty version to resolve conflicts -->
-        <netty.version>4.1.130.Final</netty.version>
+        <netty.version>4.1.131.Final</netty.version>
     </properties>
     <dependencyManagement>
         <dependencies>
