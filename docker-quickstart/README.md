@@ -288,8 +288,30 @@ The dashboard includes:
 | All Kusto Sink Metrics | Table view of latest values for all metrics |
 
 > **Note:** The Grafana ADX datasource is auto-configured using the same credentials
-> as the OTEL Collector (`OTEL_KUSTO_*` variables from `.env`). The Service Principal
+> as the OTEL Collector (`KUSTO_*` variables from `.env`). The Service Principal
 > needs at least **Viewer** role on the metrics database.
+
+### 10. Import Kusto Web Explorer Dashboard
+
+A pre-built Azure Data Explorer dashboard is provided for use directly in
+[Kusto Web Explorer](https://dataexplorer.azure.com) — no Grafana required.
+
+**Two pages:**
+- **Kusto Sink Connector** — Records written/failed, ingestion lifecycle, DLQ, task status, success rate
+- **Kafka Broker** — Messages in/sec, bytes in/out, log offsets, log size, broker health, request latency
+
+**To import:**
+
+1. Open [Kusto Web Explorer](https://dataexplorer.azure.com)
+2. Go to **Dashboards** → **New dashboard** → **Import dashboard from file**
+3. Select `dashboards/kusto-dashboard.json` from this quickstart
+4. After import, go to **Data sources** → edit the **"Kusto Metrics"** data source:
+   - Replace **Cluster URI** (`https://CLUSTER.REGION.kusto.windows.net`) with your actual cluster
+   - Replace **Database** (`otelmetrics`) with your metrics database name
+5. Click **Save** and the dashboard tiles will populate with your metrics
+
+> The dashboard uses a `_startTime` / `_endTime` time range parameter with
+> auto-refresh every 1 minute.
 
 ## Customization
 
@@ -365,6 +387,8 @@ docker/
 ├── connector-config/
 │   ├── create-table.kql                      # Kusto table and mapping setup script
 │   └── kusto-sink-connector.json             # Connector configuration template
+├── dashboards/
+│   └── kusto-dashboard.json                  # Azure Data Explorer dashboard (import to Kusto Web Explorer)
 ├── grafana/
 │   ├── dashboards/
 │   │   └── kafka-connect-metrics.json        # Pre-built Grafana dashboard

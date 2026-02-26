@@ -1,0 +1,752 @@
+{
+  "$schema": "https://dataexplorer.azure.com/static/d/schema/71/dashboard.json",
+  "schema_version": 71,
+  "id": "9b3d32a5-edf3-46c8-a832-fc463ae4fcf0",
+  "title": "Kafka Connect Kusto Sink Metrics",
+  "autoRefresh": {
+    "enabled": true,
+    "defaultInterval": "1m",
+    "minInterval": "30s"
+  },
+  "dataSources": [
+    {
+      "id": "4a0d63cd-ee4c-4453-8176-249a216fb89c",
+      "name": "Kusto Metrics",
+      "kind": "manual-kusto",
+      "clusterUri": "https://CLUSTER.REGION.kusto.windows.net",
+      "database": "otelmetrics"
+    }
+  ],
+  "pages": [
+    {
+      "id": "da030b52-42db-4a3d-87a7-3c5512f9c732",
+      "name": "Kusto Sink Connector"
+    },
+    {
+      "id": "2a2a5ff4-5748-409d-8f48-4163506dc93e",
+      "name": "Kafka Broker"
+    }
+  ],
+  "baseQueries": [],
+  "queries": [
+    {
+      "id": "7370550d-b7d3-4f5e-9ab7-57e27dac7baf",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName == 'kusto_sink_recordswritten_total'\n| where Timestamp between (_startTime .. _endTime)\n| project Timestamp, RecordsWritten=MetricValue\n| order by Timestamp asc"
+    },
+    {
+      "id": "471be96f-3a26-43cf-b947-445b88031bbf",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName == 'kusto_sink_recordsfailed_total'\n| where Timestamp between (_startTime .. _endTime)\n| project Timestamp, RecordsFailed=MetricValue\n| order by Timestamp asc"
+    },
+    {
+      "id": "9391add6-3d5a-4026-b969-cc5264100993",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName in ('kusto_sink_ingestionattempts_total', 'kusto_sink_ingestionsuccesses_total', 'kusto_sink_ingestionfailures_total')\n| where Timestamp between (_startTime .. _endTime)\n| extend Series = case(\n    MetricName == 'kusto_sink_ingestionattempts_total', 'Attempts',\n    MetricName == 'kusto_sink_ingestionsuccesses_total', 'Successes',\n    'Failures')\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc"
+    },
+    {
+      "id": "8f8e7146-1d21-4604-a06c-f78c85ba138b",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName == 'kusto_sink_dlqrecordssent_total'\n| where Timestamp between (_startTime .. _endTime)\n| project Timestamp, DLQRecords=MetricValue\n| order by Timestamp asc"
+    },
+    {
+      "id": "6ad53797-3b6a-4322-911b-aeb5ff499b8b",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [],
+      "text": "OTELMetrics\n| where MetricName startswith 'kusto_sink_'\n| summarize LatestTimestamp=arg_max(Timestamp, MetricValue) by MetricName\n| project MetricName, Value=MetricValue, LastUpdated=LatestTimestamp\n| order by MetricName asc"
+    },
+    {
+      "id": "1aa40228-6dbf-4eea-9f4c-cc2942274d76",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [],
+      "text": "OTELMetrics\n| where MetricName == 'kafka_connect_task_running_ratio'\n| summarize arg_max(Timestamp, MetricValue) by MetricName\n| extend Status = iff(MetricValue == 1, 'RUNNING', 'STOPPED')\n| project Status, LastChecked=Timestamp"
+    },
+    {
+      "id": "1cdfe62b-0251-422b-8e7e-c612638f51a6",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [],
+      "text": "OTELMetrics\n| where MetricName in ('kusto_sink_ingestionattempts_total', 'kusto_sink_ingestionsuccesses_total')\n| summarize arg_max(Timestamp, MetricValue) by MetricName\n| summarize Attempts=maxif(MetricValue, MetricName == 'kusto_sink_ingestionattempts_total'),\n            Successes=maxif(MetricValue, MetricName == 'kusto_sink_ingestionsuccesses_total')\n| extend SuccessRate = iff(Attempts > 0, round(Successes / Attempts * 100, 1), 100.0)\n| project SuccessRate"
+    },
+    {
+      "id": "3f31d818-5ece-4cbd-b188-3081c2d26691",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName == 'kafka_server_broker_messagesinpersec'\n| where MetricAttributes.aggregate == 'OneMinuteRate'\n| where Timestamp between (_startTime .. _endTime)\n| project Timestamp, MessagesPerSec=MetricValue\n| order by Timestamp asc"
+    },
+    {
+      "id": "1124ca3e-5d91-4c3d-84a5-b0757768c313",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName in ('kafka_server_broker_bytesinpersec', 'kafka_server_broker_bytesoutpersec')\n| where MetricAttributes.aggregate == 'OneMinuteRate'\n| where Timestamp between (_startTime .. _endTime)\n| extend Series = iff(MetricName has 'bytesin', 'BytesIn', 'BytesOut')\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc"
+    },
+    {
+      "id": "9890e06c-725b-4712-9b7d-10e8bf536f55",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName == 'kafka_log_end_offset'\n| where Timestamp between (_startTime .. _endTime)\n| extend topic = tostring(MetricAttributes.topic), partition = tostring(MetricAttributes.partition)\n| where not(topic startswith '__')\n| extend Series = strcat(topic, '-', partition)\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc"
+    },
+    {
+      "id": "9d1d28f6-247b-4b20-9d03-8a1412a77f4c",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName == 'kafka_log_size_bytes'\n| where Timestamp between (_startTime .. _endTime)\n| extend topic = tostring(MetricAttributes.topic), partition = tostring(MetricAttributes.partition)\n| where not(topic startswith '__')\n| extend Series = strcat(topic, '-', partition)\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc"
+    },
+    {
+      "id": "58d3eb57-8b1d-4e92-ab5d-b09bba6111a9",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [],
+      "text": "let partitions = OTELMetrics | where MetricName == 'kafka_server_partition_count' | summarize arg_max(Timestamp, MetricValue) by MetricName | project Partitions=MetricValue;\nlet leaders = OTELMetrics | where MetricName == 'kafka_server_leader_count' | summarize arg_max(Timestamp, MetricValue) by MetricName | project Leaders=MetricValue;\nlet underReplicated = OTELMetrics | where MetricName == 'kafka_server_under_replicated_partitions' | summarize arg_max(Timestamp, MetricValue) by MetricName | project UnderReplicated=MetricValue;\nlet activeController = OTELMetrics | where MetricName == 'kafka_controller_active_count' | summarize arg_max(Timestamp, MetricValue) by MetricName | project ActiveController=MetricValue;\nlet offline = OTELMetrics | where MetricName == 'kafka_controller_offline_partitions' | summarize arg_max(Timestamp, MetricValue) by MetricName | project OfflinePartitions=MetricValue;\npartitions | extend x=1 | join kind=inner (leaders | extend x=1) on x | join kind=inner (underReplicated | extend x=1) on x | join kind=inner (activeController | extend x=1) on x | join kind=inner (offline | extend x=1) on x\n| project Partitions, Leaders, UnderReplicated, ActiveController, OfflinePartitions"
+    },
+    {
+      "id": "69fe2470-7565-4878-ae2a-5389746ac9ee",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "4a0d63cd-ee4c-4453-8176-249a216fb89c"
+      },
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ],
+      "text": "OTELMetrics\n| where MetricName == 'kafka_network_request_total_time_ms'\n| where Timestamp between (_startTime .. _endTime)\n| extend RequestType = tostring(MetricAttributes.request), Aggregate = tostring(MetricAttributes.aggregate)\n| extend Series = strcat(RequestType, ' (', Aggregate, ')')\n| project Timestamp, MetricValue, Series\n| order by Timestamp asc"
+    }
+  ],
+  "tiles": [
+    {
+      "id": "800581a1-698a-4fd3-aed9-66f9bd5ff340",
+      "title": "Records Written Over Time",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "7370550d-b7d3-4f5e-9ab7-57e27dac7baf"
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "da030b52-42db-4a3d-87a7-3c5512f9c732",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "RecordsWritten"
+        ],
+        "yAxisMinimumValue": 0,
+        "yAxisMaximumValue": null,
+        "seriesColumns": null,
+        "xColumnTitle": "",
+        "yColumnTitle": "Records",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "f9470ce2-e40c-4526-9544-1103201b64fc",
+      "title": "Records Failed Over Time",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "471be96f-3a26-43cf-b947-445b88031bbf"
+      },
+      "layout": {
+        "x": 12,
+        "y": 0,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "da030b52-42db-4a3d-87a7-3c5512f9c732",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "RecordsFailed"
+        ],
+        "yAxisMinimumValue": 0,
+        "yAxisMaximumValue": null,
+        "seriesColumns": null,
+        "xColumnTitle": "",
+        "yColumnTitle": "Records",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "c3515226-18bd-4ae1-a562-e05981c45792",
+      "title": "Ingestion Attempts / Successes / Failures",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "9391add6-3d5a-4026-b969-cc5264100993"
+      },
+      "layout": {
+        "x": 0,
+        "y": 5,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "da030b52-42db-4a3d-87a7-3c5512f9c732",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "MetricValue"
+        ],
+        "yAxisMinimumValue": 0,
+        "yAxisMaximumValue": null,
+        "seriesColumns": [
+          "Series"
+        ],
+        "xColumnTitle": "",
+        "yColumnTitle": "Count",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "e043ca5b-3808-4b87-9d27-e86b066efc98",
+      "title": "DLQ Records Sent",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "8f8e7146-1d21-4604-a06c-f78c85ba138b"
+      },
+      "layout": {
+        "x": 12,
+        "y": 5,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "da030b52-42db-4a3d-87a7-3c5512f9c732",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "DLQRecords"
+        ],
+        "yAxisMinimumValue": 0,
+        "yAxisMaximumValue": null,
+        "seriesColumns": null,
+        "xColumnTitle": "",
+        "yColumnTitle": "Records",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "bd8e9260-cf70-4c80-b769-85fffa280c51",
+      "title": "Latest Kusto Sink Metric Values",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "6ad53797-3b6a-4322-911b-aeb5ff499b8b"
+      },
+      "layout": {
+        "x": 0,
+        "y": 10,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "da030b52-42db-4a3d-87a7-3c5512f9c732",
+      "visualType": "table",
+      "visualOptions": {
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "e75090ed-ffe9-433c-8e7f-11222c52509f",
+      "title": "Connector Task Status",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "1aa40228-6dbf-4eea-9f4c-cc2942274d76"
+      },
+      "layout": {
+        "x": 12,
+        "y": 10,
+        "width": 6,
+        "height": 5
+      },
+      "pageId": "da030b52-42db-4a3d-87a7-3c5512f9c732",
+      "visualType": "card",
+      "visualOptions": {
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "53ba677c-9bf6-46e2-a88c-7d53b28d69af",
+      "title": "Ingestion Success Rate (%)",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "1cdfe62b-0251-422b-8e7e-c612638f51a6"
+      },
+      "layout": {
+        "x": 18,
+        "y": 10,
+        "width": 6,
+        "height": 5
+      },
+      "pageId": "da030b52-42db-4a3d-87a7-3c5512f9c732",
+      "visualType": "card",
+      "visualOptions": {
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "0c0c583f-54c9-45cf-807d-32e74f09a7df",
+      "title": "Messages In Per Second",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "3f31d818-5ece-4cbd-b188-3081c2d26691"
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "2a2a5ff4-5748-409d-8f48-4163506dc93e",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "MessagesPerSec"
+        ],
+        "yAxisMinimumValue": 0,
+        "yAxisMaximumValue": null,
+        "seriesColumns": null,
+        "xColumnTitle": "",
+        "yColumnTitle": "msgs/sec",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "2c0d894d-bb47-49d1-a027-85c796a77328",
+      "title": "Bytes In / Out Per Second",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "1124ca3e-5d91-4c3d-84a5-b0757768c313"
+      },
+      "layout": {
+        "x": 12,
+        "y": 0,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "2a2a5ff4-5748-409d-8f48-4163506dc93e",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "MetricValue"
+        ],
+        "yAxisMinimumValue": 0,
+        "yAxisMaximumValue": null,
+        "seriesColumns": [
+          "Series"
+        ],
+        "xColumnTitle": "",
+        "yColumnTitle": "bytes/sec",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "66f76d9b-3fee-441c-b782-e41d551b25ea",
+      "title": "Log End Offset by Topic-Partition",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "9890e06c-725b-4712-9b7d-10e8bf536f55"
+      },
+      "layout": {
+        "x": 0,
+        "y": 5,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "2a2a5ff4-5748-409d-8f48-4163506dc93e",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "MetricValue"
+        ],
+        "yAxisMinimumValue": null,
+        "yAxisMaximumValue": null,
+        "seriesColumns": [
+          "Series"
+        ],
+        "xColumnTitle": "",
+        "yColumnTitle": "Offset",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "05972eb5-cbd3-4364-b1b6-0458d054cab0",
+      "title": "Log Size by Topic-Partition",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "9d1d28f6-247b-4b20-9d03-8a1412a77f4c"
+      },
+      "layout": {
+        "x": 12,
+        "y": 5,
+        "width": 12,
+        "height": 5
+      },
+      "pageId": "2a2a5ff4-5748-409d-8f48-4163506dc93e",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "MetricValue"
+        ],
+        "yAxisMinimumValue": 0,
+        "yAxisMaximumValue": null,
+        "seriesColumns": [
+          "Series"
+        ],
+        "xColumnTitle": "",
+        "yColumnTitle": "Bytes",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "8ffa733c-6d11-496d-8e46-206583aa1327",
+      "title": "Kafka Broker Health",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "58d3eb57-8b1d-4e92-ab5d-b09bba6111a9"
+      },
+      "layout": {
+        "x": 0,
+        "y": 10,
+        "width": 24,
+        "height": 4
+      },
+      "pageId": "2a2a5ff4-5748-409d-8f48-4163506dc93e",
+      "visualType": "table",
+      "visualOptions": {
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "bc266047-e51b-435c-8aeb-d9a6b5f4cd6f",
+      "title": "Request Latency - Produce & Fetch (ms)",
+      "queryRef": {
+        "kind": "query",
+        "queryId": "69fe2470-7565-4878-ae2a-5389746ac9ee"
+      },
+      "layout": {
+        "x": 0,
+        "y": 14,
+        "width": 24,
+        "height": 5
+      },
+      "pageId": "2a2a5ff4-5748-409d-8f48-4163506dc93e",
+      "visualType": "line",
+      "visualOptions": {
+        "xColumn": "Timestamp",
+        "yColumns": [
+          "MetricValue"
+        ],
+        "yAxisMinimumValue": 0,
+        "yAxisMaximumValue": null,
+        "seriesColumns": [
+          "Series"
+        ],
+        "xColumnTitle": "",
+        "yColumnTitle": "ms",
+        "hideLegend": false,
+        "crossFilterDisabled": false,
+        "crossFilter": [],
+        "drillthrough": [],
+        "drillthroughDisabled": false,
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "columns": [],
+            "label": "",
+            "yAxisMinimumValue": null,
+            "yAxisMaximumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "selectedDataOnLoad": {
+          "all": true,
+          "limit": 10
+        }
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "id": "e2e16088-fdc0-4f2d-97ec-c26af1974460",
+      "kind": "duration",
+      "displayName": "Time Range",
+      "description": "Filter dashboard data by time range",
+      "beginVariableName": "_startTime",
+      "endVariableName": "_endTime",
+      "showOnPages": {
+        "kind": "all"
+      },
+      "defaultValue": {
+        "kind": "dynamic",
+        "count": 1,
+        "unit": "hours"
+      }
+    }
+  ]
+}
