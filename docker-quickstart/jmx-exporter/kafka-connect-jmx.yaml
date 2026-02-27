@@ -1,0 +1,39 @@
+# JMX Exporter configuration for Kafka Connect with Kusto Sink Connector metrics.
+# This config is used by the Prometheus JMX Exporter Java agent attached to Kafka Connect.
+# Metrics are exposed on the HTTP port configured in the agent (default: 9404).
+
+---
+startDelaySeconds: 5
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  # Kusto Sink Connector metrics
+  - pattern: "com.microsoft.azure.kusto.kafka.connect.sink<type=KustoSinkMetrics><>(\\w+)"
+    name: "kusto_sink_$1"
+    help: "Kusto Sink Connector metric: $1"
+    type: COUNTER
+
+  # Kafka Connect worker metrics
+  - pattern: "kafka.connect<type=connect-worker-metrics><>([\\w-]+)"
+    name: "kafka_connect_worker_$1"
+    help: "Kafka Connect worker metric"
+    type: GAUGE
+
+  # Kafka Connect task metrics
+  - pattern: "kafka.connect<type=connector-task-metrics, connector=([^,]+), task=([^,]+)><>([\\w-]+)"
+    name: "kafka_connect_task_$3"
+    help: "Kafka Connect task metric"
+    labels:
+      connector: "$1"
+      task: "$2"
+    type: GAUGE
+
+  # Kafka Connect sink task metrics
+  - pattern: "kafka.connect<type=sink-task-metrics, connector=([^,]+), task=([^,]+)><>([\\w-]+)"
+    name: "kafka_connect_sink_task_$3"
+    help: "Kafka Connect sink task metric"
+    labels:
+      connector: "$1"
+      task: "$2"
+    type: GAUGE

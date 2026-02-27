@@ -8,7 +8,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.1.6</version>
+    <version>5.2.0</version>
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.57.0</az.core.version>
@@ -48,11 +48,11 @@
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
         <!-- Netty version to resolve conflicts -->
-        <netty.version>4.1.129.Final</netty.version>
+        <netty.version>4.1.131.Final</netty.version>
     </properties>
     <dependencyManagement>
         <dependencies>
-            <!-- Force Netty 4.1.126.Final to avoid conflicts with 4.2.x -->
+            <!-- Force Netty 4.1.131.Final to avoid conflicts with 4.2.x -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>

@@ -30,6 +30,7 @@ Breaking changes are documented in the [16.1 Breaking changes from version 5](#1
     * [3.14. Parallelism](#314-parallelism)
     * [3.15. Authentication & Authorization to Azure Data Explorer](#315-authentication--authorization-to-azure-data-explorer)
     * [3.16. Security related](#316-security-related)
+    * [3.17. JMX Metrics](#317-jmx-metrics)
   * [4. Connect worker properties](#4-connect-worker-properties)
     * [4.1. Confluent Cloud](#41-confluent-cloud)
     * [4.2. HDInsight Kafka with Enterprise Security Package](#42-hdinsight-kafka-with-enterprise-security-package)
@@ -213,6 +214,33 @@ Therefore, the connector supports "At least once" delivery guarantees.
 - Kafka Connect supports all security protocols supported by Kafka, as does our connector
 - See below for some security related config that needs to be applied at Kafka Connect worker level as well as in the
   sink properties
+
+### 3.17. JMX Metrics
+
+The connector exposes JMX metrics for monitoring ingestion performance and tracking failures. Metrics are registered
+automatically when the sink task starts and unregistered when the task stops.
+
+**MBean name:** `com.microsoft.azure.kusto.kafka.connect.sink:type=KustoSinkMetrics`
+
+| Metric              | Type    | Description                                                    |
+|:--------------------|:--------|:---------------------------------------------------------------|
+| RecordsWritten      | Counter | Total number of records successfully written to staging files  |
+| RecordsFailed       | Counter | Total number of records that failed during write               |
+| IngestionAttempts   | Counter | Total number of file ingestion attempts to Azure Data Explorer |
+| IngestionSuccesses  | Counter | Total number of successful file ingestions                     |
+| IngestionFailures   | Counter | Total number of failed file ingestions (after retries exhaust) |
+| DlqRecordsSent      | Counter | Total number of records sent to the dead letter queue          |
+
+**How to monitor:**
+
+These metrics are accessible via any JMX-compatible monitoring tool (JConsole, VisualVM, Prometheus JMX Exporter, Datadog, etc.). To enable JMX remote access on your Kafka Connect workers, add the following JVM options:
+
+```
+KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9999 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
+```
+
+For Prometheus-based monitoring, use the [JMX Exporter](https://github.com/prometheus/jmx_exporter) agent with a
+configuration that scrapes the `com.microsoft.azure.kusto.kafka.connect.sink` domain.
 
 <hr>
 
