@@ -122,6 +122,28 @@ public class KustoSinkTaskTest {
     }
 
     @Test
+    public void getWildcardTable() {
+        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+        configs.put(KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1','db': 'db1', 'table': 'table1','format': 'csv'},{'topic': '*','db': 'dbWildcard', 'table': 'tableWildcard','format': 'json'}]");
+        KustoSinkTask kustoSinkTask = new KustoSinkTask();
+        KustoSinkTask kustoSinkTaskSpy = spy(kustoSinkTask);
+        doNothing().when(kustoSinkTaskSpy).validateTableMappings(Mockito.any());
+        kustoSinkTaskSpy.start(configs);
+        {
+            // explicit mapping should be preferred
+            assertEquals("db1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getDatabaseName());
+            assertEquals("table1", kustoSinkTaskSpy.getIngestionProps("topic1").ingestionProperties.getTableName());
+
+            // wildcard mapping should be used for other topics
+            assertEquals("dbWildcard", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getDatabaseName());
+            assertEquals("tableWildcard", kustoSinkTaskSpy.getIngestionProps("topic2").ingestionProperties.getTableName());
+            assertEquals("dbWildcard", kustoSinkTaskSpy.getIngestionProps("anyTopic").ingestionProperties.getDatabaseName());
+            assertEquals("tableWildcard", kustoSinkTaskSpy.getIngestionProps("anyTopic").ingestionProperties.getTableName());
+        }
+    }
+
+    @Test
     public void getTableWithoutMapping() {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         KustoSinkTask kustoSinkTask = new KustoSinkTask();
