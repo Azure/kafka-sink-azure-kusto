@@ -42,6 +42,7 @@ public class KustoSinkConfig extends AbstractConfig {
     static final String KUSTO_SINK_MAX_RETRY_TIME_MS_CONF = "errors.retry.max.time.ms";
     static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_CONF = "errors.retry.backoff.time.ms";
     static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION = "kusto.validation.table.enable";
+    static final String KUSTO_SINK_DISABLE_URL_VALIDATION = "kusto.validation.url.disable";
     private static final String DLQ_PROPS_PREFIX = "misc.deadletterqueue.";
 
     private static final String KUSTO_INGEST_URL_DOC = "Kusto ingestion endpoint URL.";
@@ -107,16 +108,37 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_SINK_RETRY_BACKOFF_TIME_MS_DISPLAY = "Errors Retry BackOff Time";
     private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DOC = "Enable table access validation at task start.";
     private static final String KUSTO_SINK_ENABLE_TABLE_VALIDATION_DISPLAY = "Enable table validation";
+    private static final String KUSTO_SINK_DISABLE_URL_VALIDATION_DOC = "Disable URL domain validation for Kusto endpoints. "
+            + "When false (default), the connector validates that kusto.ingestion.url and kusto.query.url point to "
+            + "known Azure Data Explorer domains. Set to true only if you are using Azure Private Link or custom "
+            + "endpoints that do not use standard Kusto domain suffixes. WARNING: Disabling this check may expose "
+            + "authentication tokens to non-Kusto endpoints.";
+    private static final String KUSTO_SINK_DISABLE_URL_VALIDATION_DISPLAY = "Disable URL validation";
     private static final Logger log = LoggerFactory.getLogger(KustoSinkConfig.class);
 
     private static final ObjectMapper objectMapper = new ObjectMapper().enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
+        validateEndpointUrls();
     }
 
     public KustoSinkConfig(Map<String, String> parsedConfig) {
         this(getConfig(), parsedConfig);
+    }
+
+    /**
+     * Validates that configured Kusto endpoint URLs point to legitimate Azure Data Explorer domains.
+     * This check is performed at configuration time to fail fast and prevent SSRF attacks.
+     * Can be bypassed by setting {@code kusto.validation.url.disable=true}.
+     */
+    private void validateEndpointUrls() {
+        boolean skipValidation = getBoolean(KUSTO_SINK_DISABLE_URL_VALIDATION);
+        KustoEndpointUrlValidator.validateUrl(getKustoIngestUrl(), KUSTO_INGEST_URL_CONF, skipValidation);
+        String engineUrl = getKustoEngineUrl();
+        if (engineUrl != null && !engineUrl.isEmpty()) {
+            KustoEndpointUrlValidator.validateUrl(engineUrl, KUSTO_ENGINE_URL_CONF, skipValidation);
+        }
     }
 
     public static ConfigDef getConfig() {
@@ -356,7 +378,17 @@ public class KustoSinkConfig extends AbstractConfig {
                         connectionGroupName,
                         connectionGroupOrder++,
                         Width.MEDIUM,
-                        KUSTO_CONNECTION_PROXY_PORT_DISPLAY);
+                        KUSTO_CONNECTION_PROXY_PORT_DISPLAY)
+                .define(
+                        KUSTO_SINK_DISABLE_URL_VALIDATION,
+                        Type.BOOLEAN,
+                        Boolean.FALSE,
+                        Importance.LOW,
+                        KUSTO_SINK_DISABLE_URL_VALIDATION_DOC,
+                        connectionGroupName,
+                        connectionGroupOrder++,
+                        Width.SHORT,
+                        KUSTO_SINK_DISABLE_URL_VALIDATION_DISPLAY);
     }
 
     public String getKustoIngestUrl() {
@@ -466,6 +498,10 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public boolean getEnableTableValidation() {
         return this.getBoolean(KUSTO_SINK_ENABLE_TABLE_VALIDATION);
+    }
+
+    public boolean isUrlValidationDisabled() {
+        return this.getBoolean(KUSTO_SINK_DISABLE_URL_VALIDATION);
     }
 
     public enum BehaviorOnError {
