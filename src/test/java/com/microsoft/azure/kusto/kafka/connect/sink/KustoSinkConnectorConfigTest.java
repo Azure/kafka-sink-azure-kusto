@@ -262,6 +262,20 @@ public class KustoSinkConnectorConfigTest {
         Assertions.assertEquals("my_mapping.v1", mappings[0].getMapping());
     }
 
+    @Test
+    public void shouldAcceptSimpleAlphanumericIdentifiers() throws JsonProcessingException {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'mytopic', 'db': 'mydb', 'table': 'mytable','format': 'csv','mapping': 'mymapping'}]");
+
+        TopicToTableMapping[] mappings = new KustoSinkConfig(settings).getTopicToTableMapping();
+        Assertions.assertEquals(1, mappings.length);
+        Assertions.assertEquals("mydb", mappings[0].getDb());
+        Assertions.assertEquals("mytable", mappings[0].getTable());
+        Assertions.assertEquals("mymapping", mappings[0].getMapping());
+    }
+
     public static HashMap<String, String> setupConfigs() {
         HashMap<String, String> configs = new HashMap<>();
         configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, DM_URL);

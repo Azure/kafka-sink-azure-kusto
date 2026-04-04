@@ -7,10 +7,10 @@ import org.apache.kafka.common.config.ConfigException;
 public class TopicToTableMapping {
     /**
      * Pattern for valid Kusto entity names (database, table, mapping names).
-     * Allows alphanumeric characters, underscores, hyphens, spaces, and dots.
+     * Allows alphanumeric characters, underscores, hyphens, and dots.
      * Rejects KQL metacharacters such as semicolons, single quotes, and pipes.
      */
-    static final Pattern VALID_KUSTO_IDENTIFIER_PATTERN = Pattern.compile("^[a-zA-Z0-9_ .\\-]+$");
+    static final Pattern VALID_KUSTO_IDENTIFIER_PATTERN = Pattern.compile("^[a-zA-Z0-9_.\\-]+$");
 
     /**
      * Pattern for valid ingestion format names. Only allows alphanumeric characters.
@@ -112,7 +112,7 @@ public class TopicToTableMapping {
     private static void validateKustoIdentifier(String fieldName, String value) {
         if (!VALID_KUSTO_IDENTIFIER_PATTERN.matcher(value).matches()) {
             throw new ConfigException(
-                    String.format("'%s' contains invalid characters: '%s'. Only alphanumeric characters, underscores, hyphens, spaces, and dots are allowed.",
+                    String.format("'%s' contains invalid characters: '%s'. Only alphanumeric characters, underscores, hyphens, and dots are allowed.",
                             fieldName, value));
         }
     }
