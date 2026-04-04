@@ -134,6 +134,11 @@ public class KustoSinkConfig extends AbstractConfig {
      */
     private void validateEndpointUrls() {
         boolean skipValidation = getBoolean(KUSTO_SINK_DISABLE_URL_VALIDATION);
+        if (skipValidation) {
+            log.warn("Kusto endpoint URL validation is disabled ({}=true). "
+                    + "This is not recommended for production use and may expose authentication tokens to non-Kusto endpoints.",
+                    KUSTO_SINK_DISABLE_URL_VALIDATION);
+        }
         KustoEndpointUrlValidator.validateUrl(getKustoIngestUrl(), KUSTO_INGEST_URL_CONF, skipValidation);
         String engineUrl = getKustoEngineUrl();
         if (engineUrl != null && !engineUrl.isEmpty()) {

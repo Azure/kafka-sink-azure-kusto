@@ -131,16 +131,27 @@ public final class KustoEndpointUrlValidator {
             return true;
         }
 
-        // IPv4: all digits and dots
-        boolean allDigitsAndDots = true;
-        for (int i = 0; i < host.length(); i++) {
-            char c = host.charAt(i);
-            if (c != '.' && (c < '0' || c > '9')) {
-                allDigitsAndDots = false;
-                break;
+        // IPv4: must be exactly 4 groups of 1-3 digits separated by dots
+        String[] parts = host.split("\\.", -1);
+        if (parts.length != 4) {
+            return false;
+        }
+        for (String part : parts) {
+            if (part.isEmpty() || part.length() > 3) {
+                return false;
+            }
+            for (int i = 0; i < part.length(); i++) {
+                char c = part.charAt(i);
+                if (c < '0' || c > '9') {
+                    return false;
+                }
+            }
+            int val = Integer.parseInt(part);
+            if (val < 0 || val > 255) {
+                return false;
             }
         }
-        return allDigitsAndDots;
+        return true;
     }
 }
 

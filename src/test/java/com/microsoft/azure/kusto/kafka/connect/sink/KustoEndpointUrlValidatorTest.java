@@ -181,6 +181,15 @@ public class KustoEndpointUrlValidatorTest {
         assertFalse(KustoEndpointUrlValidator.isIpAddress(""));
     }
 
+    @Test
+    public void shouldNotDetectInvalidIpPatterns() {
+        assertFalse(KustoEndpointUrlValidator.isIpAddress("..."));
+        assertFalse(KustoEndpointUrlValidator.isIpAddress("1.2.3.4.5"));
+        assertFalse(KustoEndpointUrlValidator.isIpAddress("999.999.999.999"));
+        assertFalse(KustoEndpointUrlValidator.isIpAddress("1.2.3"));
+        assertFalse(KustoEndpointUrlValidator.isIpAddress("1234"));
+    }
+
     // ======================== Override flag ========================
 
     @Test
