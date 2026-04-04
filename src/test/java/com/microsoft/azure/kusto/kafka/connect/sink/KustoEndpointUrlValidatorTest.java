@@ -10,6 +10,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests for {@link KustoEndpointUrlValidator} and URL validation in {@link KustoSinkConfig}.
+ *
+ * <p>The validator delegates domain matching to the azure-kusto-java SDK's
+ * {@code KustoTrustedEndpoints} (which reads {@code WellKnownKustoEndpoints.json}).
+ * HTTPS enforcement and IP address rejection are additional connector-level checks.
  */
 public class KustoEndpointUrlValidatorTest {
 
@@ -19,6 +23,7 @@ public class KustoEndpointUrlValidatorTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
+            // Public cloud
             "https://ingest-mycluster.kusto.windows.net",
             "https://mycluster.kusto.windows.net",
             "https://ingest-mycluster.eastus.kusto.windows.net",
@@ -27,14 +32,29 @@ public class KustoEndpointUrlValidatorTest {
             "https://mycluster.kusto.windows.net:443",                 // explicit port
             "https://mycluster.kusto.windows.net/some/path",           // with path
             "https://mycluster.kustomfa.windows.net",                  // MFA
-            "https://mycluster.kusto.chinacloudapi.cn",                // Azure China
-            "https://mycluster.kusto.cloudapi.de",                     // Azure Germany
-            "https://mycluster.kusto.usgovcloudapi.net",               // US Gov
-            "https://mycluster.kustodev.net",                          // Dev/Test
-            "https://mycluster.kusto.fabric.microsoft.com",            // Fabric
-            "https://mycluster.playfab.com",                           // PlayFab
-            "https://mycluster.azuresynapse.net",                      // Synapse
             "https://ingest-mycluster.eastus2.kusto.windows.net",      // regional
+            // Azure China
+            "https://mycluster.kusto.chinacloudapi.cn",
+            // US Gov
+            "https://mycluster.kusto.usgovcloudapi.net",
+            // Dev/Test
+            "https://mycluster.kustodev.windows.net",
+            // Fabric
+            "https://mycluster.kusto.fabric.microsoft.com",
+            // PlayFab
+            "https://mycluster.playfab.com",
+            // Synapse
+            "https://mycluster.kusto.azuresynapse.net",
+            // Additional SDK-recognized suffixes
+            "https://mycluster.playfabapi.com",
+            "https://mycluster.azureplayfab.com",
+            "https://mycluster.kusto.data.microsoft.com",
+            // Sovereign clouds (from SDK WellKnownKustoEndpoints.json)
+            "https://mycluster.kusto.core.eaglex.ic.gov",
+            "https://mycluster.kusto.core.microsoft.scloud",
+            "https://mycluster.kusto.sovcloud-api.fr",
+            "https://mycluster.kusto.sovcloud-api.de",
+            "https://mycluster.kusto.sovcloud-api.sg",
     })
     public void shouldAcceptValidKustoUrls(String url) {
         assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateKustoEndpointUrl(url, CONFIG_KEY));
@@ -75,20 +95,6 @@ public class KustoEndpointUrlValidatorTest {
         ConfigException e = assertThrows(ConfigException.class,
                 () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://[::1]", CONFIG_KEY));
         assertTrue(e.getMessage().contains("IP addresses are not allowed"));
-    }
-
-    @Test
-    public void shouldRejectLocalhost() {
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://localhost", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("does not point to a known Azure Data Explorer endpoint"));
-    }
-
-    @Test
-    public void shouldRejectLocalhostWithPort() {
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://localhost:9999", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("does not point to a known Azure Data Explorer endpoint"));
     }
 
     @Test
@@ -260,17 +266,14 @@ public class KustoEndpointUrlValidatorTest {
     }
 
     @Test
-    public void shouldAcceptAllAzureCloudDomainsInConfig() {
+    public void shouldAcceptPublicCloudDomainsInConfig() {
         String[] validUrls = {
                 "https://mycluster.kusto.windows.net",
                 "https://mycluster.kustomfa.windows.net",
-                "https://mycluster.kusto.chinacloudapi.cn",
-                "https://mycluster.kusto.cloudapi.de",
-                "https://mycluster.kusto.usgovcloudapi.net",
-                "https://mycluster.kustodev.net",
                 "https://mycluster.kusto.fabric.microsoft.com",
                 "https://mycluster.playfab.com",
-                "https://mycluster.azuresynapse.net",
+                "https://mycluster.kusto.azuresynapse.net",
+                "https://mycluster.kustodev.windows.net",
         };
 
         for (String url : validUrls) {
@@ -279,6 +282,27 @@ public class KustoEndpointUrlValidatorTest {
             configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, url);
             assertDoesNotThrow(() -> new KustoSinkConfig(configs),
                     "Should accept URL: " + url);
+        }
+    }
+
+    @Test
+    public void shouldAcceptSovereignCloudDomainsInConfig() {
+        String[] validUrls = {
+                "https://mycluster.kusto.chinacloudapi.cn",
+                "https://mycluster.kusto.usgovcloudapi.net",
+                "https://mycluster.kusto.core.eaglex.ic.gov",
+                "https://mycluster.kusto.core.microsoft.scloud",
+                "https://mycluster.kusto.sovcloud-api.fr",
+                "https://mycluster.kusto.sovcloud-api.de",
+                "https://mycluster.kusto.sovcloud-api.sg",
+        };
+
+        for (String url : validUrls) {
+            HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
+            configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, url);
+            configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, url);
+            assertDoesNotThrow(() -> new KustoSinkConfig(configs),
+                    "Should accept sovereign cloud URL: " + url);
         }
     }
 
