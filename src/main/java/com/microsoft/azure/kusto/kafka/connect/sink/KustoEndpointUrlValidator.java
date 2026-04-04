@@ -194,4 +194,3 @@ public final class KustoEndpointUrlValidator {
         return true;
     }
 }
-
