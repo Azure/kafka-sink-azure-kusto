@@ -188,6 +188,80 @@ public class KustoSinkConnectorConfigTest {
                 () -> new KustoSinkConfig(settings).getTopicToTableMapping());
     }
 
+    @Test
+    public void shouldRejectTableNameWithSemicolon() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': 'db1', 'table': 'TestTable; .show databases','format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldRejectDbNameWithSemicolon() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': 'testdb; .drop table X', 'table': 'table1','format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldRejectMappingNameWithSingleQuote() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': 'db1', 'table': 'table1','format': 'csv','mapping': \"m1' | .show databases\"}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldRejectFormatWithSpecialCharacters() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': 'db1', 'table': 'table1','format': 'json; .drop table'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldRejectTableNameWithPipeCharacter() {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': 'db1', 'table': 'TestTable | project Name','format': 'csv'}]");
+
+        Assertions.assertThrows(
+                ConfigException.class,
+                () -> new KustoSinkConfig(settings).getTopicToTableMapping());
+    }
+
+    @Test
+    public void shouldAcceptValidNamesWithDotsAndUnderscores() throws JsonProcessingException {
+        HashMap<String, String> settings = setupConfigs();
+        settings.put(
+                KustoSinkConfig.KUSTO_TABLES_MAPPING_CONF,
+                "[{'topic': 'topic1', 'db': 'my_db.prod', 'table': 'my_table-v2','format': 'json','mapping': 'my_mapping.v1'}]");
+
+        TopicToTableMapping[] mappings = new KustoSinkConfig(settings).getTopicToTableMapping();
+        Assertions.assertEquals(1, mappings.length);
+        Assertions.assertEquals("my_db.prod", mappings[0].getDb());
+        Assertions.assertEquals("my_table-v2", mappings[0].getTable());
+        Assertions.assertEquals("my_mapping.v1", mappings[0].getMapping());
+    }
+
     public static HashMap<String, String> setupConfigs() {
         HashMap<String, String> configs = new HashMap<>();
         configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, DM_URL);
