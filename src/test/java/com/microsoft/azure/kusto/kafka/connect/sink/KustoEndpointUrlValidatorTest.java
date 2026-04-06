@@ -13,7 +13,6 @@ import org.junit.jupiter.params.provider.ValueSource;
  *
  * <p>The validator delegates domain matching to the azure-kusto-java SDK's
  * {@code KustoTrustedEndpoints} (which reads {@code WellKnownKustoEndpoints.json}).
- * HTTPS enforcement and IP address rejection are additional connector-level checks.
  */
 public class KustoEndpointUrlValidatorTest {
 
@@ -23,7 +22,7 @@ public class KustoEndpointUrlValidatorTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
-            // Public cloud
+            // Public cloud - with scheme
             "https://ingest-mycluster.kusto.windows.net",
             "https://mycluster.kusto.windows.net",
             "https://ingest-mycluster.eastus.kusto.windows.net",
@@ -57,7 +56,22 @@ public class KustoEndpointUrlValidatorTest {
             "https://mycluster.kusto.sovcloud-api.sg",
     })
     public void shouldAcceptValidKustoUrls(String url) {
-        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateKustoEndpointUrl(url, CONFIG_KEY));
+        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateEndpointUrl(url, CONFIG_KEY));
+    }
+
+    // ======================== URLs without scheme ========================
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "mycluster.kusto.windows.net",
+            "ingest-mycluster.kusto.windows.net",
+            "mycluster.eastus.kusto.windows.net",
+            "mycluster.kusto.chinacloudapi.cn",
+            "mycluster.kusto.usgovcloudapi.net",
+            "mycluster.kusto.fabric.microsoft.com",
+    })
+    public void shouldAcceptUrlsWithoutScheme(String url) {
+        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateEndpointUrl(url, CONFIG_KEY));
     }
 
     // ======================== Invalid URLs ========================
@@ -65,71 +79,27 @@ public class KustoEndpointUrlValidatorTest {
     @Test
     public void shouldRejectNonKustoDomain() {
         ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://evil.attacker.com", CONFIG_KEY));
+                () -> KustoEndpointUrlValidator.validateEndpointUrl("https://evil.attacker.com", CONFIG_KEY));
         assertTrue(e.getMessage().contains("does not point to a known Azure Data Explorer endpoint"));
     }
 
     @Test
-    public void shouldRejectHttpUrl() {
+    public void shouldRejectNonKustoDomainWithoutScheme() {
         ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("http://mycluster.kusto.windows.net", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("Only HTTPS URLs are allowed"));
-    }
-
-    @Test
-    public void shouldRejectIpAddressV4() {
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://192.168.1.1", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("IP addresses are not allowed"));
-    }
-
-    @Test
-    public void shouldRejectIpAddressV4WithPort() {
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://10.0.0.1:443", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("IP addresses are not allowed"));
-    }
-
-    @Test
-    public void shouldRejectIpAddressV6() {
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://[::1]", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("IP addresses are not allowed"));
-    }
-
-    @Test
-    public void shouldRejectMalformedUrl() {
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("not-a-url", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("Invalid URL format"));
+                () -> KustoEndpointUrlValidator.validateEndpointUrl("evil.attacker.com", CONFIG_KEY));
+        assertTrue(e.getMessage().contains("does not point to a known Azure Data Explorer endpoint"));
     }
 
     @Test
     public void shouldRejectDomainSpoofWithKustoSubstring() {
-        // Attacker domain that contains kusto but is not a legitimate suffix
         ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://kusto.windows.net.evil.com", CONFIG_KEY));
+                () -> KustoEndpointUrlValidator.validateEndpointUrl("https://kusto.windows.net.evil.com", CONFIG_KEY));
         assertTrue(e.getMessage().contains("does not point to a known Azure Data Explorer endpoint"));
-    }
-
-    @Test
-    public void shouldRejectFtpScheme() {
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("ftp://mycluster.kusto.windows.net", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("Only HTTPS URLs are allowed"));
-    }
-
-    @Test
-    public void shouldRejectCloudMetadataEndpoint() {
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl("https://169.254.169.254", CONFIG_KEY));
-        assertTrue(e.getMessage().contains("IP addresses are not allowed"));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {
             "https://evil.attacker.com/ingest",
-            "https://172.26.0.1:9999/ingest",
             "https://internal-service.corp.net",
             "https://not-kusto.microsoft.com",
             "https://kusto-fake.windows.net",               // not *.kusto.windows.net
@@ -137,78 +107,24 @@ public class KustoEndpointUrlValidatorTest {
     })
     public void shouldRejectVariousAttackerUrls(String url) {
         assertThrows(ConfigException.class,
-                () -> KustoEndpointUrlValidator.validateKustoEndpointUrl(url, CONFIG_KEY));
+                () -> KustoEndpointUrlValidator.validateEndpointUrl(url, CONFIG_KEY));
     }
 
     // ======================== Null/Empty handling ========================
 
     @Test
     public void shouldAcceptNullUrl() {
-        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateKustoEndpointUrl(null, CONFIG_KEY));
+        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateEndpointUrl(null, CONFIG_KEY));
     }
 
     @Test
     public void shouldAcceptEmptyUrl() {
-        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateKustoEndpointUrl("", CONFIG_KEY));
+        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateEndpointUrl("", CONFIG_KEY));
     }
 
     @Test
     public void shouldAcceptWhitespaceUrl() {
-        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateKustoEndpointUrl("  ", CONFIG_KEY));
-    }
-
-    // ======================== IP address detection ========================
-
-    @Test
-    public void shouldDetectIpV4() {
-        assertTrue(KustoEndpointUrlValidator.isIpAddress("192.168.1.1"));
-        assertTrue(KustoEndpointUrlValidator.isIpAddress("10.0.0.1"));
-        assertTrue(KustoEndpointUrlValidator.isIpAddress("127.0.0.1"));
-        assertTrue(KustoEndpointUrlValidator.isIpAddress("169.254.169.254"));
-    }
-
-    @Test
-    public void shouldDetectIpV6() {
-        assertTrue(KustoEndpointUrlValidator.isIpAddress("[::1]"));
-        assertTrue(KustoEndpointUrlValidator.isIpAddress("::1"));
-        assertTrue(KustoEndpointUrlValidator.isIpAddress("fe80::1"));
-    }
-
-    @Test
-    public void shouldNotDetectDomainAsIp() {
-        assertFalse(KustoEndpointUrlValidator.isIpAddress("mycluster.kusto.windows.net"));
-        assertFalse(KustoEndpointUrlValidator.isIpAddress("localhost"));
-        assertFalse(KustoEndpointUrlValidator.isIpAddress("my-cluster.eastus.kusto.windows.net"));
-    }
-
-    @Test
-    public void shouldHandleNullAndEmptyInIpCheck() {
-        assertFalse(KustoEndpointUrlValidator.isIpAddress(null));
-        assertFalse(KustoEndpointUrlValidator.isIpAddress(""));
-    }
-
-    @Test
-    public void shouldNotDetectInvalidIpPatterns() {
-        assertFalse(KustoEndpointUrlValidator.isIpAddress("..."));
-        assertFalse(KustoEndpointUrlValidator.isIpAddress("1.2.3.4.5"));
-        assertFalse(KustoEndpointUrlValidator.isIpAddress("999.999.999.999"));
-        assertFalse(KustoEndpointUrlValidator.isIpAddress("1.2.3"));
-        assertFalse(KustoEndpointUrlValidator.isIpAddress("1234"));
-    }
-
-    // ======================== Override flag ========================
-
-    @Test
-    public void shouldSkipValidationWhenDisabled() {
-        // Should not throw even with an invalid URL when validation is disabled
-        assertDoesNotThrow(() ->
-                KustoEndpointUrlValidator.validateUrl("https://evil.attacker.com", CONFIG_KEY, true));
-    }
-
-    @Test
-    public void shouldValidateWhenNotDisabled() {
-        assertThrows(ConfigException.class, () ->
-                KustoEndpointUrlValidator.validateUrl("https://evil.attacker.com", CONFIG_KEY, false));
+        assertDoesNotThrow(() -> KustoEndpointUrlValidator.validateEndpointUrl("  ", CONFIG_KEY));
     }
 
     // ======================== Integration with KustoSinkConfig ========================
@@ -228,13 +144,6 @@ public class KustoEndpointUrlValidatorTest {
     }
 
     @Test
-    public void shouldRejectHttpIngestUrlInConfig() {
-        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
-        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, "http://mycluster.kusto.windows.net");
-        assertThrows(ConfigException.class, () -> new KustoSinkConfig(configs));
-    }
-
-    @Test
     public void shouldAcceptValidUrlsInConfig() {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
         // Uses default valid URLs from setupConfigs
@@ -242,27 +151,11 @@ public class KustoEndpointUrlValidatorTest {
     }
 
     @Test
-    public void shouldAcceptInvalidUrlWhenValidationDisabled() {
+    public void shouldAcceptUrlWithoutSchemeInConfig() {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
-        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, "https://evil.attacker.com");
-        configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, "https://evil.attacker.com");
-        configs.put(KustoSinkConfig.KUSTO_SINK_DISABLE_URL_VALIDATION, "true");
+        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, "ingest-mycluster.kusto.windows.net");
+        configs.put(KustoSinkConfig.KUSTO_ENGINE_URL_CONF, "mycluster.kusto.windows.net");
         assertDoesNotThrow(() -> new KustoSinkConfig(configs));
-    }
-
-    @Test
-    public void shouldRejectInvalidUrlWhenValidationExplicitlyEnabled() {
-        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
-        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, "https://evil.attacker.com");
-        configs.put(KustoSinkConfig.KUSTO_SINK_DISABLE_URL_VALIDATION, "false");
-        assertThrows(ConfigException.class, () -> new KustoSinkConfig(configs));
-    }
-
-    @Test
-    public void shouldRejectIpAddressInConfig() {
-        HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
-        configs.put(KustoSinkConfig.KUSTO_INGEST_URL_CONF, "https://172.26.0.1:9999/ingest");
-        assertThrows(ConfigException.class, () -> new KustoSinkConfig(configs));
     }
 
     @Test
@@ -311,23 +204,20 @@ public class KustoEndpointUrlValidatorTest {
     @Test
     public void shouldRejectInvalidUrlInConnectionStringBuilder() {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
-        configs.put(KustoSinkConfig.KUSTO_SINK_DISABLE_URL_VALIDATION, "true"); // bypass config validation
         KustoSinkConfig config = new KustoSinkConfig(configs);
 
-        // Now try to create a connection string with a malicious URL
-        // The defense-in-depth check is disabled here because the config flag says so
-        assertDoesNotThrow(() ->
+        // Defense-in-depth check should reject a malicious URL
+        assertThrows(ConfigException.class, () ->
                 KustoSinkTask.createKustoEngineConnectionString(config, "https://evil.attacker.com"));
     }
 
     @Test
-    public void shouldValidateUrlInConnectionStringBuilderWhenEnabled() {
+    public void shouldAcceptValidUrlInConnectionStringBuilder() {
         HashMap<String, String> configs = KustoSinkConnectorConfigTest.setupConfigs();
-        // URL validation is on (default)
         KustoSinkConfig config = new KustoSinkConfig(configs);
 
-        // Defense-in-depth check should reject this
-        assertThrows(ConfigException.class, () ->
-                KustoSinkTask.createKustoEngineConnectionString(config, "https://evil.attacker.com"));
+        // Valid Kusto URL should be accepted
+        assertDoesNotThrow(() ->
+                KustoSinkTask.createKustoEngineConnectionString(config, "https://mycluster.kusto.windows.net"));
     }
 }
