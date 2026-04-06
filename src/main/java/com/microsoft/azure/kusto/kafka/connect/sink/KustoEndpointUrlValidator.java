@@ -45,14 +45,14 @@ public final class KustoEndpointUrlValidator {
      * @throws ConfigException if the URL does not match any known trusted Kusto endpoint
      */
     public static void validateEndpointUrl(String url, String configKey) {
-        if (!StringUtils.isNotBlank(url)) {
+        if (StringUtils.isBlank(url)) {
             return;
         }
 
         url = url.trim();
 
-        // Prepend https:// if no scheme is provided
-        if (!url.contains("://")) {
+        // Prepend https:// if no scheme is provided (e.g. "mycluster.kusto.windows.net")
+        if (!url.startsWith("https://") && !url.startsWith("http://")) {
             url = HTTPS_SCHEME_PREFIX + url;
         }
 
