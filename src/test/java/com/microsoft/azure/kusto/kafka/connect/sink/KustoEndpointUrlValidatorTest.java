@@ -77,6 +77,13 @@ public class KustoEndpointUrlValidatorTest {
     // ======================== Invalid URLs ========================
 
     @Test
+    public void shouldRejectHttpUrl() {
+        ConfigException e = assertThrows(ConfigException.class,
+                () -> KustoEndpointUrlValidator.validateEndpointUrl("http://mycluster.kusto.windows.net", CONFIG_KEY));
+        assertTrue(e.getMessage().contains("HTTP is not supported"));
+    }
+
+    @Test
     public void shouldRejectNonKustoDomain() {
         ConfigException e = assertThrows(ConfigException.class,
                 () -> KustoEndpointUrlValidator.validateEndpointUrl("https://evil.attacker.com", CONFIG_KEY));

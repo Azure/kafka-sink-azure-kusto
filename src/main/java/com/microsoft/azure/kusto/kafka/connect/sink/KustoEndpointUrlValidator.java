@@ -51,11 +51,18 @@ public final class KustoEndpointUrlValidator {
 
         url = url.trim();
 
+        // Reject http:// URLs — only HTTPS is supported for Kusto endpoints
+        if (url.regionMatches(true, 0, "http://", 0, 7)) {
+            throw new ConfigException(configKey, url,
+                    "HTTP is not supported. Only HTTPS endpoints are allowed.");
+        }
+
         // Prepend https:// if no scheme is provided (e.g. "mycluster.kusto.windows.net")
-        if (!url.startsWith("https://") && !url.startsWith("http://")) {
+        if (!url.startsWith(HTTPS_SCHEME_PREFIX)) {
             url = HTTPS_SCHEME_PREFIX + url;
         }
 
+        // Parse into a URI object required by the SDK's validateTrustedEndpoint method
         URI uri;
         try {
             uri = new URI(url);

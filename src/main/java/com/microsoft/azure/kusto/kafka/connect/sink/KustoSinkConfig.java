@@ -122,7 +122,9 @@ public class KustoSinkConfig extends AbstractConfig {
 
     /**
      * Validates that configured Kusto endpoint URLs point to legitimate Azure Data Explorer domains.
-     * This check is performed at configuration time to fail fast and prevent SSRF attacks.
+     * Both the ingestion (DM) and engine URLs must be validated to prevent SSRF attacks, as either
+     * endpoint could be used to exfiltrate AAD authentication tokens.
+     * This check is performed at configuration time to fail fast.
      */
     private void validateEndpointUrls() {
         KustoEndpointUrlValidator.validateEndpointUrl(getKustoIngestUrl(), KUSTO_INGEST_URL_CONF);
