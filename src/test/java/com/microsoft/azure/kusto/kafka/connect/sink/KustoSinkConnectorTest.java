@@ -12,8 +12,8 @@ public class KustoSinkConnectorTest {
     public void testStart() {
         KustoSinkConnector kustoSinkConnector = new KustoSinkConnector();
         Map<String, String> mockProps = new HashMap<>();
-        mockProps.put("kusto.ingestion.url", "testValue");
-        mockProps.put("kusto.query.url", "testValue");
+        mockProps.put("kusto.ingestion.url", "https://ingest-testcluster.kusto.windows.net");
+        mockProps.put("kusto.query.url", "https://testcluster.kusto.windows.net");
         mockProps.put("aad.auth.appkey", "testValue");
         mockProps.put("aad.auth.appid", "testValue");
         mockProps.put("aad.auth.authority", "testValue");
@@ -30,8 +30,8 @@ public class KustoSinkConnectorTest {
         KustoSinkConnector kustoSinkConnector = new KustoSinkConnector();
 
         Map<String, String> mockProps = new HashMap<>();
-        mockProps.put("kusto.ingestion.url", "testValue");
-        mockProps.put("kusto.query.url", "testValue");
+        mockProps.put("kusto.ingestion.url", "https://ingest-testcluster.kusto.windows.net");
+        mockProps.put("kusto.query.url", "https://testcluster.kusto.windows.net");
         mockProps.put("aad.auth.appkey", "testValue");
         mockProps.put("aad.auth.appid", "testValue");
         mockProps.put("aad.auth.authority", "testValue");

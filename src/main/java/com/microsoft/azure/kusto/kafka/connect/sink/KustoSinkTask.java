@@ -76,6 +76,9 @@ public class KustoSinkTask extends SinkTask {
     }
 
     public static @NotNull ConnectionStringBuilder createKustoEngineConnectionString(@NotNull final KustoSinkConfig config, final String clusterUrl) {
+        // Defense-in-depth: validate the URL before passing it to ConnectionStringBuilder
+        KustoEndpointUrlValidator.validateEndpointUrl(clusterUrl, "clusterUrl");
+
         final ConnectionStringBuilder kcsb;
 
         switch (config.getAuthStrategy()) {
