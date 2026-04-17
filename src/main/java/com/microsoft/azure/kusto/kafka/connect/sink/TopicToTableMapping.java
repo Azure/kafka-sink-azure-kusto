@@ -1,9 +1,21 @@
 package com.microsoft.azure.kusto.kafka.connect.sink;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 import org.apache.kafka.common.config.ConfigException;
 
 public class TopicToTableMapping {
+    /**
+     * Pattern for valid Kusto entity names (database, table, mapping names).
+     * Allows alphanumeric characters, underscores, hyphens, and dots.
+     * Rejects KQL metacharacters such as semicolons, single quotes, and pipes.
+     */
+    static final Pattern VALID_KUSTO_IDENTIFIER_PATTERN = Pattern.compile("^[a-zA-Z0-9_.\\-]+$");
+
+    /**
+     * Pattern for valid ingestion format names. Only allows alphanumeric characters.
+     */
+    static final Pattern VALID_FORMAT_PATTERN = Pattern.compile("^[a-zA-Z0-9]+$");
     private String mapping;
     private String format;
     private String table;
@@ -82,6 +94,26 @@ public class TopicToTableMapping {
 
         if (null == topic || topic.isEmpty()) {
             throw new ConfigException("'topic' must be provided for each mapping");
+        }
+
+        validateKustoIdentifier("db", db);
+        validateKustoIdentifier("table", table);
+        if (mapping != null && !mapping.isEmpty()) {
+            validateKustoIdentifier("mapping", mapping);
+        }
+        if (format != null && !format.isEmpty()) {
+            if (!VALID_FORMAT_PATTERN.matcher(format).matches()) {
+                throw new ConfigException(
+                        String.format("'format' contains invalid characters: '%s'. Only alphanumeric characters are allowed.", format));
+            }
+        }
+    }
+
+    private static void validateKustoIdentifier(String fieldName, String value) {
+        if (!VALID_KUSTO_IDENTIFIER_PATTERN.matcher(value).matches()) {
+            throw new ConfigException(
+                    String.format("'%s' contains invalid characters: '%s'. Only alphanumeric characters, underscores, hyphens, and dots are allowed.",
+                            fieldName, value));
         }
     }
 

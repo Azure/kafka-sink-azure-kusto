@@ -226,7 +226,7 @@ public class KustoSinkTask extends SinkTask {
         String format = mapping.getFormat();
         String mappingName = mapping.getMapping();
         boolean streamingEnabled = mapping.isStreaming();
-        if (isDataFormatAnyTypeOfJson(format)) {
+        if (StringUtils.isNotBlank(format) && isDataFormatAnyTypeOfJson(format)) {
             format = IngestionProperties.DataFormat.JSON.name();
         }
         boolean hasAccess = false;
