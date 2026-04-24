@@ -45,8 +45,11 @@ a separate, gated workflow.
 **When they run automatically**
 
 - On every push to `master` (already trusted).
+- On every PR whose branch lives **inside** `Azure/kafka-sink-azure-kusto`
+  (same-repo PRs from maintainers). These are trusted because only users
+  with write access can push branches into the repo.
 
-**When they run for a pull request**
+**When they run for a pull request from a fork**
 
 Only after a maintainer applies the **`safe-to-test`** label to the PR.
 GitHub's built-in "Approve and run" button for first-time contributors
@@ -65,6 +68,10 @@ is how we grant that access in a controlled way.
    disables credential persistence on the checkout step.
 
 ### Maintainer checklist (triggering integration tests on a fork PR)
+
+> Same-repo PRs (branches inside `Azure/kafka-sink-azure-kusto`) run
+> integration tests automatically — no labeling required. The steps
+> below apply only to PRs opened from a fork.
 
 1. Review the diff for anything suspicious — build scripts, workflow
    files, shell invocations in tests, new dependencies, etc. Treat the
