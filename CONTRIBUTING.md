@@ -25,7 +25,8 @@ safely without exposing Azure credentials to untrusted code.
 Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 
 - Runs on every `push` and every `pull_request`, including PRs from forks.
-- Executes `mvn clean verify -DskipITs`: compile, unit tests, style checks.
+- Executes `mvn clean verify -DskipITs`: compile and unit tests (with
+  integration tests skipped).
 - Does **not** reference any secrets, so it always runs to completion
   regardless of who opened the PR.
 
