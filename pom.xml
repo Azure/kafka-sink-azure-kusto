@@ -49,7 +49,7 @@
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
         <!-- Netty version to resolve conflicts -->
         <jackson.version>2.21.1</jackson.version>
-        <netty.version>4.1.132.Final</netty.version>
+        <netty.version>4.2.12.Final</netty.version>
     </properties>
     <dependencyManagement>
         <dependencies>
