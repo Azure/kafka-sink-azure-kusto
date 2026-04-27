@@ -14,6 +14,10 @@ updates:
     labels:
       - "dependencies"
       - "java"
+    # Dependabot scans ALL Maven dependencies (direct and transitive via pom.xml)
+    # by default. The groups below only control how PRs are bundled — anything
+    # not matching a named group falls into the "all-other-production" or
+    # "all-other-development" catch-all groups, so every dependency is covered.
     groups:
       netty:
         patterns:
@@ -29,8 +33,21 @@ updates:
         patterns:
           - "org.apache.kafka:*"
           - "io.confluent:*"
-      test-dependencies:
+      all-other-production:
+        dependency-type: "production"
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "io.netty:*"
+          - "com.fasterxml.jackson*:*"
+          - "com.azure:*"
+          - "com.microsoft.azure*:*"
+          - "org.apache.kafka:*"
+          - "io.confluent:*"
+      all-other-development:
         dependency-type: "development"
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
