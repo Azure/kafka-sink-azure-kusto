@@ -1,0 +1,42 @@
+# Dependabot configuration for proactive dependency updates and security patches.
+# - Maven: keeps runtime/test dependencies (incl. Netty, Jackson, Kafka, Azure SDKs) current.
+# - GitHub Actions: prevents pinned actions from going stale (e.g., the v1.7.1 osv-scanner-action
+#   regression caused by transitive use of the deprecated actions/upload-artifact@v3).
+# Security updates are always opened regardless of the schedule below.
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "java"
+    groups:
+      netty:
+        patterns:
+          - "io.netty:*"
+      jackson:
+        patterns:
+          - "com.fasterxml.jackson*:*"
+      azure-sdk:
+        patterns:
+          - "com.azure:*"
+          - "com.microsoft.azure*:*"
+      kafka:
+        patterns:
+          - "org.apache.kafka:*"
+          - "io.confluent:*"
+      test-dependencies:
+        dependency-type: "development"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
