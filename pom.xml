@@ -14,8 +14,8 @@
         <az.core.version>1.57.0</az.core.version>
         <az.core.http.netty.version>1.16.2</az.core.http.netty.version>
         <az.identity.version>1.18.1</az.identity.version>
-        <commoncodec.version>1.20.0</commoncodec.version>
-        <commonio.version>2.21.0</commonio.version>
+        <commoncodec.version>1.22.0</commoncodec.version>
+        <commonio.version>2.22.0</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
         <kusto.sdk.version>7.0.5</kusto.sdk.version>
         <kafka.version>4.1.1</kafka.version>
@@ -33,7 +33,7 @@
         <kafka.connect.avro.converter.version>8.1.1</kafka.connect.avro.converter.version>
         <!-- Plugin dependencies -->
         <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
-        <extra.enforcer.rules.version>1.11.0</extra.enforcer.rules.version>
+        <extra.enforcer.rules.version>1.12.0</extra.enforcer.rules.version>
         <formatter.version>2.29.0</formatter.version>
         <spotless.version>3.1.0</spotless.version>
         <maven.enforcer.plugin.version>3.6.2</maven.enforcer.plugin.version>
