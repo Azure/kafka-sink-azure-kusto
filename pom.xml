@@ -18,7 +18,7 @@
         <commonio.version>2.21.0</commonio.version>
         <json.smart.version>2.6.0</json.smart.version>
         <kusto.sdk.version>7.0.5</kusto.sdk.version>
-        <kafka.version>4.1.1</kafka.version>
+        <kafka.version>4.2.0</kafka.version>
         <reactor.netty.version>1.3.2</reactor.netty.version>
         <!-- Test dependencies -->
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
@@ -30,7 +30,7 @@
         <vavr.version>0.10.4</vavr.version>
         <resilience4j.version>1.7.1</resilience4j.version>
         <!-- Provided dependencies -->
-        <kafka.connect.avro.converter.version>8.1.1</kafka.connect.avro.converter.version>
+        <kafka.connect.avro.converter.version>8.2.0</kafka.connect.avro.converter.version>
         <!-- Plugin dependencies -->
         <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
         <extra.enforcer.rules.version>1.11.0</extra.enforcer.rules.version>
