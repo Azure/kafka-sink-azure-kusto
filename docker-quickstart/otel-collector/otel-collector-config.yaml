@@ -1,0 +1,85 @@
+# OpenTelemetry Collector Contrib configuration.
+# Scrapes JMX metrics from Kafka Connect (via Prometheus JMX Exporter)
+# and exports them to Azure Data Explorer (Kusto).
+
+receivers:
+  # Scrape Prometheus metrics from the JMX Exporter endpoint on Kafka Connect
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "kafka-connect-jmx"
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["kafka-connect:9404"]
+              labels:
+                service: "kafka-connect"
+                connector: "kusto-sink"
+        - job_name: "kafka-broker-jmx"
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["kafka:9405"]
+              labels:
+                service: "kafka-broker"
+
+processors:
+  # Batch metrics before exporting to reduce API calls
+  batch:
+    send_batch_size: 100
+    timeout: 10s
+
+  # Add resource attributes for better identification in Kusto
+  resource:
+    attributes:
+      - key: service.name
+        value: "kusto-kafka-connect"
+        action: upsert
+      - key: deployment.environment
+        value: "docker-quickstart"
+        action: upsert
+
+  # Transform: replace NaN values with 0 to avoid ADX serialization errors
+  transform:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(value_double, 0.0) where value_double != value_double
+
+  # Only keep kusto_sink, kafka_connect, and kafka broker metrics
+  filter:
+    metrics:
+      include:
+        match_type: regexp
+        metric_names:
+          - "^kusto_sink_.*"
+          - "^kafka_connect_.*"
+          - "^kafka_server_.*"
+          - "^kafka_controller_.*"
+          - "^kafka_log_.*"
+          - "^kafka_network_.*"
+
+exporters:
+  # Export metrics to Azure Data Explorer (Kusto)
+  # cluster_uri must be the ENGINE URL, not the ingest URL
+  azuredataexplorer:
+    cluster_uri: ${env:OTEL_KUSTO_CLUSTER_URL}
+    application_id: ${env:OTEL_KUSTO_APP_ID}
+    application_key: ${env:OTEL_KUSTO_APP_KEY}
+    tenant_id: ${env:OTEL_KUSTO_TENANT_ID}
+    db_name: ${env:OTEL_KUSTO_DATABASE}
+    metrics_table_name: ${env:OTEL_KUSTO_METRICS_TABLE}
+    ingestion_type: "managed"
+
+  # Also log to stdout for debugging
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [filter, transform, batch, resource]
+      exporters: [azuredataexplorer, debug]
+
+  telemetry:
+    logs:
+      level: debug

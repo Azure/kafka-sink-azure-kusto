@@ -65,7 +65,8 @@ public class KustoSinkConfig extends AbstractConfig {
     private static final String KUSTO_AUTH_STRATEGY_DISPLAY = "Kusto Auth Strategy";
     private static final String KUSTO_TABLES_MAPPING_DOC = """
             A JSON array mapping ingestion from topic to table, e.g: \
-            [{'topic1':'t1','db':'kustoDb', 'table': 'table1', 'format': 'csv', 'mapping': 'csvMapping', 'streaming': 'false'}..].
+            [{'topic':'topic1','db':'kustoDb', 'table': 'table1', 'format': 'csv', 'mapping': 'csvMapping', 'streaming': 'false'}..].
+            The 'topic' field also supports '*' as a wildcard. If a record's topic is not explicitly mapped, the wildcard mapping (if present) will be used.
             Streaming is optional, defaults to false. Mind usage and cogs of streaming ingestion, read here: https://docs.microsoft.com/en-us/azure/data-explorer/ingest-data-streaming.
             Note: If the streaming ingestion fails transiently,\
              queued ingest would apply for this specific batch ingestion. Batching latency is configured regularly via\
@@ -113,10 +114,25 @@ public class KustoSinkConfig extends AbstractConfig {
 
     public KustoSinkConfig(ConfigDef config, Map<String, String> parsedConfig) {
         super(config, parsedConfig);
+        validateEndpointUrls();
     }
 
     public KustoSinkConfig(Map<String, String> parsedConfig) {
         this(getConfig(), parsedConfig);
+    }
+
+    /**
+     * Validates that configured Kusto endpoint URLs point to legitimate Azure Data Explorer domains.
+     * Both the ingestion (DM) and engine URLs must be validated to prevent SSRF attacks, as either
+     * endpoint could be used to exfiltrate AAD authentication tokens.
+     * This check is performed at configuration time to fail fast.
+     */
+    private void validateEndpointUrls() {
+        KustoEndpointUrlValidator.validateEndpointUrl(getKustoIngestUrl(), KUSTO_INGEST_URL_CONF);
+        String engineUrl = getKustoEngineUrl();
+        if (StringUtils.isNotBlank(engineUrl)) {
+            KustoEndpointUrlValidator.validateEndpointUrl(engineUrl, KUSTO_ENGINE_URL_CONF);
+        }
     }
 
     public static ConfigDef getConfig() {

@@ -1,0 +1,103 @@
+# JMX Exporter configuration for the Kafka broker.
+# Exposes key broker metrics via Prometheus format on port 9404.
+
+---
+startDelaySeconds: 5
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  # Broker topic metrics (messages in, bytes in/out, fetch requests, produce requests)
+  - pattern: "kafka.server<type=BrokerTopicMetrics, name=([\\w-]+), topic=([\\w-]+)><>(Count|OneMinuteRate)"
+    name: "kafka_server_broker_topic_$1"
+    help: "Kafka broker topic metric: $1"
+    labels:
+      topic: "$2"
+      aggregate: "$3"
+    type: GAUGE
+
+  # Broker-wide topic metrics (aggregated across all topics)
+  - pattern: "kafka.server<type=BrokerTopicMetrics, name=([\\w-]+)><>(Count|OneMinuteRate)"
+    name: "kafka_server_broker_$1"
+    help: "Kafka broker aggregate metric: $1"
+    labels:
+      aggregate: "$2"
+    type: GAUGE
+
+  # Under-replicated partitions
+  - pattern: "kafka.server<type=ReplicaManager, name=UnderReplicatedPartitions><>Value"
+    name: "kafka_server_under_replicated_partitions"
+    help: "Number of under-replicated partitions"
+    type: GAUGE
+
+  # Partition count
+  - pattern: "kafka.server<type=ReplicaManager, name=PartitionCount><>Value"
+    name: "kafka_server_partition_count"
+    help: "Number of partitions on this broker"
+    type: GAUGE
+
+  # Leader count
+  - pattern: "kafka.server<type=ReplicaManager, name=LeaderCount><>Value"
+    name: "kafka_server_leader_count"
+    help: "Number of partition leaders on this broker"
+    type: GAUGE
+
+  # Active controller count
+  - pattern: "kafka.controller<type=KafkaController, name=ActiveControllerCount><>Value"
+    name: "kafka_controller_active_count"
+    help: "Is this broker the active controller (1=yes)"
+    type: GAUGE
+
+  # Offline partitions count
+  - pattern: "kafka.controller<type=KafkaController, name=OfflinePartitionsCount><>Value"
+    name: "kafka_controller_offline_partitions"
+    help: "Number of offline partitions"
+    type: GAUGE
+
+  # Log end offset per topic-partition (for calculating consumer lag)
+  - pattern: "kafka.log<type=Log, name=LogEndOffset, topic=([\\w-]+), partition=(\\d+)><>Value"
+    name: "kafka_log_end_offset"
+    help: "Log end offset for a topic partition"
+    labels:
+      topic: "$1"
+      partition: "$2"
+    type: GAUGE
+
+  # Log start offset per topic-partition
+  - pattern: "kafka.log<type=Log, name=LogStartOffset, topic=([\\w-]+), partition=(\\d+)><>Value"
+    name: "kafka_log_start_offset"
+    help: "Log start offset for a topic partition"
+    labels:
+      topic: "$1"
+      partition: "$2"
+    type: GAUGE
+
+  # Log size per topic-partition
+  - pattern: "kafka.log<type=Log, name=Size, topic=([\\w-]+), partition=(\\d+)><>Value"
+    name: "kafka_log_size_bytes"
+    help: "Log size in bytes for a topic partition"
+    labels:
+      topic: "$1"
+      partition: "$2"
+    type: GAUGE
+
+  # Request handler pool utilization
+  - pattern: "kafka.server<type=KafkaRequestHandlerPool, name=RequestHandlerAvgIdlePercent><>OneMinuteRate"
+    name: "kafka_server_request_handler_avg_idle"
+    help: "Average idle percentage of request handler threads"
+    type: GAUGE
+
+  # Network processor idle percent
+  - pattern: "kafka.network<type=SocketServer, name=NetworkProcessorAvgIdlePercent><>Value"
+    name: "kafka_network_processor_avg_idle"
+    help: "Average idle percentage of network processor threads"
+    type: GAUGE
+
+  # Request metrics (produce and fetch latency)
+  - pattern: "kafka.network<type=RequestMetrics, name=TotalTimeMs, request=(Produce|FetchConsumer|FetchFollower)><>(Mean|99thPercentile)"
+    name: "kafka_network_request_total_time_ms"
+    help: "Request total time in ms"
+    labels:
+      request: "$1"
+      aggregate: "$2"
+    type: GAUGE

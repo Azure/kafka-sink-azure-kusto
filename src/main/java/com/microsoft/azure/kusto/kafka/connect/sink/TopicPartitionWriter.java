@@ -51,6 +51,7 @@ public class TopicPartitionWriter {
     private final String dlqTopicName;
     private final Producer<byte[], byte[]> dlqProducer;
     private final BehaviorOnError behaviorOnError;
+    private final KustoSinkMetrics metrics;
     FileWriter fileWriter;
     long currentOffset;
     Long lastCommittedOffset;
@@ -58,6 +59,12 @@ public class TopicPartitionWriter {
 
     TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
             @NotNull KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer) {
+        this(tp, client, ingestionProps, config, isDlqEnabled, dlqTopicName, dlqProducer, null);
+    }
+
+    TopicPartitionWriter(TopicPartition tp, IngestClient client, TopicIngestionProperties ingestionProps,
+            @NotNull KustoSinkConfig config, boolean isDlqEnabled, String dlqTopicName, Producer<byte[], byte[]> dlqProducer,
+            KustoSinkMetrics metrics) {
         this.tp = tp;
         this.client = client;
         this.ingestionProps = ingestionProps;
@@ -72,6 +79,7 @@ public class TopicPartitionWriter {
         this.isDlqEnabled = isDlqEnabled;
         this.dlqTopicName = dlqTopicName;
         this.dlqProducer = dlqProducer;
+        this.metrics = metrics;
     }
 
     static @NotNull String getTempDirectoryName(String tempDirPath) {
@@ -92,6 +100,9 @@ public class TopicPartitionWriter {
          */
         for (int retryAttempts = 0; true; retryAttempts++) {
             try {
+                if (metrics != null) {
+                    metrics.incrementIngestionAttempts();
+                }
                 IngestionResult ingestionResult = client.ingestFromFile(fileSourceInfo, ingestionProps.ingestionProperties);
                 if (ingestionProps.streaming && ingestionResult instanceof IngestionStatusResult) {
                     // If IngestionStatusResult returned then the ingestion status is from streaming ingest
@@ -112,6 +123,9 @@ public class TopicPartitionWriter {
                 log.info("Kusto ingestion: file ({}) of size ({}) at current offset ({}) with status ({})",
                         fileDescriptor.path, fileDescriptor.rawBytes, currentOffset, ingestionStatus);
                 this.lastCommittedOffset = currentOffset;
+                if (metrics != null) {
+                    metrics.incrementIngestionSuccesses();
+                }
                 return;
             } catch (IngestionServiceException exception) {
                 if (ingestionProps.streaming) {
@@ -125,6 +139,9 @@ public class TopicPartitionWriter {
                 // retrying transient exceptions
                 backOffForRemainingAttempts(retryAttempts, exception, fileDescriptor);
             } catch (IngestionClientException | URISyntaxException exception) {
+                if (metrics != null) {
+                    metrics.incrementIngestionFailures();
+                }
                 throw new ConnectException(exception);
             }
         }
@@ -176,6 +193,9 @@ public class TopicPartitionWriter {
                         exception);
             }
         } else {
+            if (metrics != null) {
+                metrics.incrementIngestionFailures();
+            }
             if (isDlqEnabled && behaviorOnError != BehaviorOnError.FAIL) {
                 log.warn("Writing {} failed records to miscellaneous dead-letter " +
                         "queue topic={}. Retry attempt {} of {}",
@@ -188,6 +208,9 @@ public class TopicPartitionWriter {
     }
 
     public void sendFailedRecordToDlq(@NotNull SinkRecord sinkRecord) {
+        if (metrics != null) {
+            metrics.incrementDlqRecordsSent();
+        }
         byte[] recordKey = String.format("Failed to write sinkRecord to KustoDB with the following kafka coordinates, "
                 + "topic=%s, partition=%s, offset=%s.",
                 sinkRecord.topic(),
@@ -223,7 +246,13 @@ public class TopicPartitionWriter {
             try (AutoCloseableLock ignored = new AutoCloseableLock(reentrantReadWriteLock.readLock())) {
                 this.currentOffset = sinkRecord.kafkaOffset();
                 fileWriter.writeData(sinkRecord);
+                if (metrics != null) {
+                    metrics.incrementRecordsWritten();
+                }
             } catch (IOException | DataException ex) {
+                if (metrics != null) {
+                    metrics.incrementRecordsFailed();
+                }
                 handleErrors(sinkRecord, ex);
             }
         }
