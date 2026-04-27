@@ -332,7 +332,11 @@ public class KustoSinkTask extends SinkTask {
     }
 
     public TopicIngestionProperties getIngestionProps(String topic) {
-        return topicsToIngestionProps.get(topic);
+        TopicIngestionProperties props = topicsToIngestionProps.get(topic);
+        if (props == null && topicsToIngestionProps.containsKey("*")) {
+            props = topicsToIngestionProps.get("*");
+        }
+        return props;
     }
 
     void validateTableMappings(@NotNull KustoSinkConfig config) {

@@ -226,6 +226,11 @@ class KustoSinkIT {
         connectorProps.put("proxy.host", PROXY.getContainerId().substring(0, 12));
         connectorProps.put("proxy.port", ListUtils.getFirst(PROXY.getExposedPorts()));
         connectorProps.putAll(overrideProps);
+        if (connectorProps.containsKey("topics.regex")) {
+            connectorProps.remove("topics");
+        }
+        // Drop any keys explicitly set to null via overrideProps.
+        connectorProps.values().removeIf(Objects::isNull);
         String connectorName = overrideProps.getOrDefault("connector.name",
                 "adx-connector-%s".formatted(dataFormat)).toString();
         kcHelper.registerConnector(connectorName, connectorProps);
@@ -234,6 +239,61 @@ class KustoSinkIT {
         kcHelper.waitUntilConnectorTaskStateChanges(connectorName, 0, "RUNNING");
         LOGGER.info("Connector state for {} : {}. ", dataFormat,
                 kcHelper.getConnectorTaskState(connectorName, 0));
+    }
+
+    @org.junit.jupiter.api.Test
+    void shouldHandleWildcardSubscription() throws IOException {
+        Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
+        String dataFormat = "json";
+        String vtype = "wildcard-json";
+        String topicRegex = "wildcard\\..*";
+        String topic1 = "wildcard.topic1";
+        String topic2 = "wildcard.topic2";
+        // Wildcard mapping: '*' matches any topic not explicitly mapped.
+        String topicTableMapping = "[{'topic': '*','db': '%s', 'table': '%s','format':'%s','mapping':'data_mapping'}]"
+                .formatted(coordinates.database, coordinates.table, dataFormat);
+        Map<String, Object> overrideProps = new HashMap<>();
+        overrideProps.put("connector.name", "adx-connector-wildcard");
+        overrideProps.put("topics", null); // remove default 'topics' (mutually exclusive with topics.regex)
+        overrideProps.put("topics.regex", topicRegex);
+        String srUrl = "http://%s:%s".formatted(SCHEMA_REGISTRY.getContainerId().substring(0, 12), SR_PORT);
+        deployConnector(dataFormat, topicTableMapping, srUrl,
+                "org.apache.kafka.connect.storage.StringConverter",
+                "org.apache.kafka.connect.storage.StringConverter", overrideProps);
+
+        int recordsPerTopic = 5;
+        Map<Long, String> expectedRecordsProduced = new HashMap<>();
+        expectedRecordsProduced.putAll(produceJsonKafkaMessages(topic1, vtype, recordsPerTopic));
+        expectedRecordsProduced.putAll(produceJsonKafkaMessages(topic2, vtype, recordsPerTopic));
+
+        String query = "%s | where vtype == '%s' | project %s,vresult = pack_all()"
+                .formatted(coordinates.table, vtype, KEY_COLUMN);
+        performDataAssertions(recordsPerTopic * 2, expectedRecordsProduced, query);
+    }
+
+    private @NotNull Map<Long, String> produceJsonKafkaMessages(@NotNull String topic, @NotNull String vtype, int maxRecords) throws IOException {
+        Map<String, Object> producerProperties = new HashMap<>();
+        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+        producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        Generator.Builder builder = new Generator.Builder().schemaString(IOUtils.toString(
+                Objects.requireNonNull(this.getClass().getClassLoader().getResourceAsStream("it-avro.avsc")),
+                StandardCharsets.UTF_8));
+        Generator randomDataBuilder = builder.build();
+        Map<Long, String> expectedRecordsProduced = new HashMap<>();
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties)) {
+            for (int i = 0; i < maxRecords; i++) {
+                GenericRecord genericRecord = (GenericRecord) randomDataBuilder.generate();
+                genericRecord.put("vtype", vtype);
+                Map<String, Object> jsonRecordMap = genericRecord.getSchema().getFields().stream()
+                        .collect(Collectors.toMap(Schema.Field::name, field -> genericRecord.get(field.name())));
+                String jsonValue = OBJECT_MAPPER.writeValueAsString(jsonRecordMap);
+                ProducerRecord<String, String> producerRecord = new ProducerRecord<>(topic, 0, "Key-" + topic + "-" + i, jsonValue);
+                expectedRecordsProduced.put(Long.valueOf(jsonRecordMap.get(KEY_COLUMN).toString()), jsonValue);
+                producer.send(producerRecord);
+            }
+        }
+        return expectedRecordsProduced;
     }
 
     @Execution(ExecutionMode.CONCURRENT)
