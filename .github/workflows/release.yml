@@ -39,7 +39,7 @@ jobs:
           cp target/*.jar staging
           cp target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-${{ steps.get_version.outputs.VERSION }}.zip staging
       - name: Github Release
-        uses: anton-yurchenko/git-release@v5.0.1
+        uses: anton-yurchenko/git-release@v6.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
