@@ -24,28 +24,28 @@
         <avro.random.generator.version>0.4.1</avro.random.generator.version>
         <awaitility.version>4.3.0</awaitility.version>
         <jsonassert.version>1.5.3</jsonassert.version>
-        <junit.version>5.11.0</junit.version>
-        <mockito.version>5.21.0</mockito.version>
+        <junit.version>6.0.3</junit.version>
+        <mockito.version>5.23.0</mockito.version>
         <testcontainer.version>1.21.4</testcontainer.version>
-        <vavr.version>0.10.4</vavr.version>
-        <resilience4j.version>1.7.1</resilience4j.version>
+        <vavr.version>1.0.1</vavr.version>
+        <resilience4j.version>2.4.0</resilience4j.version>
         <!-- Provided dependencies -->
         <kafka.connect.avro.converter.version>8.1.1</kafka.connect.avro.converter.version>
         <!-- Plugin dependencies -->
-        <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
+        <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
         <extra.enforcer.rules.version>1.11.0</extra.enforcer.rules.version>
         <formatter.version>2.29.0</formatter.version>
-        <spotless.version>3.1.0</spotless.version>
+        <spotless.version>3.4.0</spotless.version>
         <maven.enforcer.plugin.version>3.6.2</maven.enforcer.plugin.version>
         <mvn.assembly.plugin.version>3.8.0</mvn.assembly.plugin.version>
-        <mvn.compiler.plugin.version>3.14.1</mvn.compiler.plugin.version>
-        <mvn.failsafe.plugin.version>3.5.4</mvn.failsafe.plugin.version>
+        <mvn.compiler.plugin.version>3.15.0</mvn.compiler.plugin.version>
+        <mvn.failsafe.plugin.version>3.5.5</mvn.failsafe.plugin.version>
         <mvn.surefire.plugin.version>3.0.0</mvn.surefire.plugin.version>
         <plexus.version>4.0.2</plexus.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <source.java.version>17</source.java.version>
         <!-- Shade plugin -->
-        <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
+        <maven.shade.plugin.version>3.6.2</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
         <!-- Netty version to resolve conflicts -->
         <jackson.version>2.21.1</jackson.version>
