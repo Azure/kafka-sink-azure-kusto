@@ -48,7 +48,7 @@
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
         <!-- Netty version to resolve conflicts -->
-        <jackson.version>2.21.1</jackson.version>
+        <jackson.version>2.21.3</jackson.version>
         <netty.version>4.2.12.Final</netty.version>
     </properties>
     <dependencyManagement>
