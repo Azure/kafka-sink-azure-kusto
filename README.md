@@ -804,6 +804,7 @@ the [Release History](README.md#17-release-history) section of this document.
 | 5.2.2           | 2026-04-09   | <ul><li>Security fix: Add endpoint URL validation to prevent SSRF attacks via `kusto.ingestion.url` and `kusto.query.url` configuration properties. URLs are now validated against the SDK's trusted Azure Data Explorer endpoints (WellKnownKustoEndpoints.json) at configuration time and as a defense-in-depth check before creating connection strings.</li><li>Add comprehensive test coverage for endpoint URL validation across all Azure clouds and sovereign regions</li><li>Fix CVE-2026-33870 and CVE-2026-33871 by upgrading Netty to 4.1.132.Final</li></ul> |
 | 5.2.3           | 2026-04-17   | <ul><li>Security fix: Mitigate KQL command injection (CWE-943) in `kusto.tables.topics.mapping` by validating `db`, `table`, `mapping`, and `format` fields against an allowlist before interpolation into KQL commands</li></ul> |
 | 5.3.0           | 2026-04-27   | <ul><li>Add wildcard (`*`) topic-to-table mapping support in `kusto.tables.topics.mapping` to provide a default ingestion configuration for topics that are not explicitly mapped</li></ul> |
+| 5.3.1           | 2026-05-20   | <ul><li>Security fix: Bump Netty to 4.2.13.Final to remediate CVE-2026-42583, CVE-2026-42579, CVE-2026-42584, CVE-2026-42587, CVE-2026-41417, CVE-2026-42580, CVE-2026-42581, CVE-2026-42585, and CVE-2026-42578</li></ul> |
 
 ## 18. Contributing
 
