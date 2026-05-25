@@ -2,68 +2,54 @@ name: Integration Tests
 
 # Tier 2: privileged checks that require Azure credentials.
 #
-# Triggers:
-#   - push to master (trusted, secrets always available)
-#   - pull_request_target with the `safe-to-test` label applied by a
-#     maintainer (a user with write / maintain / admin permission).
+# SECURITY MODEL
+# --------------
+# This workflow handles Microsoft-owned Azure OIDC and Kusto application
+# credentials. To prevent credential exfiltration via attacker-controlled
+# build code (pom.xml, test sources, Maven plugins, etc.), it MUST NOT
+# execute code that originates from an untrusted fork.
 #
-# Hardening:
-#   1. The workflow runs only when the `labeled` event fires with the
-#      `safe-to-test` label. A normal `opened`/`edited` PR event will not
-#      trigger the privileged job.
-#   2. The `safe-to-test` label is automatically stripped whenever new
-#      commits are pushed (`synchronize`), so a maintainer must re-review
-#      and re-apply it for every new revision of the PR.
-#   3. The user who applied the label must have at least `write`
-#      permission on the repository; otherwise the job fails before any
-#      PR code is executed.
-#   4. The PR head is checked out by its exact commit SHA.
+# Allowed triggers (all are trusted base-branch code):
+#   1. push to master — only collaborators with write access can push.
+#   2. pull_request_target from a branch in THIS repository — the head
+#      branch lives in Azure/kafka-sink-azure-kusto and is therefore
+#      only writable by collaborators with write access.
+#
+# Fork PRs are NEVER run by this workflow, even when a maintainer
+# labels them. Fork PRs are exercised by `ci.yml`, which builds and
+# runs unit tests without any secrets. To run integration tests
+# against a fork contribution, a maintainer must first re-create the
+# change as a branch inside this repository (e.g. via `gh pr checkout`
+# followed by pushing to a maintainer-owned branch here) and open a
+# same-repo PR. That way the code being executed has already passed
+# maintainer review and is under upstream access control before any
+# Azure credentials are introduced.
+#
+# See MSRC report: fork PR code must not execute after Azure login or
+# with Microsoft secrets.
 
 on:
   push:
     branches: [master]
   pull_request_target:
-    types: [labeled, synchronize]
+    branches: [master]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
 
 jobs:
-  # --------------------------------------------------------------------
-  # Strip the `safe-to-test` label every time the PR gets new commits,
-  # so approval does not carry over to unreviewed code.
-  # --------------------------------------------------------------------
-  strip-label-on-push:
-    name: Strip safe-to-test on new commits
-    if: github.event_name == 'pull_request_target' && github.event.action == 'synchronize'
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-    steps:
-      - name: Remove safe-to-test label
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          gh api -X DELETE "repos/${REPO}/issues/${PR_NUMBER}/labels/safe-to-test" \
-            --silent || echo "Label not present; nothing to remove."
-
-  # --------------------------------------------------------------------
-  # Privileged integration tests.
-  # --------------------------------------------------------------------
   integration:
     name: Maven Verify (integration tests)
-    # Run on:
-    #   - push to master, OR
-    #   - same-repo PR (branch in Azure/kafka-sink-azure-kusto — trusted), OR
-    #   - fork PR when a maintainer freshly applies the safe-to-test label.
+    # Hard gate: refuse to run on anything that is not trusted
+    # base-branch code. For pull_request_target, the head branch MUST
+    # live in this repository. Fork PRs (head.repo.full_name !=
+    # github.repository) are rejected here so that no secret-bearing
+    # step can ever execute against fork-controlled code.
     if: >-
       github.event_name == 'push' ||
       (github.event_name == 'pull_request_target' &&
-       (github.event.pull_request.head.repo.full_name == github.repository ||
-        (github.event.action == 'labeled' &&
-         github.event.label.name == 'safe-to-test')))
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     environment: build
     permissions:
@@ -72,33 +58,21 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
-      - name: Verify labeler has write permissions
-        # Only needed for fork PRs gated by the safe-to-test label.
-        # Same-repo PRs and push-to-master events are already trusted.
+      # Defense-in-depth: explicitly fail the job if somehow a fork PR
+      # reaches this point (e.g. workflow file edited on a branch).
+      # This runs BEFORE checkout and BEFORE azure/login, so no
+      # credentials are exposed even if the `if:` above is bypassed.
+      - name: Reject fork PRs
         if: >-
           github.event_name == 'pull_request_target' &&
           github.event.pull_request.head.repo.full_name != github.repository
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const actor = context.payload.sender.login;
-            const { data: perm } = await github.rest.repos.getCollaboratorPermissionLevel({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
-              username: actor,
-            });
-            const allowed = ['admin', 'maintain', 'write'];
-            if (!allowed.includes(perm.permission)) {
-              core.setFailed(
-                `User @${actor} applied the safe-to-test label but only has ` +
-                `'${perm.permission}' permission. Label must be applied by a ` +
-                `maintainer with write access or higher.`
-              );
-            } else {
-              core.info(`@${actor} has '${perm.permission}' permission — proceeding.`);
-            }
+        run: |
+          echo "::error::Fork PRs are not allowed to run integration tests."
+          echo "Head repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          echo "Base repo: ${{ github.repository }}"
+          exit 1
 
-      - name: Checkout PR head (pull_request_target)
+      - name: Checkout PR head (pull_request_target, same-repo only)
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v6
         with:
