@@ -8,7 +8,7 @@ description: >
 
 # Code review (IDE scope)
 
-The full **CodeRabbit-style** code-review reviewer prompt — covering the
+The full code-review reviewer prompt — covering the
 three-section output structure (Architectural Summary, Automated
 Findings feed with severity-tagged 🔴/⚠️/ℹ️/❓/✅ entries, mandatory
 Code Generation Guardrails with diffs), 11 domain-specific check
