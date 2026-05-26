@@ -22,6 +22,7 @@ import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -152,25 +153,24 @@ public class KustoSinkTask extends SinkTask {
                 IngestionProperties props = new IngestionProperties(mapping.getDb(), mapping.getTable());
 
                 String format = mapping.getFormat();
-                if (StringUtils.isNotBlank(format)) {
-                    if (isDataFormatAnyTypeOfJson(format)) {
-                        props.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
-                    } else {
-                        props.setDataFormat(format);
-                    }
+                IngestionProperties.DataFormat dataFormat = resolveDataFormat(format, mapping.getTopic());
+                // JSON-family formats are collapsed to MULTIJSON because FileWriter only
+                // emits MULTIJSON-shaped batches for any JSON variant.
+                if (dataFormat.isJsonFormat()) {
+                    dataFormat = IngestionProperties.DataFormat.MULTIJSON;
                 }
+                props.setDataFormat(dataFormat);
 
                 String mappingRef = mapping.getMapping();
-                if (StringUtils.isNotBlank(mappingRef) && format != null) {
-                    if (isDataFormatAnyTypeOfJson(format)) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.JSON);
-                    } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.AVRO.toString())) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.AVRO);
-                    } else if (format.equalsIgnoreCase(IngestionProperties.DataFormat.APACHEAVRO.toString())) {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.APACHEAVRO);
-                    } else {
-                        props.setIngestionMapping(mappingRef, IngestionMapping.IngestionMappingKind.CSV);
+                if (StringUtils.isNotBlank(mappingRef)) {
+                    IngestionMapping.IngestionMappingKind mappingKind = dataFormat.getIngestionMappingKind();
+                    if (mappingKind == null) {
+                        throw new ConfigException(String.format(
+                                "Topic '%s': ingestion format '%s' does not support a named ingestion mapping. " +
+                                        "Remove the 'mapping' field from the topic-to-table configuration.",
+                                mapping.getTopic(), dataFormat.name()));
                     }
+                    props.setIngestionMapping(mappingRef, mappingKind);
                 }
                 TopicIngestionProperties topicIngestionProperties = new TopicIngestionProperties();
                 topicIngestionProperties.ingestionProperties = props;
@@ -178,15 +178,40 @@ public class KustoSinkTask extends SinkTask {
                 result.put(mapping.getTopic(), topicIngestionProperties);
             }
             return result;
+        } catch (ConfigException ex) {
+            throw ex;
         } catch (Exception ex) {
             throw new ConfigException("Error while parsing kusto ingestion properties.", ex);
         }
     }
 
-    private static boolean isDataFormatAnyTypeOfJson(String format) {
-        return format.equalsIgnoreCase(IngestionProperties.DataFormat.JSON.name())
-                || format.equalsIgnoreCase(IngestionProperties.DataFormat.SINGLEJSON.name())
-                || format.equalsIgnoreCase(IngestionProperties.DataFormat.MULTIJSON.name());
+    /**
+     * Resolves the configured {@code format} string to the corresponding
+     * {@link IngestionProperties.DataFormat} enum, using the SDK as the single source
+     * of truth for which formats are supported and which {@link IngestionMapping.IngestionMappingKind}
+     * is valid for each. A blank format defaults to {@link IngestionProperties.DataFormat#CSV}
+     * to preserve historical behavior; an unknown format fails fast with a
+     * {@link ConfigException} that lists every supported value.
+     *
+     * @param format the user-supplied format string (case-insensitive)
+     * @param topic  the topic name, used only for error messaging
+     * @return the resolved {@link IngestionProperties.DataFormat}
+     * @throws ConfigException if the format is non-blank and not a recognized DataFormat
+     */
+    static IngestionProperties.DataFormat resolveDataFormat(String format, String topic) {
+        if (StringUtils.isBlank(format)) {
+            return IngestionProperties.DataFormat.CSV;
+        }
+        try {
+            return IngestionProperties.DataFormat.valueOf(format.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            String supported = Arrays.stream(IngestionProperties.DataFormat.values())
+                    .map(Enum::name)
+                    .collect(Collectors.joining(", "));
+            throw new ConfigException(String.format(
+                    "Topic '%s': unsupported ingestion format '%s'. Supported formats are: %s",
+                    topic, format, supported));
+        }
     }
 
     /**
@@ -226,8 +251,16 @@ public class KustoSinkTask extends SinkTask {
         String format = mapping.getFormat();
         String mappingName = mapping.getMapping();
         boolean streamingEnabled = mapping.isStreaming();
-        if (StringUtils.isNotBlank(format) && isDataFormatAnyTypeOfJson(format)) {
-            format = IngestionProperties.DataFormat.JSON.name();
+        if (StringUtils.isNotBlank(format)) {
+            IngestionProperties.DataFormat resolved;
+            try {
+                resolved = IngestionProperties.DataFormat.valueOf(format.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                resolved = null;
+            }
+            if (resolved != null && resolved.isJsonFormat()) {
+                format = IngestionProperties.DataFormat.JSON.name();
+            }
         }
         boolean hasAccess = false;
         boolean shouldCheckStreaming = streamingEnabled;
