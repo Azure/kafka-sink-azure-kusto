@@ -8,10 +8,15 @@ description: >
 
 # Code review (IDE scope)
 
-The full code-review reviewer prompt — security-first triage,
-correctness / regressions, Kafka Connect contract, Kusto / ingestion
-specifics, robustness, design principles (KISS / SOLID / DRY / YAGNI),
-performance, tests, docs, output format, and project-specific anchors —
+The full **CodeRabbit-style** code-review reviewer prompt — covering the
+three-section output structure (Architectural Summary, Automated
+Findings feed with severity-tagged 🔴/⚠️/ℹ️/❓/✅ entries, mandatory
+Code Generation Guardrails with diffs), 11 domain-specific check
+suites (security & injection, performance & batching, concurrency &
+lifecycle, resiliency & DLQ, Kafka Connect contract, Kusto / ADX
+specifics, observability, supply chain, testing, docs, design
+principles), worked visual examples, project-specific anchors, and the
+final verification checklist —
 lives at:
 
 > [`.github/copilot-instructions.md`](../copilot-instructions.md)
