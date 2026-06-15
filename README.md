@@ -805,6 +805,7 @@ the [Release History](README.md#17-release-history) section of this document.
 | 5.2.3           | 2026-04-17   | <ul><li>Security fix: Mitigate KQL command injection (CWE-943) in `kusto.tables.topics.mapping` by validating `db`, `table`, `mapping`, and `format` fields against an allowlist before interpolation into KQL commands</li></ul> |
 | 5.3.0           | 2026-04-27   | <ul><li>Add wildcard (`*`) topic-to-table mapping support in `kusto.tables.topics.mapping` to provide a default ingestion configuration for topics that are not explicitly mapped</li></ul> |
 | 5.3.1           | 2026-05-20   | <ul><li>Security fix: Bump Netty to 4.2.13.Final to remediate CVE-2026-42583, CVE-2026-42579, CVE-2026-42584, CVE-2026-42587, CVE-2026-41417, CVE-2026-42580, CVE-2026-42581, CVE-2026-42585, and CVE-2026-42578</li></ul> |
+| 5.3.2           | 2026-06-15   | <ul><li>Security fix: Bump Netty to 4.2.15.Final to remediate CVE-2026-47244, CVE-2026-48043, CVE-2026-44249, CVE-2026-45416, CVE-2026-45674, CVE-2026-47691, CVE-2026-45673, and CVE-2026-45536</li></ul> |
 
 ## 18. Contributing
 
