@@ -47,7 +47,6 @@
         <!-- Shade plugin -->
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
-        <!-- Netty version to resolve conflicts -->
         <!-- Bumped 2026-07-01: jackson-bom 2.21.4 remediates CVE-2026-54512, CVE-2026-54513 (HIGH,
              PolymorphicTypeValidator bypasses) and CVE-2026-54514 (InetSocketAddress eager DNS), and aligns
              jackson-databind/annotations (previously 2.16.0) with jackson-core. CVE-2026-54515 (MEDIUM) is
@@ -70,8 +69,8 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Pin jackson-bom to ${jackson.version} so all com.fasterxml.jackson:* modules (databind,
-                 annotations, core, datatype) resolve to the same patched release -->
+            <!-- Pin jackson-bom to ${jackson.version} so all com.fasterxml.jackson.* modules (core,
+                 databind, annotations, datatype) resolve to the same patched release -->
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
