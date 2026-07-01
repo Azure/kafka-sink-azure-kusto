@@ -8,7 +8,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.3.2</version>
+    <version>5.3.3</version>
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.57.0</az.core.version>
@@ -48,7 +48,12 @@
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
         <!-- Netty version to resolve conflicts -->
-        <jackson.version>2.21.1</jackson.version>
+        <!-- Bumped 2026-07-01: jackson-bom 2.21.4 remediates CVE-2026-54512, CVE-2026-54513 (HIGH,
+             PolymorphicTypeValidator bypasses) and CVE-2026-54514 (InetSocketAddress eager DNS), and aligns
+             jackson-databind/annotations (previously 2.16.0) with jackson-core. CVE-2026-54515 (MEDIUM) is
+             fixed only in 2.21.5/2.18.9 (not yet published) or Jackson 3.1.4; bump to 2.21.5 when released.
+             See https://github.com/FasterXML/jackson-databind/security/advisories -->
+        <jackson.version>2.21.4</jackson.version>
         <!-- Bumped 2026-06-15: 4.2.15.Final remediates CVE-2026-47244, CVE-2026-48043 (netty-codec-http2),
              CVE-2026-44249, CVE-2026-45416 (netty-handler), CVE-2026-45674, CVE-2026-47691, CVE-2026-45673
              (netty-resolver-dns) and CVE-2026-45536 (netty-transport-native-epoll/kqueue).
@@ -62,6 +67,15 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Pin jackson-bom to ${jackson.version} so all com.fasterxml.jackson:* modules (databind,
+                 annotations, core, datatype) resolve to the same patched release -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
