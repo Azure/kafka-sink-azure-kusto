@@ -808,6 +808,7 @@ the [Release History](README.md#17-release-history) section of this document.
 | 5.3.2           | 2026-06-15   | <ul><li>Security fix: Bump Netty to 4.2.15.Final to remediate CVE-2026-47244, CVE-2026-48043, CVE-2026-44249, CVE-2026-45416, CVE-2026-45674, CVE-2026-47691, CVE-2026-45673, and CVE-2026-45536</li></ul> |
 | 5.3.3           | 2026-07-01   | <ul><li>Security fix: Pin Jackson to 2.21.4 (via jackson-bom) to remediate CVE-2026-54512, CVE-2026-54513, and CVE-2026-54514 in jackson-databind, and align databind/annotations (previously 2.16.0) with jackson-core</li></ul> |
 | 5.3.4           | 2026-07-07   | <ul><li>Security fix: Bump Jackson to 2.21.5 (via jackson-bom) to remediate CVE-2026-54515 in jackson-databind</li></ul> |
+| 5.3.5           | 2026-08-04   | <ul><li>Security fix: Bump io.netty:netty-bom from 4.2.15.Final to 4.2.16.Final in the netty group</li></ul> |
 
 ## 18. Contributing
 
