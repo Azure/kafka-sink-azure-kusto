@@ -58,7 +58,7 @@
              and XML codec vulnerabilities (CVE-2026-44891, CVE-2026-55831, CVE-2026-55833, CVE-2026-55851,
              CVE-2026-56745, CVE-2026-56816, CVE-2026-56817, CVE-2026-56818, CVE-2026-56819, CVE-2026-59899,
              CVE-2026-59900 and CVE-2026-59901). See https://github.com/netty/netty/security/advisories -->
-        <netty.version>4.2.16.Final</netty.version>
+        <netty.version>4.2.17.Final</netty.version>
     </properties>
     <dependencyManagement>
         <dependencies>
