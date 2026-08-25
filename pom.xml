@@ -8,7 +8,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.3.5</version>
+    <version>5.3.6</version>
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.57.0</az.core.version>
@@ -53,12 +53,13 @@
              eager DNS), and aligned jackson-databind/annotations (previously 2.16.0) with jackson-core.
              See https://github.com/FasterXML/jackson-databind/security/advisories -->
         <jackson.version>2.21.5</jackson.version>
-        <!-- Bumped 2026-08-04: netty-bom 4.2.16.Final remediates multiple HIGH-severity Netty CVEs,
-             including DoS, memory-exhaustion, memory-leak, HTTP/HTTP2/HTTP3 parsing, HAProxy, STOMP, Redis
-             and XML codec vulnerabilities (CVE-2026-44891, CVE-2026-55831, CVE-2026-55833, CVE-2026-55851,
-             CVE-2026-56745, CVE-2026-56816, CVE-2026-56817, CVE-2026-56818, CVE-2026-56819, CVE-2026-59899,
-             CVE-2026-59900 and CVE-2026-59901). See https://github.com/netty/netty/security/advisories -->
-        <netty.version>4.2.16.Final</netty.version>
+        <!-- Bumped 2026-08-24: netty-bom 4.2.17.Final remediates CVE-2026-59903 (CorsHandler can
+             overwrite application Vary headers). 4.2.16.Final previously remediated multiple
+             HIGH-severity Netty CVEs, including CVE-2026-44891, CVE-2026-55831, CVE-2026-55833,
+             CVE-2026-55851, CVE-2026-56745, CVE-2026-56816, CVE-2026-56817, CVE-2026-56818,
+             CVE-2026-56819, CVE-2026-59899, CVE-2026-59900 and CVE-2026-59901.
+             See https://github.com/netty/netty/security/advisories -->
+        <netty.version>4.2.17.Final</netty.version>
     </properties>
     <dependencyManagement>
         <dependencies>
