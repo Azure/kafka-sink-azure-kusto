@@ -296,9 +296,58 @@ class KustoSinkIT {
         return expectedRecordsProduced;
     }
 
+    /**
+     * Negative coverage for the new fail-fast behavior introduced by the #174 fix.
+     * A typo in the {@code format} field must put the connector task into FAILED
+     * state with a ConfigException; the connector must NOT silently fall back to CSV.
+     */
+    @org.junit.jupiter.api.Test
+    void shouldFailWhenIngestionFormatIsInvalid() {
+        Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
+        String topicTableMapping = "[{'topic':'e2e.invalid-format.topic','db':'%s','table':'%s','format':'parqet','mapping':'csv_mapping'}]"
+                .formatted(coordinates.database, coordinates.table);
+        Map<String, Object> connectorProps = new HashMap<>();
+        connectorProps.put("connector.class", "com.microsoft.azure.kusto.kafka.connect.sink.KustoSinkConnector");
+        connectorProps.put("flush.size.bytes", 10000);
+        connectorProps.put("flush.interval.ms", 1000);
+        connectorProps.put("tasks.max", 1);
+        connectorProps.put("topics", "e2e.invalid-format.topic");
+        connectorProps.put("kusto.tables.topics.mapping", topicTableMapping);
+        connectorProps.put("aad.auth.authority", coordinates.authority);
+        connectorProps.put("aad.auth.accesstoken", coordinates.accessToken);
+        connectorProps.put("aad.auth.strategy", "AZ_DEV_TOKEN".toLowerCase());
+        connectorProps.put("kusto.query.url", coordinates.cluster);
+        connectorProps.put("kusto.ingestion.url", coordinates.ingestCluster);
+        connectorProps.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+        connectorProps.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
+
+        String connectorName = "adx-connector-invalid-format";
+        kcHelper.registerConnector(connectorName, connectorProps);
+        // Either the connector itself or its task should end up FAILED; surface whichever
+        // surfaces first. Kafka Connect's REST layer accepts the POST (config syntax is
+        // valid) but ConfigException at start() time fails the connector/task.
+        io.github.resilience4j.retry.Retry retry = io.github.resilience4j.retry.Retry.of(
+                "connectorFailedState",
+                io.github.resilience4j.retry.RetryConfig.custom()
+                        .maxAttempts(10)
+                        .waitDuration(Duration.of(3, SECONDS))
+                        .retryOnResult(state -> !"FAILED".equalsIgnoreCase((String) state))
+                        .build());
+        String observedState = retry.executeSupplier(() -> {
+            String connectorState = kcHelper.getConnectorState(connectorName);
+            if ("FAILED".equalsIgnoreCase(connectorState)) return connectorState;
+            return kcHelper.getConnectorTaskState(connectorName, 0);
+        });
+        if (!"FAILED".equalsIgnoreCase(observedState)) {
+            LOGGER.error("Connector logs: {}", KAFKA_CONNECT.getLogs());
+            fail("Expected connector or task to be FAILED for invalid format, was: " + observedState);
+        }
+        LOGGER.info("Negative test passed — connector for invalid format reached FAILED state.");
+    }
+
     @Execution(ExecutionMode.CONCURRENT)
     @ParameterizedTest(name = "Test for data format {0}")
-    @CsvSource({"json", "avro", "csv", "bytes-json"})
+    @CsvSource({"json", "avro", "csv", "bytes-json", "bytes-parquet"})
     void shouldHandleAllTypesOfEvents(@NotNull String dataFormat) {
         LOGGER.info("Running test for data format {}", dataFormat);
         Assumptions.assumeTrue(coordinates.isValidConfig(), "Skipping test due to missing configuration");
@@ -318,11 +367,14 @@ class KustoSinkIT {
                         coordinates.table, dataFormat);
         if (dataFormat.startsWith("bytes")) {
             valueFormat = "org.apache.kafka.connect.converters.ByteArrayConverter";
-            // JSON is written as JSON
+            String suffix = dataFormat.split("-")[1];
+            // bytes-json reuses the JSON mapping; bytes-parquet uses the parquet mapping
+            // added in it-table-setup.kql to exercise the #174 fix path.
+            String mappingName = "parquet".equalsIgnoreCase(suffix) ? "parquet_mapping" : "data_mapping";
             topicTableMapping = String.format("[{'topic': 'e2e.%s.topic','db': '%s', 'table': '%s','format':'%s'," +
-                    "'mapping':'data_mapping'}]", dataFormat,
+                    "'mapping':'%s'}]", dataFormat,
                     coordinates.database,
-                    coordinates.table, dataFormat.split("-")[1]);
+                    coordinates.table, suffix, mappingName);
         }
         LOGGER.info("Deploying connector for {} , using SR url {}. Using proxy host {} and port {}", dataFormat, srUrl,
                 PROXY.getContainerId().substring(0, 12), ListUtils.getFirst(PROXY.getExposedPorts()));
@@ -451,6 +503,43 @@ class KustoSinkIT {
                         } catch (Exception e) {
                             LOGGER.error("Failed to send genericRecord to topic {}", "e2e.%s.topic".formatted(dataFormat), e);
                         }
+                    }
+                }
+                break;
+            case "bytes-parquet":
+                producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+                producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
+                // The connector cannot author parquet from individual Kafka records — it only
+                // ships pre-serialized payloads through the byte-passthrough writer. The
+                // pre-built fixture under src/test/resources/format-samples/sample.parquet
+                // contains 5 rows with TBL-compatible schema and vtype='bytes-parquet'.
+                // We send the entire file as a single Kafka record so the connector gzips
+                // it as one blob; the engine then decompresses and parses it as parquet.
+                try (KafkaProducer<String, byte[]> producer = new KafkaProducer<>(producerProperties)) {
+                    byte[] parquetBytes = IOUtils.toByteArray(Objects.requireNonNull(
+                            this.getClass().getClassLoader().getResourceAsStream("format-samples/sample.parquet")));
+                    // Fixture-driven expected rows. Must mirror format-samples/build.py.
+                    for (int i = 0; i < 5; i++) {
+                        long vlong = 9000000000L + i;
+                        Map<String, Object> expected = new HashMap<>();
+                        expected.put("vnum", 100 + i);
+                        expected.put("vdate", "2025-01-01T12:00:0" + i + "Z");
+                        expected.put("vb", (i % 2 == 0));
+                        expected.put("vreal", 3.14 + i);
+                        expected.put("vstr", "parquet-row-" + i);
+                        expected.put("vlong", vlong);
+                        expected.put("vtype", "bytes-parquet");
+                        expected.put("vdec", "1.23456789");
+                        expectedRecordsProduced.put(vlong, OBJECT_MAPPER.writeValueAsString(expected));
+                    }
+                    ProducerRecord<String, byte[]> producerRecord = new ProducerRecord<>(
+                            targetTopic, "parquet-fixture", parquetBytes);
+                    try {
+                        RecordMetadata rmd = producer.send(producerRecord).get();
+                        LOGGER.info("Parquet fixture ({} bytes) sent to {} at offset {}",
+                                parquetBytes.length, targetTopic, rmd.offset());
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to send parquet fixture to {}", targetTopic, e);
                     }
                 }
                 break;
