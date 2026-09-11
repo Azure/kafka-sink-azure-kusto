@@ -11,9 +11,9 @@ jobs:
         java: [ '17' ]
     name: Java ${{ matrix.java }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - name: Setup Java ${{ matrix.java }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           java-version: ${{ matrix.java }}
           distribution: 'temurin'
@@ -39,7 +39,7 @@ jobs:
           cp target/*.jar staging
           cp target/components/packages/microsoftcorporation-kafka-sink-azure-kusto-${{ steps.get_version.outputs.VERSION }}.zip staging
       - name: Github Release
-        uses: anton-yurchenko/git-release@v6.0.0
+        uses: anton-yurchenko/git-release@ec9c5b5c36b27eaffc628785b9183eae54601200 # v6.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
