@@ -52,7 +52,7 @@
              CVE-2026-54513 (HIGH, PolymorphicTypeValidator bypasses) and CVE-2026-54514 (InetSocketAddress
              eager DNS), and aligned jackson-databind/annotations (previously 2.16.0) with jackson-core.
              See https://github.com/FasterXML/jackson-databind/security/advisories -->
-        <jackson.version>2.21.5</jackson.version>
+        <jackson.version>2.22.2</jackson.version>
         <!-- Bumped 2026-08-24: netty-bom 4.2.17.Final remediates CVE-2026-59903 (CorsHandler can
              overwrite application Vary headers). 4.2.16.Final previously remediated multiple
              HIGH-severity Netty CVEs, including CVE-2026-44891, CVE-2026-55831, CVE-2026-55833,
