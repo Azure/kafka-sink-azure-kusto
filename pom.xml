@@ -8,7 +8,7 @@
     <artifactId>kafka-sink-azure-kusto</artifactId>
     <packaging>jar</packaging>
     <description>A Kafka Connect plugin for Azure Data Explorer (Kusto) Database</description>
-    <version>5.3.6</version>
+    <version>5.3.7</version>
     <properties>
         <!-- Compile dependencies -->
         <az.core.version>1.57.0</az.core.version>
@@ -47,12 +47,10 @@
         <!-- Shade plugin -->
         <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
         <kusto.shade.prefix>kusto_kafka_connector_shaded</kusto.shade.prefix>
-        <!-- Bumped 2026-07-07: jackson-bom 2.21.5 remediates CVE-2026-54515 (@JsonIgnoreProperties bypass
-             under ACCEPT_CASE_INSENSITIVE_PROPERTIES). 2.21.4 previously remediated CVE-2026-54512,
-             CVE-2026-54513 (HIGH, PolymorphicTypeValidator bypasses) and CVE-2026-54514 (InetSocketAddress
-             eager DNS), and aligned jackson-databind/annotations (previously 2.16.0) with jackson-core.
-             See https://github.com/FasterXML/jackson-databind/security/advisories -->
-        <jackson.version>2.21.5</jackson.version>
+        <!-- Bumped 2026-10-05: jackson-bom 2.21.7 remediates CVE-2026-89407,
+            CVE-2026-89425, CVE-2026-68497, CVE-2026-91776, CVE-2026-91777,
+            CVE-2026-19032, and CVE-2026-83557. -->
+        <jackson.version>2.21.7</jackson.version>
         <!-- Bumped 2026-08-24: netty-bom 4.2.17.Final remediates CVE-2026-59903 (CorsHandler can
              overwrite application Vary headers). 4.2.16.Final previously remediated multiple
              HIGH-severity Netty CVEs, including CVE-2026-44891, CVE-2026-55831, CVE-2026-55833,
