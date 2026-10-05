@@ -50,7 +50,7 @@
         <!-- Bumped 2026-10-05: jackson-bom 2.21.7 remediates CVE-2026-89407,
             CVE-2026-89425, CVE-2026-68497, CVE-2026-91776, CVE-2026-91777,
             CVE-2026-19032, and CVE-2026-83557. -->
-        <jackson.version>2.21.7</jackson.version>
+        <jackson.version>2.22.3</jackson.version>
         <!-- Bumped 2026-08-24: netty-bom 4.2.17.Final remediates CVE-2026-59903 (CorsHandler can
              overwrite application Vary headers). 4.2.16.Final previously remediated multiple
              HIGH-severity Netty CVEs, including CVE-2026-44891, CVE-2026-55831, CVE-2026-55833,
