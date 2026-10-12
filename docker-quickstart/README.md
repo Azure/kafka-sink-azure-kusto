@@ -33,8 +33,8 @@ OpenTelemetry Collector, and a Grafana dashboard for visualization.
 
 | Service | Image | Description | Ports |
 |---|---|---|---|
-| `kafka` | Custom (Strimzi-based) | Kafka broker in KRaft mode + JMX Exporter | 29092, 9405 |
-| `kafka-connect` | Custom (Strimzi-based) | Kafka Connect with Kusto connector + JMX Exporter | 8083, 9404 |
+| `kafka` | Custom (MCR OpenJDK + Apache Kafka) | Kafka broker in KRaft mode + JMX Exporter | 29092, 9405 |
+| `kafka-connect` | Custom (MCR OpenJDK + Apache Kafka) | Kafka Connect with Kusto connector + JMX Exporter | 8083, 9404 |
 | `otel-collector` | `otel/opentelemetry-collector-contrib` | Scrapes JMX metrics, exports to Kusto | — |
 | `grafana` | `grafana/grafana` | Dashboard for Kusto Sink metrics via ADX plugin | 3000 |
 
