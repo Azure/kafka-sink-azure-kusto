@@ -21,7 +21,7 @@ jobs:
   displayName: Maven Verify (integration tests)
   timeoutInMinutes: 60
   # Credentialed steps must never run against fork-controlled code.
-  condition: and(succeeded(), ne(variables['System.PullRequest.IsFork'], 'True'))
+  condition: and(succeeded(), or(ne(variables['Build.Reason'], 'PullRequest'), eq(variables['System.PullRequest.IsFork'], 'False')))
   steps:
   - checkout: self
     clean: true
@@ -47,16 +47,16 @@ jobs:
     displayName: Run Maven verification
     inputs:
       azureSubscription: kusto-connectors-arm-sc
-      addSpnToEnvironment: true
       scriptType: bash
       scriptLocation: inlineScript
       workingDirectory: $(Build.SourcesDirectory)
       inlineScript: |
         set -euo pipefail
 
+        tenant_id="$(az account show --query tenantId --output tsv)"
+
         mvn --batch-mode --no-transfer-progress clean verify \
-          -DappId="${servicePrincipalId}" \
-          -Dauthority="${tenantId}" \
+          -Dauthority="${tenant_id}" \
           -Ddatabase="${DATABASE}" \
           -Dcluster="${CLUSTER}" \
           -Dingest="${INGEST}"
