@@ -1,12 +1,79 @@
 trigger:
-- master
+  branches:
+    include:
+    - master
 
 pr:
-- master
+  branches:
+    include:
+    - master
 
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- script: echo "Hello from Azure Pipelines"
-  displayName: Hello world
+variables:
+- group: kafka-sink-azure-kusto-e2e
+- name: MAVEN_CACHE_FOLDER
+  value: $(Pipeline.Workspace)/.m2/repository
+
+jobs:
+- job: Integration
+  displayName: Maven Verify (integration tests)
+  timeoutInMinutes: 60
+  # Credentialed steps must never run against fork-controlled code.
+  condition: and(succeeded(), or(ne(variables['Build.Reason'], 'PullRequest'), eq(variables['System.PullRequest.IsFork'], 'False')))
+  steps:
+  - checkout: self
+    clean: true
+    persistCredentials: false
+
+  - task: JavaToolInstaller@0
+    displayName: Use Java 17
+    inputs:
+      versionSpec: '17'
+      jdkArchitectureOption: x64
+      jdkSourceOption: PreInstalled
+
+  - task: Cache@2
+    displayName: Cache Maven dependencies
+    inputs:
+      key: 'maven | "$(Agent.OS)" | pom.xml'
+      restoreKeys: |
+        maven | "$(Agent.OS)"
+        maven
+      path: $(MAVEN_CACHE_FOLDER)
+
+  - task: AzureCLI@2
+    displayName: Run Maven verification
+    inputs:
+      azureSubscription: kusto-connectors-arm-sc
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: $(Build.SourcesDirectory)
+      inlineScript: |
+        set -euo pipefail
+
+        tenant_id="$(az account show --query tenantId --output tsv)"
+
+        mvn --batch-mode --no-transfer-progress clean verify \
+          -Dauthority="${tenant_id}" \
+          -Ddatabase="${DATABASE}" \
+          -Dcluster="${CLUSTER}" \
+          -Dingest="${INGEST}"
+    env:
+      MAVEN_OPTS: -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)
+      DATABASE: $(DATABASE)
+      CLUSTER: $(CLUSTER)
+      INGEST: $(INGEST)
+
+  - task: PublishTestResults@2
+    displayName: Publish test results
+    condition: always()
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: |
+        **/target/surefire-reports/TEST-*.xml
+        **/target/failsafe-reports/TEST-*.xml
+      searchFolder: $(Build.SourcesDirectory)
+      testRunTitle: kafka-sink-azure-kusto integration tests
+      failTaskOnMissingResultsFile: true
