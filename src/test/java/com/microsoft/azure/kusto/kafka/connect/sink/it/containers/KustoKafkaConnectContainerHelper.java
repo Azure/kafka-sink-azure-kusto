@@ -118,6 +118,30 @@ public class KustoKafkaConnectContainerHelper {
         }
     }
 
+    public String getConnectorState(String connectorName) {
+        URI statusUri = URI.create("%s/connectors/%s/status".formatted(getTarget(), connectorName));
+        HttpGet httpget = new HttpGet(statusUri);
+        try (CloseableHttpClient httpclient = HttpClients.createDefault();
+                CloseableHttpResponse httpResponse = httpclient.execute(httpget)) {
+            int responseCode = httpResponse.getStatusLine().getStatusCode();
+            if (200 <= responseCode && responseCode <= 300) {
+                try {
+                    String responseBody = EntityUtils.toString(httpResponse.getEntity());
+                    Map<?, ?> responseMap = OBJECT_MAPPER.readValue(responseBody, Map.class);
+                    Map<?, ?> connectorMap = (Map<?, ?>) responseMap.get("connector");
+                    String connectorState = connectorMap == null ? null : (String) connectorMap.get("state");
+                    LOGGER.info("Connector {} state is {}", connectorName, connectorState);
+                    return connectorState;
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            return null;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public void waitUntilConnectorTaskStateChanges(String connectorName, int taskNumber, String status) {
         Awaitility.await()
                 .atMost(KAFKA_CONNECT_START_TIMEOUT)
